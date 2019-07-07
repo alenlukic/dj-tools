@@ -246,7 +246,7 @@ class DJTools(object):
 
 			# Replace all instances of 'feat.' with 'ft.' inside the parenthetical phrase indicating mix type.
 			# e.g. "(Hydroid feat. Santiago Nino Mix)" becomes "(Hydroid ft. Santiago Nino Mix)"
-			if segment == 'feat.':
+			if segment.lower() == 'feat.':
 				if open_paren_found:
 					filtered_segments.append('ft.')
 					i += 1
