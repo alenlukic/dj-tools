@@ -1,0 +1,4 @@
+{
+  "PROCESSED_MUSIC_DIR": "/path/to/processed/music/directory",
+  "TMP_MUSIC_DIR": "/path/to/unprocessed/music/directory"
+}

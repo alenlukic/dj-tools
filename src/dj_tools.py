@@ -1,17 +1,23 @@
 from collections import defaultdict
 from enum import Enum
+import logging
 from math import ceil, floor
-from os import chmod, listdir, remove, walk
+from os import chmod, listdir, remove
 from os.path import basename, isfile, join
 from shutil import copyfile
 import stat
 
 import eyed3
-import random as rand
 
 
-AUDIO_TYPES = set(['mp3', 'wav', 'flac', 'ogg', 'aif', 'aiff', 'm3u'])
-LOSSLESS = set(['wav', 'flac', 'aif', 'aiff'])
+# Suppress annoying eyed3 logs
+logging.getLogger('eyed3').setLevel(logging.ERROR)
+
+AUDIO_TYPES = {'mp3', 'wav', 'flac', 'ogg', 'aif', 'aiff', 'm3u'}
+LOSSLESS = {'wav', 'flac', 'aif', 'aiff'}
+
+PROCESSED_MUSIC_DIR = '/Users/alen/Google Drive/Music/High Quality'
+TMP_MUSIC_DIR = '/Users/alen/Google Drive/Music/tmp'
 
 SAME_UPPER_BOUND = 0.0275
 SAME_LOWER_BOUND = -0.025
@@ -22,15 +28,17 @@ UP_KEY_UPPER_BOUND = 0.09
 DOWN_KEY_LOWER_BOUND = -0.08
 DOWN_KEY_UPPER_BOUND = -0.03
 
+ALL_TAGS = {'TIT2', 'TPE1', 'TPE4', 'TBPM', 'TKEY'}
+REQUIRED_TAGS = {'TIT2', 'TPE1', 'TBPM', 'TKEY'}
+BEATPORT_TAG = 'TENC'
+
+
 class ID3Tag(Enum):
 	TITLE = 1
 	ARTIST = 2
 	BPM = 3
 	KEY = 4
 
-ALL_TAGS = set(['TIT2', 'TPE1', 'TPE4', 'TBPM', 'TKEY'])
-REQUIRED_TAGS = set(['TIT2', 'TPE1', 'TBPM', 'TKEY'])
-BEATPORT_TAG = 'TENC'
 
 ID3_MAP = {
 	ID3Tag.TITLE: 'TIT2',
@@ -39,83 +47,84 @@ ID3_MAP = {
 	ID3Tag.KEY: 'TKEY'
 }
 
-CANONICAL_KEY_MAP = { k.lower(): v.lower() for k, v in {
-	# A keys
-	'A': 'A',
-	'Amaj': 'A',
-	'Am': 'Am',
-	'Amin': 'Am',
-	'Ab': 'Ab',
-	'Abmaj': 'Ab',
-	'A#': 'Bb',
-	'A#maj': 'Bb',
-	'Abm': 'Abm',
-	'Abmin': 'Abm',
-	'A#m': 'Bbm',
-	'A#min': 'Bbm',
-	# B keys
-	'B': 'B',
-	'Bmaj': 'B',
-	'Bm': 'Bm',
-	'Bmin': 'Bm',
-	'Bb': 'Bb',
-	'Bbmaj': 'Bb',
-	'Bbm': 'Bbm',
-	'Bbmin': 'Bbm',
-	# C keys
-	'C': 'C',
-	'Cmaj': 'C',
-	'Cm': 'Cm',
-	'Cmin': 'Cm',
-	'C#': 'Db',
-	'C#maj': 'Db',
-	'C#m': 'C#m',
-	'C#min': 'C#m',
-	# D keys
-	'D': 'D',
-	'Dmaj': 'D',
-	'Dm': 'Dm',
-	'Dmin': 'Dm',
-	'Db': 'Db',
-	'Dbmaj': 'Db',
-	'D#': 'Eb',
-	'D#maj': 'Eb',
-	'Dbm': 'C#m',
-	'Dbmin': 'C#m',
-	'D#m': 'Ebm',
-	'D#min': 'Ebm',
-	# E keys
-	'E': 'E',
-	'Emaj': 'E',
-	'Em': 'Em',
-	'Emin': 'Em',
-	'Eb': 'Eb',
-	'Ebmaj': 'Eb',
-	'Ebm': 'Ebm',
-	'Ebmin': 'Ebm',
-	# F keys
-	'F': 'F',
-	'Fmaj': 'F',
-	'Fm': 'Fm',
-	'Fmin': 'Fm',
-	'F#': 'F#',
-	'F#maj': 'F#',
-	'F#min': 'F#m',
-	'F#min': 'F#m',
-	# G keys
-	'G': 'G',
-	'Gmaj': 'G',
-	'Gm': 'Gm',
-	'Gmin': 'Gm',
-	'Gb': 'F#',
-	'Gbmaj': 'F#',
-	'G#': 'Ab',
-	'G#maj': 'Ab',
-	'Gbm': 'F#m',
-	'Gbmin': 'F#m',
-	'G#m': 'Abm',
-	'G#min': 'Abm'
-}.items() }
+CANONICAL_KEY_MAP = {
+	k.lower(): v.lower() for k, v in {
+		# A keys
+		'A': 'A',
+		'Amaj': 'A',
+		'Am': 'Am',
+		'Amin': 'Am',
+		'Ab': 'Ab',
+		'Abmaj': 'Ab',
+		'A#': 'Bb',
+		'A#maj': 'Bb',
+		'Abm': 'Abm',
+		'Abmin': 'Abm',
+		'A#m': 'Bbm',
+		'A#min': 'Bbm',
+		# B keys
+		'B': 'B',
+		'Bmaj': 'B',
+		'Bm': 'Bm',
+		'Bmin': 'Bm',
+		'Bb': 'Bb',
+		'Bbmaj': 'Bb',
+		'Bbm': 'Bbm',
+		'Bbmin': 'Bbm',
+		# C keys
+		'C': 'C',
+		'Cmaj': 'C',
+		'Cm': 'Cm',
+		'Cmin': 'Cm',
+		'C#': 'Db',
+		'C#maj': 'Db',
+		'C#m': 'C#m',
+		'C#min': 'C#m',
+		# D keys
+		'D': 'D',
+		'Dmaj': 'D',
+		'Dm': 'Dm',
+		'Dmin': 'Dm',
+		'Db': 'Db',
+		'Dbmaj': 'Db',
+		'D#': 'Eb',
+		'D#maj': 'Eb',
+		'Dbm': 'C#m',
+		'Dbmin': 'C#m',
+		'D#m': 'Ebm',
+		'D#min': 'Ebm',
+		# E keys
+		'E': 'E',
+		'Emaj': 'E',
+		'Em': 'Em',
+		'Emin': 'Em',
+		'Eb': 'Eb',
+		'Ebmaj': 'Eb',
+		'Ebm': 'Ebm',
+		'Ebmin': 'Ebm',
+		# F keys
+		'F': 'F',
+		'Fmaj': 'F',
+		'Fm': 'Fm',
+		'Fmin': 'Fm',
+		'F#': 'F#',
+		'F#maj': 'F#',
+		'F#min': 'F#m',
+		# G keys
+		'G': 'G',
+		'Gmaj': 'G',
+		'Gm': 'Gm',
+		'Gmin': 'Gm',
+		'Gb': 'F#',
+		'Gbmaj': 'F#',
+		'G#': 'Ab',
+		'G#maj': 'Ab',
+		'Gbm': 'F#m',
+		'Gbmin': 'F#m',
+		'G#m': 'Abm',
+		'G#min': 'Abm'
+	}.items()
+}
 
 CAMELOT_MAP = {
 	'abm': '01A',
@@ -145,57 +154,63 @@ CAMELOT_MAP = {
 }
 
 
-"""
-Class encapsulating DJ utility functions - track naming/processing, transition match finding, etc.
-"""
-class DJTools(object):
+class DJTools:
+	""" Encapsulates DJ utility functions (track naming/processing, transition match finding, etc.). """
 
-	"""
-	Initializes class with music directory info.
-	
-	music_dir - directory containing processed (e.g. renamed) tracks
-	"""
-	def __init__(self, audio_dir):
+	def __init__(self, audio_dir=PROCESSED_MUSIC_DIR):
+		"""
+		Initializes class with music directory info.
+
+		:param audio_dir - directory containing processed (e.g. renamed) tracks.
+		"""
+
 		self.audio_dir = audio_dir
 		self.audio_files = self._get_audio_files(audio_dir)
 
 		# Double nested map: camelot code -> bpm -> set of tracks
 		self.camelot_map = self._generate_camelot_map(self.audio_files)
 
-
 	###########################
 	# Track naming functions #
 	###########################
 
+	def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None):
+		"""
+		Standardizes song names and copy them to library.
 
-	"""
-	Standardizes song names and copy them to library.
+		:param input_dir - directory containing audio files to rename.
+		:param target_dir - directory where updated audio files should be saved
+		"""
 
-	input_dir - directory containing audio files to rename
-	target_dir - directory where updated audio files should be saved
-	"""
-	def rename_songs(self, input_dir, target_dir=None):
 		target_dir = target_dir or self.audio_dir
 		input_files = self._get_audio_files(input_dir)
 		for f in input_files:
 			old_name = join(input_dir, f)
-			new_name = join(target_dir, f)
+			old_base_name = basename(old_name)
 			id3_data = self._extract_id3_data(old_name)
 
-			# All non-mp3 audio files (and some mp3 audio files) won't have requisite ID3 metadata for automatic
-			# renaming - user will need to enter new name manually.
 			if id3_data is None or not REQUIRED_TAGS.issubset(set(id3_data.keys())):
-				print("".join(['Can\'t automatically rename this track: ', old_name]))
+				# All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming -
+				# user will need to enter new name manually.
+				print('Can\'t automatically rename this track: %s' % old_base_name)
 				print('Enter the new name here:')
 				new_name = join(target_dir, input())
 				copyfile(old_name, new_name)
 			else:
-				# Extract ID3 metadata and generate new file name
+				# Extract ID3 metadata
 				title = id3_data[ID3_MAP[ID3Tag.TITLE]]
 				artist = id3_data[ID3_MAP[ID3Tag.ARTIST]]
 				key = id3_data[ID3_MAP[ID3Tag.KEY]]
 				bpm = id3_data[ID3_MAP[ID3Tag.BPM]]
-				formatted_name = self._format_file_name(title, artist, key, bpm)
+
+				# Generate new formatted file name
+				formatted_title, featured = self._format_title(title)
+				formatted_artists = self._format_artists(artist.split(', '), [] if featured is None else [featured])
+				formatted_key = CANONICAL_KEY_MAP[key.lower()]
+				camelot_prefix = ' - '.join(
+					['[' + CAMELOT_MAP[formatted_key], formatted_key.capitalize(), str(bpm) + ']'])
+				artist_midfix = formatted_artists + (' ft. ' + featured if featured is not None else '')
+				formatted_name = camelot_prefix + ' ' + artist_midfix + ' - ' + formatted_title
 				new_name = ''.join([join(target_dir, formatted_name).strip(), '.', old_name.split('.')[-1].strip()])
 
 				# Copy formatted track to user audio directory
@@ -204,33 +219,37 @@ class DJTools(object):
 				new_track.title = formatted_name
 				new_track.save()
 
+			new_base_name = basename(new_name)
 			try:
-				print("".join([old_name, ' renamed to ', new_name]))
-			except Exception:
-				print("".join(['Could not rename ', old_name, ' to ', new_name]))
+				print('\n%s --->\n---> %s' % (old_base_name, new_base_name))
+			except Exception as e:
+				print('Could not rename %s to %s (exception: %s)' % (old_base_name, new_base_name, str(e)))
 
-	"""
-	Extracts mp3 metadata needed to automatically rename songs using the eyed3 lib.
-
-	track_path - full qualified path to audio file
-	"""
 	def _extract_id3_data(self, track_path):
+		"""
+		Extracts mp3 metadata needed to automatically rename songs using the eyed3 lib.
+
+		:param track_path - full qualified path to audio file.
+		"""
+
 		md = eyed3.load(track_path)
 		if md is None:
 			return None
 
-		id3 = { frame.id.decode('utf-8'): frame.text for frame in filter(lambda t:
-			type(t) == eyed3.id3.frames.TextFrame, md.tag.frameiter()) }
+		text_frame = eyed3.id3.frames.TextFrame
+		track_frames = md.tag.frameiter()
+		id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) == text_frame, track_frames)}
 		keys = list(filter(lambda k: k in ALL_TAGS, id3.keys()))
 
-		return defaultdict(str, { k: id3[k] for k in keys })
+		return defaultdict(str, {k: id3[k] for k in keys})
 
-	"""
-	Formats track title.
-
-	title - raw, unformatted track title
-	"""
 	def _format_title(self, title):
+		"""
+		Formats track title.
+
+		:param title - raw, unformatted track title.
+		"""
+
 		featured = None
 		segments = title.split(' ')
 		filtered_segments = []
@@ -284,25 +303,6 @@ class DJTools(object):
 
 		return separator.join(filtered_artists)
 
-	"""
-	Formats output file name.
-
-	title - ID3 track title
-	artist - ID3 track artist
-	key - ID3 track key
-	bpm - ID3 track bpm
-	"""
-	def _format_file_name(self, title, artist, key, bpm):
-		formatted_title, featured_keyword = self._format_title(title)
-		formatted_artists = self._format_artists(artist.split(', '), [] if featured_keyword is None else
-			[featured_keyword])
-		formatted_key = CANONICAL_KEY_MAP[key.lower()]
-		camelot_prefix = ' - '.join(['[' + CAMELOT_MAP[formatted_key], formatted_key.capitalize(), str(bpm) + ']'])
-		artist_midfix = formatted_artists + (' ft. ' + featured_keyword if featured_keyword is not None else '')
-
-		return camelot_prefix + ' ' + artist_midfix + ' - ' + formatted_title
-
-
 	##########################
 	# File utility functions #
 	##########################
@@ -333,7 +333,7 @@ class DJTools(object):
 		low_quality = []
 		for f in orig_files:
 			track_path = join(source_dir, f)
-			if self._is_high_quality(track_path)
+			if self._is_high_quality(track_path):
 				high_quality.append(track_path)
 			else:
 				low_quality.append(track_path)

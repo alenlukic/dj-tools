@@ -63,8 +63,8 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-# Sphinx documentation
-docs/_build/
+# Docs
+docs/
 
 # PyBuilder
 target/
@@ -102,3 +102,18 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# PyCharm
+.idea*
+
+# Data directory
+data/*
+
+# Log directory
+logs/*
+
+# Local config
+config.json
+
+# Mac OS gunk
+.DS_Store
