@@ -459,7 +459,7 @@ class DJTools:
             # Major/minor jump
             ((code_number + (3 if code_letter == 'A' else -3)) % 12, flip_camelot_letter(code_letter), 1),
             # Adjacent key jumps
-            ((code_number + (1 if camelot_code[-1] == 'B' else - 1)) % 12, flip_camelot_letter(code_letter), 3),
+            ((code_number + (1 if code_letter == 'B' else - 1)) % 12, flip_camelot_letter(code_letter), 3),
             (code_number, flip_camelot_letter(code_letter), 3)
         ]
 
