@@ -1,12 +1,12 @@
+from collections import ChainMap
+
 EXIT = 'exit'
 MATCH = 'match'
 RELOAD = 'reload'
 
-EXIT_KEYWORDS = {EXIT, 'done', 'bye', 'kill'}
-RELOAD_KEYWORDS = {RELOAD, 'refresh'}
+EXIT_KEYWORDS = {k: EXIT for k in {EXIT, 'done', 'bye', 'kill'}}
+MATCH_KEYWORDS = {k: MATCH for k in {MATCH, 'find'}}
+RELOAD_KEYWORDS = {k: RELOAD for k in {RELOAD, 'refresh'}}
 
-ALL_VALID_COMMANDS = EXIT_KEYWORDS.union({MATCH}).union(RELOAD_KEYWORDS)
-
-
-def keyword_map(keywords, canonical_form):
-    return {k: canonical_form for k in keywords}
+CANONICAL_COMMANDS = dict(ChainMap(EXIT_KEYWORDS, MATCH_KEYWORDS, RELOAD_KEYWORDS))
+ALL_VALID_COMMANDS = set(CANONICAL_COMMANDS.keys())

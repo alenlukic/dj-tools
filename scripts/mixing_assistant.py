@@ -1,13 +1,8 @@
-from collections import ChainMap
 from sys import exit
 
 from src.definitions.script_keywords import *
 from src.tools.dj_tools import DJTools
 
-
-CANONICAL_COMMANDS = dict(
-    ChainMap({MATCH: MATCH}, keyword_map(EXIT_KEYWORDS, EXIT), keyword_map(RELOAD_KEYWORDS, RELOAD))
-)
 
 COMMAND_ARGS = {
     EXIT: [],
@@ -16,7 +11,7 @@ COMMAND_ARGS = {
 }
 
 COMMAND_FUNCTIONS = {
-    EXIT: EXIT,
+    EXIT: 'shutdown',
     MATCH: 'get_transition_matches',
     RELOAD: 'reload_track_data'
 }
@@ -26,16 +21,17 @@ class CommandParsingException(Exception):
     pass
 
 
-def is_valid_command(cmd):
-    return cmd in ALL_VALID_COMMANDS
-
-
 def parse(user_input):
-    segments = user_input.split()
+    """
+    Parses and validates user input and returns command name and argument map.
 
+    :param user_input: Raw user input.
+    """
+
+    segments = user_input.split()
     # Validate that command is valid
     cmd = segments[0].lower()
-    if not is_valid_command(cmd):
+    if cmd not in ALL_VALID_COMMANDS:
         raise CommandParsingException('%s is not a valid command' % cmd)
     cmd = CANONICAL_COMMANDS[cmd]
 
@@ -54,28 +50,9 @@ def parse(user_input):
     return COMMAND_FUNCTIONS[cmd], arg_map
 
 
-class MixingAssistant:
-    """" Assistant. """
-
-    def __init__(self):
-        self.tools = DJTools()
-
-    def execute(self, cmd, args):
-        getattr(self, cmd)(**args)
-
-    def exit(self):
-        print('Goodbye.')
-        exit()
-
-    def get_transition_matches(self, bpm, camelot_code):
-        self.tools.get_transition_matches(int(bpm), camelot_code)
-
-    def reload_track_data(self):
-        self.tools.reload_track_data()
-        print('Track data reloaded.')
-
-
 def run_assistant():
+    """ Accepts user input in an infinite loop until termination. """
+
     print('Mixing assistant is now online.')
     ma = MixingAssistant()
 
@@ -88,6 +65,42 @@ def run_assistant():
             print('Failed to parse command: %s' % (str(e)))
         except Exception as e:
             print('An unexpected exception occurred: %s' % str(e))
+
+
+class MixingAssistant:
+    """" CLI mixing assistant functions."""
+
+    def __init__(self):
+        """ Initializes DJ tools class. """
+        self.tools = DJTools()
+
+    def execute(self, cmd, args):
+        """
+        Execute command with arguments.
+
+        :param cmd: Command.
+        :param args: Arguments.
+        """
+        getattr(self, cmd)(**args)
+
+    def get_transition_matches(self, bpm, camelot_code):
+        """
+        Prints transition matches for given BPM and Camelot code.
+
+        :param bpm: Track BPM.
+        :param camelot_code: Track Camelot code.
+        """
+        self.tools.get_transition_matches(int(bpm), camelot_code)
+
+    def reload_track_data(self):
+        """ Reloads tracks from the audio directory and regenerates Camelot map. """
+        self.tools.reload_track_data()
+        print('Track data reloaded.')
+
+    def shutdown(self):
+        """ Exits the CLI. """
+        print('Goodbye.')
+        exit()
 
 
 if __name__ == '__main__':
