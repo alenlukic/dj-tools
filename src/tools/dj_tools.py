@@ -25,9 +25,7 @@ class DJTools:
         """
 
         self.audio_dir = audio_dir
-        self.audio_files = get_audio_files(audio_dir)
-
-        # Double nested map: camelot code -> bpm -> set of tracks
+        self.audio_files = get_audio_files(self.audio_dir)
         self.camelot_map = generate_camelot_map(self.audio_files)
 
     #############################
@@ -103,34 +101,27 @@ class DJTools:
         :param hq_dir - directory to save high quality files to
         """
 
-        orig_files = get_audio_files(source_dir)
-
-        # Find high/low quality files
-        high_quality = []
-        low_quality = []
-        for f in orig_files:
+        for f in get_audio_files(source_dir):
             track_path = join(source_dir, f)
-            if is_high_quality(track_path):
-                high_quality.append(track_path)
-            else:
-                low_quality.append(track_path)
+            track_name = basename(f)
 
-        # Write them to their respective directories and delete files in source directory
-        for f in high_quality:
-            new_name = join(hq_dir, basename(f))
-            print('Moving ' + f + ' to ' + new_name)
-            copyfile(f, new_name)
-            remove(f)
+            # Determine destination based on file quality estimate
+            destination = hq_dir if is_high_quality(track_path) else lq_dir
+            new_name = join(destination, track_name)
+            print('Moving:\t%s\nto:\t\t%s' % (track_name, destination))
 
-        for f in low_quality:
-            new_name = join(lq_dir, basename(f))
-            print('Moving ' + f + ' to ' + new_name)
+            # Move file to destination and delete from source
             copyfile(f, new_name)
             remove(f)
 
     #############################
     # Harmonic mixing functions #
     #############################
+
+    def reload_track_data(self):
+        """ Reloads track data. """
+        self.audio_files = get_audio_files(self.audio_dir)
+        self.camelot_map = generate_camelot_map(self.audio_files)
 
     def get_transition_matches(self, bpm, camelot_code):
         """
