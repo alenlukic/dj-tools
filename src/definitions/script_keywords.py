@@ -1,12 +1,20 @@
 from collections import ChainMap
 
 EXIT = 'exit'
+HELP = 'help'
 MATCH = 'match'
 RELOAD = 'reload'
 
-EXIT_KEYWORDS = {k: EXIT for k in {EXIT, 'done', 'bye', 'kill'}}
-MATCH_KEYWORDS = {k: MATCH for k in {MATCH, 'find'}}
-RELOAD_KEYWORDS = {k: RELOAD for k in {RELOAD, 'refresh'}}
+EXIT_ALIASES = {EXIT, 'done', 'bye', 'kill'}
+HELP_ALIASES = {HELP, 'usage'}
+MATCH_ALIASES = {MATCH, 'find'}
+RELOAD_ALIASES = {RELOAD, 'refresh'}
+ALIASES = [EXIT_ALIASES, MATCH_ALIASES, RELOAD_ALIASES]
 
-CANONICAL_COMMANDS = dict(ChainMap(EXIT_KEYWORDS, MATCH_KEYWORDS, RELOAD_KEYWORDS))
+EXIT_MAP = {k: EXIT for k in EXIT_ALIASES}
+HELP_MAP = {k: HELP for k in HELP_ALIASES}
+MATCH_MAP = {k: MATCH for k in MATCH_ALIASES}
+RELOAD_MAP = {k: RELOAD for k in RELOAD_ALIASES}
+
+CANONICAL_COMMANDS = dict(ChainMap(EXIT_MAP, HELP_MAP, MATCH_MAP, RELOAD_MAP))
 ALL_VALID_COMMANDS = set(CANONICAL_COMMANDS.keys())

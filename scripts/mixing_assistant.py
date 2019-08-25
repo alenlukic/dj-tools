@@ -6,12 +6,14 @@ from src.tools.dj_tools import DJTools
 
 COMMAND_ARGS = {
     EXIT: [],
+    HELP: [],
     MATCH: [(0, 'bpm', 'BPM'), (1, 'camelot_code', 'Camelot code')],
     RELOAD: []
 }
 
 COMMAND_FUNCTIONS = {
     EXIT: 'shutdown',
+    HELP: 'help',
     MATCH: 'get_transition_matches',
     RELOAD: 'reload_track_data'
 }
@@ -19,6 +21,20 @@ COMMAND_FUNCTIONS = {
 
 class CommandParsingException(Exception):
     pass
+
+
+def usage():
+    print('\n--- Usage: ---')
+    for cmd_aliases in ALIASES:
+        formatted_aliases = '{%s}' % ', '.join(cmd_aliases)
+        cmd = CANONICAL_COMMANDS[cmd_aliases.pop()]
+        formatted_args = ' '.join(['[%s]' % arg[2] for arg in sorted(COMMAND_ARGS[cmd])])
+        print('%s %s' % (formatted_aliases, formatted_args))
+
+
+def print_error(message):
+    print(message)
+    usage()
 
 
 def parse(user_input):
@@ -62,9 +78,9 @@ def run_assistant():
             cmd, args = parse(input())
             ma.execute(cmd, args)
         except CommandParsingException as e:
-            print('Failed to parse command: %s' % (str(e)))
+            print_error('Failed to parse command: %s' % (str(e)))
         except Exception as e:
-            print('An unexpected exception occurred: %s' % str(e))
+            print_error('An unexpected exception occurred: %s' % str(e))
 
 
 class MixingAssistant:
@@ -91,6 +107,10 @@ class MixingAssistant:
         :param camelot_code: Track Camelot code.
         """
         self.tools.get_transition_matches(int(bpm), camelot_code)
+
+    def help(self):
+        """ Prints help/usage message. """
+        help()
 
     def reload_track_data(self):
         """ Reloads tracks from the audio directory and regenerates Camelot map. """
