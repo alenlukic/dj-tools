@@ -18,6 +18,6 @@ setup(
     keywords='dj harmonic mixing camelot code audio id3 beatport',
     install_requires=requirements,
     packages=find_packages(),
-    scripts=['scripts/mixing_assistant.py'],
+    scripts=[],  # TODO: fill these in
     python_requires='>=3, <4'
 )
