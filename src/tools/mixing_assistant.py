@@ -6,6 +6,12 @@ from src.utils.mixing_assistant import CommandParsingException
 
 
 def print_error(message):
+    """
+    Prints error message along with usage descriptions for each command.
+
+    :param message: Error message.
+    """
+
     print(message)
     print('\n--- Usage ---\n')
     for cmd in COMMANDS.values():
