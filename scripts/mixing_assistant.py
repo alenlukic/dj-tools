@@ -8,14 +8,16 @@ COMMAND_ARGS = {
     EXIT: [],
     HELP: [],
     MATCH: [(0, 'bpm', 'BPM'), (1, 'camelot_code', 'Camelot code')],
-    RELOAD: []
+    RELOAD: [],
+    RENAME: [],
 }
 
 COMMAND_FUNCTIONS = {
     EXIT: 'shutdown',
     HELP: 'help',
     MATCH: 'get_transition_matches',
-    RELOAD: 'reload_track_data'
+    RELOAD: 'reload_track_data',
+    RENAME: 'rename_tracks'
 }
 
 
@@ -24,12 +26,14 @@ class CommandParsingException(Exception):
 
 
 def usage():
+    tabs = '\t\t\t\t\t'
     print('\n--- Usage: ---')
+    print('Command%sArguments' % tabs)
     for cmd_aliases in ALIASES:
         formatted_aliases = '{%s}' % ', '.join(cmd_aliases)
         cmd = CANONICAL_COMMANDS[cmd_aliases.pop()]
         formatted_args = ' '.join(['[%s]' % arg[2] for arg in sorted(COMMAND_ARGS[cmd])])
-        print('%s %s' % (formatted_aliases, formatted_args))
+        print('%s%s%s' % (formatted_aliases, tabs, formatted_args))
 
 
 def print_error(message):
@@ -116,6 +120,11 @@ class MixingAssistant:
         """ Reloads tracks from the audio directory and regenerates Camelot map. """
         self.tools.reload_track_data()
         print('Track data reloaded.')
+
+    def rename_tracks(self):
+        """ Rename tracks in tmp directory. """
+        self.tools.rename_songs()
+        print('\nSongs renamed.')
 
     def shutdown(self):
         """ Exits the CLI. """

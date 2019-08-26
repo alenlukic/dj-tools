@@ -132,7 +132,7 @@ class DJTools:
         """
 
         code_number = int(camelot_code[0:2])
-        code_letter = camelot_code[-1]
+        code_letter = camelot_code[-1].upper()
 
         # Harmonic transitions to find. Results are printed in an assigned priority, which is:
         # same key > major/minor jump > one key jump > adjacent jump > one octave jump > two key jump
