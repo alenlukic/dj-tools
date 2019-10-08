@@ -4,6 +4,7 @@ from src.utils.mixing_assistant import Command, CommandArgument
 
 EXIT = 'exit'
 MATCH = 'match'
+LINT = 'lint'
 RELOAD = 'reload'
 RENAME = 'rename'
 
@@ -11,7 +12,7 @@ EXIT_ALIASES = {'done', 'bye', 'kill'}
 MATCH_ALIASES = {'find'}
 RELOAD_ALIASES = {'refresh'}
 
-ALL_ALIASES = {EXIT, MATCH, RELOAD, RENAME}.union(EXIT_ALIASES).union(MATCH_ALIASES).union(RELOAD_ALIASES)
+ALL_ALIASES = {EXIT, MATCH, LINT, RELOAD, RENAME}.union(EXIT_ALIASES).union(MATCH_ALIASES).union(RELOAD_ALIASES)
 ALIAS_MAPPING = dict(
     ChainMap(
         {a: EXIT for a in EXIT_ALIASES},
@@ -31,6 +32,7 @@ COMMANDS = {
             CommandArgument('camelot_code', 'string', 'The Camelot code of the current track.', 1, '08A')
         ]
     ),
+    LINT: Command(LINT, 'Prints malformed track names to stdout.', 'print_malformed_tracks'),
     RELOAD: Command(RELOAD, 'Reload processed tracks.', 'reload_track_data', RELOAD_ALIASES),
     RENAME: Command(RENAME, 'Rename tracks in the unprocessed audio directory.', 'rename_tracks')
 }

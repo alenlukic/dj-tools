@@ -79,6 +79,10 @@ class MixingAssistant:
         """
         self.tools.get_transition_matches(int(bpm), camelot_code)
 
+    def print_malformed_tracks(self):
+        """ Prints malformed track names to stdout to facilitate correction. """
+        self.tools.show_malformed_tracks()
+
     def reload_track_data(self):
         """ Reloads tracks from the audio directory and regenerates Camelot map. """
         self.tools.reload_track_data()
