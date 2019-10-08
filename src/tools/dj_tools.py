@@ -89,6 +89,10 @@ class DJTools:
         for file in self.audio_files:
             chmod(join(self.audio_dir, file), permissions)
 
+    def show_malformed_tracks(self):
+        """ Prints any malformed track names to stdout. """
+        return print_malformed_tracks(self.audio_files)
+
     @staticmethod
     def separate_low_and_high_quality(source_dir, lq_dir, hq_dir):
         """

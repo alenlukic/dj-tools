@@ -1,5 +1,6 @@
 from enum import Enum
 import json
+import re
 
 
 class ID3Tag(Enum):
@@ -89,6 +90,7 @@ CANONICAL_KEY_MAP = {
         'Fmin': 'Fm',
         'F#': 'F#',
         'F#maj': 'F#',
+        'F#m': 'F#m',
         'F#min': 'F#m',
         # G keys
         'G': 'G',
@@ -132,3 +134,5 @@ CAMELOT_MAP = {
     'c#m': '12A',
     'e': '12B'
 }
+
+FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
