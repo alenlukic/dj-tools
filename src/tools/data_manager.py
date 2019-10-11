@@ -2,6 +2,7 @@ from src.utils.file_processing import *
 
 
 class DataManager:
+    """ Encapsulates track collection metadata management utilities. """
 
     def __init__(self, audio_dir=PROCESSED_MUSIC_DIR, data_dir=DATA_DIR):
         """
@@ -23,13 +24,21 @@ class DataManager:
 
         collection_metadata = {}
         artist_counts = defaultdict(int)
-        for f in self.audio_files:
-            track_path = join(self.audio_dir, f)
-            id3_data = extract_id3_data(track_path)
+        for track in self.audio_files:
+            id3_data = extract_id3_data(join(self.audio_dir, track))
 
             # Use heuristics to derive artists from track title if no ID3 data
             if id3_data is None:
-                continue
+                track_md = re.findall(FORMAT_REGEX, track)[0]
+                basename = ('.'.join(track.split('.')[0:-1])).split(track_md + ' ')[1]
+                split_basename = basename.split(' - ')
+                title = ' - '.join(split_basename[1:])
+                artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
+                # TODO: remixers
+                remixers = []
+                camelot_code, key, bpm = track_md[0]
+                key = CANONICAL_KEY_MAP.get(key.lower())
+
             else:
                 title, featured = format_title(id3_data.get(ID3Tag.TITLE))
                 artists = id3_data.get(ID3Tag.ARTIST, '').split(', ')
@@ -39,19 +48,20 @@ class DataManager:
                 camelot_code = CAMELOT_MAP.get(key)
                 genre = id3_data.get(ID3Tag.GENRE)
 
-                track_metadata = {k: v for k, v in {
-                    'Title': title,
-                    'Artists': artists,
-                    'Remixers': remixers,
-                    'BPM': bpm,
-                    'Key': key,
-                    'Genre': genre,
-                    'Camelot Code': camelot_code
-                }.items() if not (v is None or v == '' or v == [])}
-                collection_metadata['.'.join(f.split('.')[0:-1])] = track_metadata
+            track_metadata = {k: v for k, v in {
+                'Title': title,
+                'Artists': artists,
+                'Remixers': remixers,
+                'BPM': bpm,
+                'Key': key,
+                'Genre': genre,
+                'Camelot Code': camelot_code
+            }.items() if not (v is None or v == '' or v == [])}
 
-                for artist in artists + remixers + [featured]:
-                    artist_counts[artist.lower()] += 1
+            for artist in artists + remixers + [featured] if featured is not None else []:
+                artist_counts[artist.lower()] += 1
+
+            collection_metadata['.'.join(track.split('.')[0:-1])] = track_metadata
 
         output = {
             'Track Metadata': collection_metadata,
