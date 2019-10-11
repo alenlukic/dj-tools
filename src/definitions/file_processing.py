@@ -18,15 +18,17 @@ TMP_MUSIC_DIR = CONFIG['TMP_MUSIC_DIR']
 AUDIO_TYPES = {'mp3', 'wav', 'flac', 'ogg', 'aif', 'aiff', 'm3u'}
 LOSSLESS = {'wav', 'flac', 'aif', 'aiff'}
 
-ALL_ID3_TAGS = {'TIT2', 'TPE1', 'TPE4', 'TBPM', 'TKEY'}
-REQUIRED_ID3_TAGS = {'TIT2', 'TPE1', 'TBPM', 'TKEY'}
+ALL_ID3_TAGS = {'TBPM', 'TCON', 'TIT2', 'TKEY', 'TPE1', 'TPE4'}
+REQUIRED_ID3_TAGS = {'TBPM', 'TIT2', 'TKEY', 'TPE1'}
 BEATPORT_ID3_TAG = 'TENC'
 
 ID3_MAP = {
     ID3Tag.TITLE: 'TIT2',
     ID3Tag.ARTIST: 'TPE1',
+    ID3Tag.REMIXER: 'TPE4',
     ID3Tag.BPM: 'TBPM',
-    ID3Tag.KEY: 'TKEY'
+    ID3Tag.KEY: 'TKEY',
+    ID3Tag.GENRE: 'TCON'
 }
 
 CANONICAL_KEY_MAP = {

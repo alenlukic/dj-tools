@@ -57,19 +57,18 @@ class DJTools:
             else:
                 # Extract ID3 metadata
                 title = id3_data[ID3_MAP[ID3Tag.TITLE]]
-                artist = id3_data[ID3_MAP[ID3Tag.ARTIST]]
+                artists = id3_data[ID3_MAP[ID3Tag.ARTIST]]
                 key = id3_data[ID3_MAP[ID3Tag.KEY]]
                 bpm = id3_data[ID3_MAP[ID3Tag.BPM]]
 
                 # Generate new formatted file name
                 formatted_title, featured = format_title(title)
-                formatted_artists = format_artists(artist.split(', '), [] if featured is None else [featured])
+                formatted_artists = format_artists(artists, featured)
                 formatted_bpm = format_bpm(str(bpm))
                 formatted_key = CANONICAL_KEY_MAP[key.lower()]
-                camelot_prefix = ' - '.join(
-                    ['[' + CAMELOT_MAP[formatted_key], formatted_key.capitalize(), formatted_bpm + ']'])
-                artist_midfix = formatted_artists + (' ft. ' + featured if featured is not None else '')
-                formatted_name = camelot_prefix + ' ' + artist_midfix + ' - ' + formatted_title
+
+                formatted_name = format_track_name(formatted_title, formatted_artists, featured, formatted_bpm,
+                                                   formatted_key)
                 new_name = ''.join([join(target_dir, formatted_name).strip(), '.', old_name.split('.')[-1].strip()])
 
                 # Copy formatted track to user audio directory

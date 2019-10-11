@@ -30,11 +30,12 @@ def format_artists(artists, featured):
     """
     Formats artist string.
 
-    :param artists - list of artist names.
+    :param artists - comma-separated string of artist names.
     :param featured - a "featured" artist, if any.
     """
 
-    filtered_artists = list(filter(lambda artist: artist not in featured, artists))
+    featured_set = set() if featured is None else set(featured)
+    filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
     # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
     separator = ' and ' if any('&' in artist for artist in filtered_artists) else ' & '
 
@@ -57,6 +58,9 @@ def format_title(title):
 
     :param title - raw, unformatted track title.
     """
+
+    if title is None:
+        return None, None
 
     featured = None
     segments = title.split(' ')
@@ -97,6 +101,23 @@ def format_title(title):
     formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')
 
     return formatted_title, featured
+
+
+def format_track_name(title, artists, featured, bpm, key):
+    """
+    Formats track name.
+
+    :param title - formatted track title.
+    :param artists - formatted artists.
+    :param featured - "featured" artist, if any.
+    :param bpm - formatted track BPM.
+    :param key - canonical track key.
+    """
+
+    camelot_prefix = ' - '.join(
+        ['[' + CAMELOT_MAP[key], key.capitalize(), bpm + ']'])
+    artist_midfix = artists + (' ft. ' + featured if featured is not None else '')
+    return camelot_prefix + ' ' + artist_midfix + ' - ' + title
 
 
 def get_audio_files(input_dir):
