@@ -41,6 +41,16 @@ def format_artists(artists, featured):
     return separator.join(filtered_artists)
 
 
+def format_bpm(bpm):
+    """
+    Formats BPM string.
+
+    :param bpm - original BPM.
+    """
+
+    return ''.join([str(0) for i in range(max(3 - len(bpm), 0))]) + bpm
+
+
 def format_title(title):
     """
     Formats track title.
