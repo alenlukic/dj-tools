@@ -6,8 +6,10 @@ import re
 class ID3Tag(Enum):
     TITLE = 1
     ARTIST = 2
-    BPM = 3
-    KEY = 4
+    REMIXER = 3
+    BPM = 4
+    KEY = 5
+    GENRE = 6
 
 
 CONFIG = json.load(open('config.json', 'r'))

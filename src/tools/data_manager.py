@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from src.utils.file_processing import *
 
 
@@ -26,57 +28,101 @@ class DataManager:
         artist_counts = defaultdict(int)
         for track in self.audio_files:
             id3_data = extract_id3_data(join(self.audio_dir, track))
+            try:
+                # Use heuristics to derive metadata from track title if no ID3 data
+                if id3_data is None:
+                    # Chop up the filename
+                    track_md = re.findall(FORMAT_REGEX, track)[0]
+                    md_str = '[' + ' - '.join(track_md) + ']'
+                    basename = ('.'.join(track.split('.')[0:-1])).split(md_str + ' ')[1]
+                    split_basename = basename.split(' - ')
 
-            # Use heuristics to derive metadata from track title if no ID3 data
-            if id3_data is None:
-                track_md = re.findall(FORMAT_REGEX, track)[0]
-                basename = ('.'.join(track.split('.')[0:-1])).split(track_md + ' ')[1]
-                split_basename = basename.split(' - ')
+                    # Derive artists
+                    artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
 
-                artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
-                title = ' - '.join(split_basename[1:])
-                paren_index = title.index('(')
-                if paren_index != -1:
-                    title = title[0:paren_index]
-                    remix_segment = title[paren_index + 1:len(title) - 1].split(' ')
-                    if remix_segment[-1] == 'Remix':
-                        remixer_segment = remix_segment[0:-1]
-                        remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')
+                    # Derive title and remixers
+                    title = ' - '.join(split_basename[1:])
+                    paren_index = title.find('(')
+                    if paren_index != -1:
+                        title = title[0:paren_index]
+                        remix_segment = title[paren_index + 1:len(title) - 1].split(' ')
+                        if remix_segment[-1] == 'Remix':
+                            remixer_segment = ' '.join(remix_segment[0:-1])
+                            remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')
+                    else:
+                        remixers = []
+
+                    camelot_code, key, bpm = track_md[0]
+                    key = CANONICAL_KEY_MAP.get(key.lower())
+
+                # Pick metadata off the ID3 data
                 else:
-                    remixers = []
+                    title, featured = format_title(id3_data.get(ID3_MAP[ID3Tag.TITLE]))
+                    artists = id3_data.get(ID3_MAP[ID3Tag.ARTIST])
+                    artists = [] if artists is None else artists.split(', ')
+                    remixers = id3_data.get(ID3_MAP[ID3Tag.REMIXER])
+                    remixers = [] if remixers is None else remixers.split(', ')
+                    key = CANONICAL_KEY_MAP.get(id3_data.get(ID3_MAP[ID3Tag.KEY], '').lower())
+                    bpm = id3_data.get(ID3_MAP[ID3Tag.BPM])
+                    camelot_code = CAMELOT_MAP.get(key)
+                    genre = id3_data.get(ID3_MAP[ID3Tag.GENRE])
 
-                camelot_code, key, bpm = track_md[0]
-                key = CANONICAL_KEY_MAP.get(key.lower())
+                track_metadata = {k: v for k, v in {
+                    'Title': title,
+                    'Artists': artists,
+                    'Remixers': remixers,
+                    'BPM': bpm,
+                    'Key': None if key is None else key[0].upper() + ''.join(key[1:]),
+                    'Genre': genre,
+                    'Camelot Code': camelot_code
+                }.items() if not (v is None or v == '' or v == [])}
 
-            # Pick metadata off the ID3 data
-            else:
-                title, featured = format_title(id3_data.get(ID3Tag.TITLE))
-                artists = id3_data.get(ID3Tag.ARTIST, '').split(', ')
-                remixers = id3_data.get(ID3Tag.REMIXER, '').split(', ')
-                key = CANONICAL_KEY_MAP.get(id3_data.get(ID3Tag.KEY, '').lower())
-                bpm = id3_data.get(ID3Tag.BPM)
-                camelot_code = CAMELOT_MAP.get(key)
-                genre = id3_data.get(ID3Tag.GENRE)
+                for artist in artists + remixers + ([featured] if featured is not None else []):
+                    artist_counts[artist] += 1
 
-            track_metadata = {k: v for k, v in {
-                'Title': title,
-                'Artists': artists,
-                'Remixers': remixers,
-                'BPM': bpm,
-                'Key': key,
-                'Genre': genre,
-                'Camelot Code': camelot_code
-            }.items() if not (v is None or v == '' or v == [])}
+                collection_metadata['.'.join(track.split('.')[0:-1])] = track_metadata
+            except Exception as e:
+                print('Error %s while processing track %s' % (e, track))
+                continue
 
-            for artist in artists + remixers + ([featured] if featured is not None else []):
-                artist_counts[artist.lower()] += 1
+        # Sort track names alphabetically
+        sorted_track_metadata = OrderedDict()
+        sorted_track_names = sorted(list(collection_metadata.keys()))
+        for track_name in sorted_track_names:
+            sorted_track_metadata[track_name] = collection_metadata[track_name]
 
-            collection_metadata['.'.join(track.split('.')[0:-1])] = track_metadata
+        # Sort artist counts in order of decreasing frequency
+        sorted_artist_counts = OrderedDict()
+        sorted_count_tuples = sorted([(v, k) for k, v in artist_counts.items()], reverse=True)
+        for count, artist in sorted_count_tuples:
+            sorted_artist_counts[artist] = count
 
         output = {
-            'Track Metadata': collection_metadata,
-            'Artist Counts': artist_counts
+            'Track Metadata': sorted_track_metadata,
+            'Artist Counts': sorted_artist_counts
         }
-
         with open(join(self.data_dir, output_file), 'w') as w:
             json.dump(output, w, indent=2)
+
+    def set_key_tags(self):
+        """ Uses track titles to set the ID3 key tag for all audio files. """
+
+        for track in self.audio_files:
+            try:
+                md = load(join(PROCESSED_MUSIC_DIR, track))
+                if md is None:
+                    print('Could not load ID3 data for %s' % track)
+                    continue
+
+                md = md.tag
+                key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3_MAP[ID3Tag.KEY], md.frameiter()))
+                if len(key_frame) == 1:
+                    track_md = re.findall(FORMAT_REGEX, track)
+                    _, key, _ = track_md[0]
+                    key_frame[0].text = key
+                    md.save()
+                else:
+                    print('No key frame found for %s' % track)
+            except Exception as e:
+                print('Error with track %s: %s' % (track, str(e)))
+                continue
