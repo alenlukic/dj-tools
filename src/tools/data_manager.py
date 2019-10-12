@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from src.utils.file_processing import *
+from src.utils.utils import *
 
 
 class DataManager:
@@ -75,12 +76,11 @@ class DataManager:
                     'Key': None if key is None else key[0].upper() + ''.join(key[1:]),
                     'Genre': genre,
                     'Camelot Code': camelot_code
-                }.items() if not (v is None or v == '' or v == [])}
-
-                for artist in artists + remixers + ([featured] if featured is not None else []):
-                    artist_counts[artist] += 1
+                }.items() if not is_empty(v)}
 
                 collection_metadata['.'.join(track.split('.')[0:-1])] = track_metadata
+                for artist in artists + remixers + ([] if featured is None else [featured]):
+                    artist_counts[artist] += 1
             except Exception as e:
                 print('Error %s while processing track %s' % (e, track))
                 continue
