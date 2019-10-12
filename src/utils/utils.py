@@ -17,11 +17,6 @@ def is_empty(value):
         return True
 
     typ = type(value)
-    if typ == str and len(value.strip()) == 0:
-        return True
-    if typ == list and all([is_empty(e) for e in value]):
-        return True
-    if typ == dict and all([is_empty(v) for v in value.values()]):
-        return True
-
-    return False
+    return ((typ == str and len(value.strip()) == 0) or
+            (typ == list and all([is_empty(e) for e in value])) or
+            (typ == dict and all([is_empty(v) for v in value.values()])))
