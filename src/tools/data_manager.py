@@ -27,18 +27,28 @@ class DataManager:
         for track in self.audio_files:
             id3_data = extract_id3_data(join(self.audio_dir, track))
 
-            # Use heuristics to derive artists from track title if no ID3 data
+            # Use heuristics to derive metadata from track title if no ID3 data
             if id3_data is None:
                 track_md = re.findall(FORMAT_REGEX, track)[0]
                 basename = ('.'.join(track.split('.')[0:-1])).split(track_md + ' ')[1]
                 split_basename = basename.split(' - ')
-                title = ' - '.join(split_basename[1:])
+
                 artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
-                # TODO: remixers
-                remixers = []
+                title = ' - '.join(split_basename[1:])
+                paren_index = title.index('(')
+                if paren_index != -1:
+                    title = title[0:paren_index]
+                    remix_segment = title[paren_index + 1:len(title) - 1].split(' ')
+                    if remix_segment[-1] == 'Remix':
+                        remixer_segment = remix_segment[0:-1]
+                        remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')
+                else:
+                    remixers = []
+
                 camelot_code, key, bpm = track_md[0]
                 key = CANONICAL_KEY_MAP.get(key.lower())
 
+            # Pick metadata off the ID3 data
             else:
                 title, featured = format_title(id3_data.get(ID3Tag.TITLE))
                 artists = id3_data.get(ID3Tag.ARTIST, '').split(', ')
@@ -58,7 +68,7 @@ class DataManager:
                 'Camelot Code': camelot_code
             }.items() if not (v is None or v == '' or v == [])}
 
-            for artist in artists + remixers + [featured] if featured is not None else []:
+            for artist in artists + remixers + ([featured] if featured is not None else []):
                 artist_counts[artist.lower()] += 1
 
             collection_metadata['.'.join(track.split('.')[0:-1])] = track_metadata
