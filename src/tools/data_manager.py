@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from src.utils.file_processing import *
+from src.utils.data_management import *
 from src.utils.utils import *
 
 
@@ -68,13 +68,15 @@ class DataManager:
                     camelot_code = CAMELOT_MAP.get(key)
                     genre = id3_data.get(ID3_MAP[ID3Tag.GENRE])
 
+                key = None if key is None else key[0].upper() + ''.join(key[1:])
+                # TODO: record label, added date
                 track_metadata = {k: v for k, v in {
                     'Title': title,
                     'Artists': artists,
                     'Remixers': remixers,
-                    'BPM': bpm,
-                    'Key': None if key is None else key[0].upper() + ''.join(key[1:]),
                     'Genre': genre,
+                    'BPM': bpm,
+                    'Key': key,
                     'Camelot Code': camelot_code
                 }.items() if not is_empty(v)}
 
@@ -104,25 +106,32 @@ class DataManager:
         with open(join(self.data_dir, output_file), 'w') as w:
             json.dump(output, w, indent=2)
 
-    def set_key_tags(self):
-        """ Uses track titles to set the ID3 key tag for all audio files. """
+    def standardize_key_tags(self):
+        """ Uses track titles to set a standard ID3 key tag for all audio files. """
 
+        warnings = []
+        errors = []
         for track in self.audio_files:
             try:
                 md = load(join(PROCESSED_MUSIC_DIR, track))
                 if md is None:
-                    print('Could not load ID3 data for %s' % track)
+                    warnings.append('Could not load ID3 data for %s' % track)
                     continue
-
                 md = md.tag
                 key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3_MAP[ID3Tag.KEY], md.frameiter()))
+
                 if len(key_frame) == 1:
                     track_md = re.findall(FORMAT_REGEX, track)
                     _, key, _ = track_md[0]
                     key_frame[0].text = key
                     md.save()
                 else:
-                    print('No key frame found for %s' % track)
+                    warnings.append('No key frame found for %s' % track)
             except Exception as e:
-                print('Error with track %s: %s' % (track, str(e)))
+                errors.append('Error with track %s: %s' % (track, str(e)))
                 continue
+
+        warnings = '\n'.join(sorted(warnings))
+        errors = '\n'.join(sorted(errors))
+        print('Warnings:\n%s' % warnings)
+        print('\n\nErrors:\n%s' % errors)

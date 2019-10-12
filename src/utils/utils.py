@@ -4,19 +4,17 @@ def is_empty(value):
 
     - None
     - empty string
-    - whitespace-only string
+    - string containing only whitespace characters
     - empty list
-    - list for whose elements this function returns True recursively
+    - list iff this function returns True recursively for all elements
     - empty dictionary
-    - dictionary for whose values this function returns True recursively
+    - dictionary iff this function returns True recursively for all values
 
     :param value - value to check.
     """
 
-    if value is None:
-        return True
-
     typ = type(value)
-    return ((typ == str and len(value.strip()) == 0) or
+    return ((value is None) or
+            (typ == str and len(value.strip()) == 0) or
             (typ == list and all([is_empty(e) for e in value])) or
             (typ == dict and all([is_empty(v) for v in value.values()])))

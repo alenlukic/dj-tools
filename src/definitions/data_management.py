@@ -1,5 +1,4 @@
 from enum import Enum
-import json
 import re
 
 
@@ -7,20 +6,20 @@ class ID3Tag(Enum):
     TITLE = 1
     ARTIST = 2
     REMIXER = 3
-    BPM = 4
-    KEY = 5
-    GENRE = 6
+    GENRE = 4
+    BPM = 5
+    KEY = 6
 
 
-CONFIG = json.load(open('config.json', 'r'))
-DATA_DIR = CONFIG['DATA_DIR']
-PROCESSED_MUSIC_DIR = CONFIG['PROCESSED_MUSIC_DIR']
-TMP_MUSIC_DIR = CONFIG['TMP_MUSIC_DIR']
-
-AUDIO_TYPES = {'mp3', 'wav', 'flac', 'ogg', 'aif', 'aiff', 'm3u'}
-LOSSLESS = {'wav', 'flac', 'aif', 'aiff'}
-
-ALL_ID3_TAGS = {'TBPM', 'TCON', 'TIT2', 'TKEY', 'TPE1', 'TPE4'}
+ALL_ID3_TAGS = {
+    'TBPM',
+    'TCON',
+    'TIT2',
+    'TKEY',
+    'TPE1',
+    'TPE4',
+    'TPUB'
+}
 REQUIRED_ID3_TAGS = {'TBPM', 'TIT2', 'TKEY', 'TPE1'}
 BEATPORT_ID3_TAG = 'TENC'
 

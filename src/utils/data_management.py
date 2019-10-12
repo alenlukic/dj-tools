@@ -1,10 +1,7 @@
 from collections import defaultdict
-from os import listdir
-from os.path import isfile, join
-
 from eyed3 import id3 as metadata, load
 
-from src.definitions.file_processing import *
+from src.definitions.data_management import *
 
 
 def extract_id3_data(track_path):
@@ -49,7 +46,7 @@ def format_bpm(bpm):
     :param bpm - original BPM.
     """
 
-    return ''.join([str(0) for i in range(max(3 - len(bpm), 0))]) + bpm
+    return ''.join([str(0)] * max(3 - len(bpm), 0)) + bpm
 
 
 def format_title(title):
@@ -118,34 +115,6 @@ def format_track_name(title, artists, featured, bpm, key):
         ['[' + CAMELOT_MAP[key], key.capitalize(), bpm + ']'])
     artist_midfix = artists + (' ft. ' + featured if featured is not None else '')
     return camelot_prefix + ' ' + artist_midfix + ' - ' + title
-
-
-def get_audio_files(input_dir):
-    """
-    Gets all the audio files in the given directory.
-
-    :param input_dir - directory to inspect for audio files.
-    """
-    files = list(filter(lambda f: isfile(join(input_dir, f)), listdir(input_dir)))
-    return list(filter(lambda f: f.split('.')[-1].lower() in AUDIO_TYPES, files))
-
-
-def is_high_quality(track_path):
-    """
-    Determine if a track is high quality. Note: this may not work on true 320 kbps MP3 files that are obtained from
-    somewhere other than Beatport (e.g. promos, free downloads).
-
-    :param track_path - full qualified path to audio file
-    """
-
-    # Lossless files are high quality
-    extension = track_path.split('.')[-1]
-    if extension in LOSSLESS:
-        return True
-
-    # Beatport mp3 files are high quality too
-    md = load(track_path)
-    return False if md is None else any(frame.id == BEATPORT_ID3_TAG for frame in md.tag.frameiter())
 
 
 def print_malformed_tracks(track_paths):
