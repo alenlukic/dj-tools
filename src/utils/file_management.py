@@ -2,7 +2,7 @@ from eyed3 import load
 from os import listdir
 from os.path import isfile, join
 
-from src.definitions.data_management import BEATPORT_ID3_TAG
+from src.definitions.data_management import ID3Tag
 from src.definitions.file_management import *
 
 
@@ -31,4 +31,4 @@ def is_high_quality(track_path):
 
     # Beatport mp3 files are high quality too
     md = load(track_path)
-    return False if md is None else any(frame.id == BEATPORT_ID3_TAG for frame in md.tag.frameiter())
+    return False if md is None else any(frame.id == ID3Tag.BEATPORT for frame in md.tag.frameiter())

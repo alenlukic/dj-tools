@@ -126,7 +126,7 @@ def print_malformed_tracks(track_paths):
 
     malformed = []
     for track in track_paths:
-        track_md = re.findall(FORMAT_REGEX, track)
+        track_md = re.findall(MD_FORMAT_REGEX, track)
 
         # Metadata missing or malformed
         if len(track_md) != 1 or len(track_md[0]) != 3:

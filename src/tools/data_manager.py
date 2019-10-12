@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from src.utils.data_management import *
+from src.utils.file_management import *
 from src.utils.utils import *
 
 
@@ -33,7 +34,7 @@ class DataManager:
                 # Use heuristics to derive metadata from track title if no ID3 data
                 if id3_data is None:
                     # Chop up the filename
-                    track_md = re.findall(FORMAT_REGEX, track)[0]
+                    track_md = re.findall(MD_FORMAT_REGEX, track)[0]
                     md_str = '[' + ' - '.join(track_md) + ']'
                     basename = ('.'.join(track.split('.')[0:-1])).split(md_str + ' ')[1]
                     split_basename = basename.split(' - ')
@@ -121,7 +122,7 @@ class DataManager:
                 key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3_MAP[ID3Tag.KEY], md.frameiter()))
 
                 if len(key_frame) == 1:
-                    track_md = re.findall(FORMAT_REGEX, track)
+                    track_md = re.findall(MD_FORMAT_REGEX, track)
                     _, key, _ = track_md[0]
                     key_frame[0].text = key
                     md.save()

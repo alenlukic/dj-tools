@@ -9,19 +9,27 @@ class ID3Tag(Enum):
     GENRE = 4
     BPM = 5
     KEY = 6
+    LABEL = 7
+    BEATPORT = 99
 
 
 ALL_ID3_TAGS = {
     'TBPM',
     'TCON',
+    'TENC',
     'TIT2',
     'TKEY',
     'TPE1',
     'TPE4',
     'TPUB'
 }
-REQUIRED_ID3_TAGS = {'TBPM', 'TIT2', 'TKEY', 'TPE1'}
-BEATPORT_ID3_TAG = 'TENC'
+
+REQUIRED_ID3_TAGS = {
+    'TBPM',
+    'TIT2',
+    'TKEY',
+    'TPE1'
+}
 
 ID3_MAP = {
     ID3Tag.TITLE: 'TIT2',
@@ -29,7 +37,9 @@ ID3_MAP = {
     ID3Tag.REMIXER: 'TPE4',
     ID3Tag.BPM: 'TBPM',
     ID3Tag.KEY: 'TKEY',
-    ID3Tag.GENRE: 'TCON'
+    ID3Tag.GENRE: 'TCON',
+    ID3Tag.LABEL: 'TPUB',
+    ID3Tag.BEATPORT: 'TENC'
 }
 
 CANONICAL_KEY_MAP = {
@@ -139,4 +149,4 @@ CAMELOT_MAP = {
     'e': '12B'
 }
 
-FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+MD_FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
