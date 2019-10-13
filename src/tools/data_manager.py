@@ -59,7 +59,7 @@ class DataManager:
                     else:
                         remixers = []
 
-                    camelot_code, key, bpm = track_md[0]
+                    camelot_code, key, bpm = track_md
                     key = CANONICAL_KEY_MAP.get(key.lower())
 
                     genre = None
