@@ -1,7 +1,12 @@
 from collections import defaultdict, ChainMap
 from enum import Enum
 from eyed3 import id3 as metadata, load
+from os.path import getctime
 import re
+from time import ctime
+
+
+from src.utils.utils import is_empty
 
 
 class ID3Tag(Enum):
@@ -297,6 +302,10 @@ class Track:
 
         return track_name
 
+    def get_date_added(self):
+        """ Returns when track was added to collection (Unix timestamp). """
+        return ctime(getctime(self.track_path))
+
     def get_id3_data(self):
         """ Returns dictionary mapping ID3 tags to values. """
         return self.id3_data
@@ -323,3 +332,48 @@ class Track:
 
         return defaultdict(str, {k: id3[k] for k in keys})
 
+
+class TrackMetadata:
+    """ Wrapper class for track metadata. """
+
+    def __init__(self, title, artists, remixers, genre, label, bpm, key, camelot_code, energy, date_added):
+        """
+        Initializes class with all metadata.
+
+        :param title - track title.
+        :param artists - track artists.
+        :param remixers - track remixers.
+        :param genre - track genre.
+        :param label - track record label.
+        :param bpm - track bpm.
+        :param key - track key.
+        :param camelot_code - track camelot code.
+        :param energy  - track Mixed In Key energy level.
+        :param date_added - date track was added ot the collection.
+        """
+
+        self.title = title
+        self.artists = artists
+        self.remixers = remixers
+        self.genre = genre
+        self.label = label
+        self.bpm = bpm
+        self.key = key
+        self.camelot_code = camelot_code
+        self.energy = energy
+        self.date_added = date_added
+
+    def get_metadata(self):
+        """ Return non-empty metadata in dictionary form. """
+        return {k: v for k, v in {
+            'Title': self.title,
+            'Artists': self.artists,
+            'Remixers': self.remixers,
+            'Genre': self.genre,
+            'Label': self.label,
+            'BPM': self.bpm,
+            'Key': self.key,
+            'Camelot Code': self.camelot_code,
+            'Energy': self.energy,
+            'Date Added': self.date_added
+        }.items() if not is_empty(v)}

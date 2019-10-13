@@ -5,7 +5,6 @@ from os.path import basename
 from shutil import copyfile
 import stat
 
-from src.definitions.data_management import *
 from src.definitions.harmonic_mixing import *
 from src.utils.data_management import *
 from src.utils.file_management import *
