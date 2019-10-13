@@ -20,6 +20,7 @@ class CustomTag(Enum):
     FEATURED = 1
     CAMELOT_CODE = 2
     TRACK_NAME = 3
+    ENERGY = 4
 
 
 ALL_ID3_TAGS = {
@@ -163,7 +164,7 @@ MD_FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]'
 
 
 class Track:
-    """ TODO. """
+    """ Class encapsulating a track and its metadata. """
     def __init__(self, track_path):
         self.track_path = track_path
         self.id3_data = self._extract_id3_data()
@@ -208,6 +209,7 @@ class Track:
 
     def format_camelot_code(self):
         """ Formats camelot code. """
+
         camelot_code = self.formatted[CustomTag.CAMELOT_CODE]
         if camelot_code is not None:
             return camelot_code
@@ -217,8 +219,25 @@ class Track:
 
         return camelot_code
 
+    def format_energy(self):
+        """ Formats energy level. """
+
+        energy = self.formatted[CustomTag.ENERGY]
+        if energy is not None:
+            return energy
+
+        comment = self.get_tag(ID3Tag.COMMENT) or ''
+        if 'Energy' in comment:
+            segment = [s.strip() for s in comment.split()][-1]
+            energy = None if not segment.isnumeric() else int(segment)
+
+        self.formatted[CustomTag.ENERGY] = energy
+
+        return energy
+
     def format_key(self):
         """ Formats key. """
+
         key = self.formatted[ID3Tag.KEY]
         if key is not None:
             return key
@@ -311,6 +330,10 @@ class Track:
     def get_tag(self, tag):
         """ Returns value of the given ID3 tag."""
         return self.id3_data.get(ID3_MAP.get(tag))
+
+    def get_track_path(self):
+        """ Returns path to the track's file."""
+        return self.track_path
 
     def _extract_id3_data(self):
         """ Extracts mp3 metadata needed to automatically rename songs using the eyed3 lib. """

@@ -1,4 +1,6 @@
 from collections import OrderedDict
+from os.path import getctime
+from time import ctime
 
 from src.utils.data_management import *
 from src.utils.file_management import *
@@ -28,15 +30,17 @@ class DataManager:
 
         collection_metadata = {}
         artist_counts = defaultdict(int)
-        for track in self.audio_files:
-            id3_data = extract_id3_data(join(self.audio_dir, track))
+        for f in self.audio_files:
+            track_path = join(self.audio_dir, f)
+            track = Track(track_path)
+            id3_data = track.get_id3_data()
             try:
                 # Use heuristics to derive metadata from track title if no ID3 data
                 if id3_data is None:
                     # Chop up the filename
-                    track_md = re.findall(MD_FORMAT_REGEX, track)[0]
+                    track_md = re.findall(MD_FORMAT_REGEX, f)[0]
                     md_str = '[' + ' - '.join(track_md) + ']'
-                    basename = ('.'.join(track.split('.')[0:-1])).split(md_str + ' ')[1]
+                    basename = ('.'.join(f.split('.')[0:-1])).split(md_str + ' ')[1]
                     split_basename = basename.split(' - ')
 
                     # Derive artists
@@ -57,31 +61,39 @@ class DataManager:
                     camelot_code, key, bpm = track_md[0]
                     key = CANONICAL_KEY_MAP.get(key.lower())
 
+                    genre = None
+                    label = None
+                    energy = None
+
                 # Pick metadata off the ID3 data
                 else:
-                    title, featured = format_title(id3_data.get(ID3_MAP[ID3Tag.TITLE]))
-                    artists = id3_data.get(ID3_MAP[ID3Tag.ARTIST])
-                    artists = [] if artists is None else artists.split(', ')
-                    remixers = id3_data.get(ID3_MAP[ID3Tag.REMIXER])
-                    remixers = [] if remixers is None else remixers.split(', ')
-                    key = CANONICAL_KEY_MAP.get(id3_data.get(ID3_MAP[ID3Tag.KEY], '').lower())
-                    bpm = id3_data.get(ID3_MAP[ID3Tag.BPM])
-                    camelot_code = CAMELOT_MAP.get(key)
-                    genre = id3_data.get(ID3_MAP[ID3Tag.GENRE])
+                    title, featured = track.format_title()
+                    artists = track.get_tag(ID3Tag.ARTIST)
+                    artists = None if artists is None else artists.split(', ')
+                    remixers = track.get_tag(ID3Tag.REMIXER)
+                    remixers = None if remixers is None else remixers.split(', ')
+                    genre = track.get_tag(ID3Tag.GENRE)
+                    bpm = track.get_tag(ID3Tag.BPM)
+                    key = track.format_key()
+                    camelot_code = track.format_camelot_code()
+                    energy = track.format_energy()
 
                 key = None if key is None else key[0].upper() + ''.join(key[1:])
-                # TODO: record label, added date
+                date_added = ctime(getctime(track_path))
                 track_metadata = {k: v for k, v in {
                     'Title': title,
                     'Artists': artists,
                     'Remixers': remixers,
                     'Genre': genre,
+                    'Label': label,
                     'BPM': bpm,
                     'Key': key,
-                    'Camelot Code': camelot_code
+                    'Camelot Code': camelot_code,
+                    'Energy': energy,
+                    'Date Added': date_added
                 }.items() if not is_empty(v)}
 
-                collection_metadata['.'.join(track.split('.')[0:-1])] = track_metadata
+                collection_metadata[title] = track_metadata
                 for artist in artists + remixers + ([] if featured is None else [featured]):
                     artist_counts[artist] += 1
             except Exception as e:
