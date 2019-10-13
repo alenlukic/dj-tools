@@ -13,6 +13,7 @@ MATCH_ALIASES = {'find'}
 RELOAD_ALIASES = {'refresh'}
 
 ALL_ALIASES = {EXIT, MATCH, LINT, RELOAD, RENAME}.union(EXIT_ALIASES).union(MATCH_ALIASES).union(RELOAD_ALIASES)
+
 ALIAS_MAPPING = dict(
     ChainMap(
         {a: EXIT for a in EXIT_ALIASES},

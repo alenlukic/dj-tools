@@ -1,6 +1,3 @@
-from collections import defaultdict
-from eyed3 import id3 as metadata, load
-
 from src.definitions.data_management import *
 
 
@@ -15,9 +12,9 @@ def extract_id3_data(track_path):
     if md is None:
         return None
 
-    text_frame = metadata.frames.TextFrame
+    frame_types = {metadata.frames.TextFrame, metadata.frames.CommentFrame}
     track_frames = md.tag.frameiter()
-    id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) == text_frame, track_frames)}
+    id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
     keys = list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))
 
     return defaultdict(str, {k: id3[k] for k in keys})
