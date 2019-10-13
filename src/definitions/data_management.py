@@ -5,53 +5,27 @@ import re
 
 
 class ID3Tag(Enum):
-    TITLE = 1
-    ARTIST = 2
-    REMIXER = 3
-    GENRE = 4
-    BPM = 5
-    KEY = 6
-    LABEL = 7
-    COMMENT = 8
-    BEATPORT = 99
+    TITLE = 'TIT2'
+    ARTIST = 'TPE1'
+    REMIXER = 'TPE4'
+    GENRE = 'TCON'
+    BPM = 'TBPM'
+    KEY = 'TKEY'
+    LABEL = 'TPUB'
+    COMMENT = 'COMM'
+    BEATPORT = 'TENC'
 
 
 class CustomTag(Enum):
-    FEATURED = 1
-    CAMELOT_CODE = 2
-    TRACK_NAME = 3
-    ENERGY = 4
+    FEATURED = 'FEATURED'
+    CAMELOT_CODE = 'CAMELOT_CODE'
+    TRACK_NAME = 'TRACK_NAME'
+    ENERGY = 'ENERGY'
 
 
-ALL_ID3_TAGS = {
-    'TBPM',
-    'TCON',
-    'TENC',
-    'TIT2',
-    'TKEY',
-    'TPE1',
-    'TPE4',
-    'TPUB'
-}
+ALL_ID3_TAGS = set([t.value for t in ID3Tag])
 
-REQUIRED_ID3_TAGS = {
-    'TBPM',
-    'TIT2',
-    'TKEY',
-    'TPE1'
-}
-
-ID3_MAP = {
-    ID3Tag.TITLE: 'TIT2',
-    ID3Tag.ARTIST: 'TPE1',
-    ID3Tag.REMIXER: 'TPE4',
-    ID3Tag.BPM: 'TBPM',
-    ID3Tag.KEY: 'TKEY',
-    ID3Tag.GENRE: 'TCON',
-    ID3Tag.LABEL: 'TPUB',
-    ID3Tag.COMMENT: 'COMM',
-    ID3Tag.BEATPORT: 'TENC'
-}
+REQUIRED_ID3_TAGS = {ID3Tag.TITLE, ID3Tag.ARTIST, ID3Tag.BPM, ID3Tag.KEY}
 
 CANONICAL_KEY_MAP = {
     k.lower(): v.lower() for k, v in {
@@ -169,18 +143,18 @@ class Track:
         self.track_path = track_path
         self.id3_data = self._extract_id3_data()
         self.formatted = dict(ChainMap(
-            {ID3_MAP.keys(): None},
-            {custom_tag: None for custom_tag in CustomTag}
+            {id3_tag.value: None for id3_tag in ID3Tag},
+            {custom_tag.value: None for custom_tag in CustomTag}
         ))
 
     def format_artists(self):
         """ Formats artist string. """
 
-        artists = self.formatted[ID3Tag.ARTIST]
+        artists = self.formatted[ID3Tag.ARTIST.value]
         if artists is not None:
             return artists
 
-        featured = self.formatted[CustomTag.FEATURED]
+        featured = self.formatted[CustomTag.FEATURED.value]
         artists = self.get_tag(ID3Tag.ARTIST)
 
         featured_set = set() if featured is None else set(featured)
@@ -189,40 +163,40 @@ class Track:
         separator = ' and ' if any('&' in artist for artist in filtered_artists) else ' & '
 
         formatted_artists = separator.join(filtered_artists)
-        self.formatted[ID3Tag.ARTIST] = formatted_artists
+        self.formatted[ID3Tag.ARTIST.value] = formatted_artists
 
         return formatted_artists
 
     def format_bpm(self):
         """ Formats BPM string. """
 
-        bpm = self.formatted[ID3Tag.BPM]
+        bpm = self.formatted[ID3Tag.BPM.value]
         if bpm is not None:
             return bpm
 
         bpm = self.get_tag(ID3Tag.BPM)
 
         formatted_bpm = ''.join([str(0)] * max(3 - len(bpm), 0)) + bpm
-        self.formatted[ID3Tag.BPM] = formatted_bpm
+        self.formatted[ID3Tag.BPM.value] = formatted_bpm
 
         return formatted_bpm
 
     def format_camelot_code(self):
         """ Formats camelot code. """
 
-        camelot_code = self.formatted[CustomTag.CAMELOT_CODE]
+        camelot_code = self.formatted[CustomTag.CAMELOT_CODE.value]
         if camelot_code is not None:
             return camelot_code
 
         camelot_code = CAMELOT_MAP.get(self.format_key())
-        self.formatted[CustomTag.CAMELOT_CODE] = camelot_code
+        self.formatted[CustomTag.CAMELOT_CODE.value] = camelot_code
 
         return camelot_code
 
     def format_energy(self):
         """ Formats energy level. """
 
-        energy = self.formatted[CustomTag.ENERGY]
+        energy = self.formatted[CustomTag.ENERGY.value]
         if energy is not None:
             return energy
 
@@ -231,32 +205,32 @@ class Track:
             segment = [s.strip() for s in comment.split()][-1]
             energy = None if not segment.isnumeric() else int(segment)
 
-        self.formatted[CustomTag.ENERGY] = energy
+        self.formatted[CustomTag.ENERGY.value] = energy
 
         return energy
 
     def format_key(self):
         """ Formats key. """
 
-        key = self.formatted[ID3Tag.KEY]
+        key = self.formatted[ID3Tag.KEY.value]
         if key is not None:
             return key
 
         key = self.get_tag(ID3Tag.KEY)
 
         formatted_key = CANONICAL_KEY_MAP.get(key.lower())
-        self.formatted[ID3Tag.KEY] = formatted_key
+        self.formatted[ID3Tag.KEY.value] = formatted_key
 
         return formatted_key
 
     def format_title(self):
         """ Formats track title. """
 
-        title, featured = self.formatted[ID3Tag.TITLE], self.formatted[CustomTag.FEATURED]
+        title, featured = self.formatted[ID3Tag.TITLE.value], self.formatted[CustomTag.FEATURED.value]
         if title is not None:
             return title, featured
 
-        title = self.id3_data[ID3_MAP[ID3Tag.TITLE]]
+        title = self.get_tag(ID3Tag.TITLE)
         if title is None:
             return None, None
 
@@ -298,15 +272,15 @@ class Track:
         # the file name.
         formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')
 
-        self.formatted[ID3Tag.TITLE] = formatted_title
-        self.formatted[CustomTag.FEATURED] = featured
+        self.formatted[ID3Tag.TITLE.value] = formatted_title
+        self.formatted[CustomTag.FEATURED.value] = featured
 
         return formatted_title, featured
 
     def format_track_name(self):
         """ Formats track name. """
 
-        track_name = self.formatted[CustomTag.TRACK_NAME]
+        track_name = self.formatted[CustomTag.TRACK_NAME.value]
         if track_name is not None:
             return track_name
 
@@ -329,7 +303,7 @@ class Track:
 
     def get_tag(self, tag):
         """ Returns value of the given ID3 tag."""
-        return self.id3_data.get(ID3_MAP.get(tag))
+        return self.id3_data.get(tag.value)
 
     def get_track_path(self):
         """ Returns path to the track's file."""

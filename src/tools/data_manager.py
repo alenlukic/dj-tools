@@ -32,6 +32,7 @@ class DataManager:
         artist_counts = defaultdict(int)
         for f in self.audio_files:
             track_path = join(self.audio_dir, f)
+            track_name = '.'.join(f.split('.')[0:-1])
             track = Track(track_path)
             id3_data = track.get_id3_data()
             try:
@@ -40,7 +41,7 @@ class DataManager:
                     # Chop up the filename
                     track_md = re.findall(MD_FORMAT_REGEX, f)[0]
                     md_str = '[' + ' - '.join(track_md) + ']'
-                    basename = ('.'.join(f.split('.')[0:-1])).split(md_str + ' ')[1]
+                    basename = track_name.split(md_str + ' ')[1]
                     split_basename = basename.split(' - ')
 
                     # Derive artists
@@ -69,10 +70,11 @@ class DataManager:
                 else:
                     title, featured = track.format_title()
                     artists = track.get_tag(ID3Tag.ARTIST)
-                    artists = None if artists is None else artists.split(', ')
+                    artists = [] if artists is None else artists.split(', ')
                     remixers = track.get_tag(ID3Tag.REMIXER)
-                    remixers = None if remixers is None else remixers.split(', ')
+                    remixers = [] if remixers is None else remixers.split(', ')
                     genre = track.get_tag(ID3Tag.GENRE)
+                    label = track.get_tag(ID3Tag.LABEL)
                     bpm = track.get_tag(ID3Tag.BPM)
                     key = track.format_key()
                     camelot_code = track.format_camelot_code()
@@ -93,11 +95,11 @@ class DataManager:
                     'Date Added': date_added
                 }.items() if not is_empty(v)}
 
-                collection_metadata[title] = track_metadata
+                collection_metadata[track_name] = track_metadata
                 for artist in artists + remixers + ([] if featured is None else [featured]):
                     artist_counts[artist] += 1
             except Exception as e:
-                print('Error %s while processing track %s' % (e, track))
+                print('Error while processing track %s: %s' % (f, e))
                 continue
 
         # Sort track names alphabetically
@@ -131,7 +133,7 @@ class DataManager:
                     warnings.append('Could not load ID3 data for %s' % track)
                     continue
                 md = md.tag
-                key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3_MAP[ID3Tag.KEY], md.frameiter()))
+                key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3Tag.KEY.value, md.frameiter()))
 
                 if len(key_frame) == 1:
                     track_md = re.findall(MD_FORMAT_REGEX, track)
@@ -148,3 +150,8 @@ class DataManager:
         errors = '\n'.join(sorted(errors))
         print('Warnings:\n%s' % warnings)
         print('\n\nErrors:\n%s' % errors)
+
+
+if __name__ == '__main__':
+    dm = DataManager()
+    dm.generate_collection_metadata()
