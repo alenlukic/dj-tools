@@ -1,8 +1,5 @@
 from collections import defaultdict, OrderedDict
-from eyed3 import load
 import logging
-from os.path import basename
-from shutil import copyfile
 
 from src.definitions.common import *
 from src.definitions.data_management import *
@@ -71,10 +68,11 @@ class DataManager:
 
     def generate_track_metadata(self, track_path):
         """
-        TODO.
-        :param track_path:
-        :return:
+        Generate formatted metadata for a track and write it to its comment field.
+
+        :param track_path - Qualified path to the track.
         """
+
         track = Track(track_path)
         id3_data = track.get_id3_data()
         try:

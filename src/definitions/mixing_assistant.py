@@ -1,6 +1,7 @@
 from collections import ChainMap
 
-from src.utils.mixing_assistant import Command, CommandArgument
+from src.tools.mixing.command import Command
+from src.tools.mixing.command_argument import CommandArgument
 
 EXIT = 'exit'
 MATCH = 'match'
