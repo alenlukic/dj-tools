@@ -17,7 +17,7 @@ class MixingAssistant:
     """" CLI mixing assistant functions."""
 
     def __init__(self):
-        """ Initializes DJ tools class. """
+        """ Initializes data manager. """
         self.dm = DataManager()
         self.camelot_map = generate_camelot_map(self.dm.audio_files)
 
