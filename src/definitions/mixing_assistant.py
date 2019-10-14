@@ -30,7 +30,7 @@ COMMANDS = {
         'Find harmonic mixing matches for the given BPM and Camelot code.', 'get_transition_matches',
         MATCH_ALIASES,
         [
-            CommandArgument('bpm', 'integer', 'The BPM of the current track.', 0, 128),
+            CommandArgument('bpm_input', 'integer', 'The BPM of the current track.', 0, 128),
             CommandArgument('camelot_code', 'string', 'The Camelot code of the current track.', 1, '08A')
         ]
     ),

@@ -79,14 +79,15 @@ class MixingAssistant:
         cmd_args = {expected_args[i].get_name(): args[i] for i in range(num_args)}
         return getattr(self, cmd_function)(**cmd_args)
 
-    def get_transition_matches(self, bpm, camelot_code):
+    def get_transition_matches(self, bpm_input, camelot_code):
         """
         Prints transition matches for given BPM and Camelot code.
 
-        :param bpm: Track BPM.
-        :param camelot_code: Track Camelot code.
+        :param bpm_input - track BPM
+        :param camelot_code - track Camelot code
         """
 
+        bpm = int(bpm_input)
         code_number = int(camelot_code[0:2])
         code_letter = camelot_code[-1].upper()
 
