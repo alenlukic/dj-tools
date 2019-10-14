@@ -1,12 +1,17 @@
+from ast import literal_eval
 from collections import defaultdict, ChainMap
 from enum import Enum
 from eyed3 import id3 as metadata, load
+import logging
 from os.path import getctime
 import re
 from time import ctime
 
 
-from src.utils.utils import is_empty
+from src.utils.utils import *
+
+# Suppress annoying eyed3 logs
+logging.getLogger('eyed3').setLevel(logging.ERROR)
 
 
 class ID3Tag(Enum):
@@ -31,6 +36,8 @@ class CustomTag(Enum):
 ALL_ID3_TAGS = set([t.value for t in ID3Tag])
 
 REQUIRED_ID3_TAGS = {ID3Tag.TITLE, ID3Tag.ARTIST, ID3Tag.BPM, ID3Tag.KEY}
+
+UNSUPPORTED_ID3_TAGS = {'GRP1'}
 
 CANONICAL_KEY_MAP = {
     k.lower(): v.lower() for k, v in {
@@ -206,9 +213,12 @@ class Track:
             return energy
 
         comment = self.get_tag(ID3Tag.COMMENT) or ''
-        if 'Energy' in comment:
+        if comment.startswith('Energy'):
             segment = [s.strip() for s in comment.split()][-1]
             energy = None if not segment.isnumeric() else int(segment)
+        elif comment.startswith('Metadata: '):
+            track_metadata = literal_eval(comment.split('Metadata: ')[1])
+            energy = track_metadata['Energy']
 
         self.formatted[CustomTag.ENERGY.value] = energy
 
@@ -325,8 +335,9 @@ class Track:
         if md is None:
             return None
 
+        md = md.tag
         frame_types = {metadata.frames.TextFrame, metadata.frames.CommentFrame}
-        track_frames = md.tag.frameiter()
+        track_frames = md.frameiter()
         id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
         keys = list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))
 
@@ -377,3 +388,37 @@ class TrackMetadata:
             'Energy': self.energy,
             'Date Added': self.date_added
         }.items() if not is_empty(v)}
+
+    def write_metadata_to_comment(self, track_path):
+        """ Write track's metadata to the ID3 comment field.
+
+        :param track_path - Full qualified path to the track file.
+        """
+
+        md = load(track_path)
+        if md is None:
+            return
+
+        md = md.tag
+        TrackMetadata._remove_unsupported_tags(md)
+        comment_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3Tag.COMMENT.value, md.frameiter()))
+
+        if len(comment_frame) == 1:
+            comment_frame[0].text = 'Metadata: ' + str(self.get_metadata())
+            md.save()
+        else:
+            print('No comment frame found for %s' % track_path)
+
+    @staticmethod
+    def _remove_unsupported_tags(md_tag):
+        """
+        Remove any tags not currently supported by eyed3.
+
+        :param md_tag - Wrapper for a track's ID3 tags.
+        """
+
+        frame_set = md_tag.frame_set
+        for k, tags in frame_set.items():
+            for unsupported_tag in list(filter(lambda frame: frame.id.decode('utf-8') in UNSUPPORTED_ID3_TAGS, tags)):
+                tags.remove(unsupported_tag)
+            dict.__setitem__(frame_set, k, tags)

@@ -37,9 +37,9 @@ class DataManager:
             id3_data = track.get_id3_data()
             try:
                 track_metadata = (self._generate_metadata_heuristically(track) if id3_data is None else
-                                  self._generate_metadata_from_id3())
-
-                collection_metadata[track_name] = track_metadata
+                                  self._generate_metadata_from_id3(track))
+                track_metadata.write_metadata_to_comment(track_path)
+                collection_metadata[track_name] = track_metadata.get_metadata()
                 for artist in track_metadata.artists + track_metadata.remixers:
                     artist_counts[artist] += 1
             except Exception as e:
@@ -117,7 +117,7 @@ class DataManager:
         energy = track.format_energy()
         date_added = track.get_date_added()
 
-        return TrackMetadata(title, artists, remixers, genre, label, bpm, key, camelot_code, energy, date_added())
+        return TrackMetadata(title, artists, remixers, genre, label, bpm, key, camelot_code, energy, date_added)
 
     def _generate_metadata_heuristically(self, track):
         """
@@ -126,7 +126,7 @@ class DataManager:
         :param track - Track wrapper class instance.
         """
 
-        base_path = basename(track)
+        base_path = basename(track.get_track_path())
         track_name = '.'.join(base_path.split('.')[0:-1])
 
         # Chop up the filename
@@ -141,21 +141,20 @@ class DataManager:
         # Derive title and remixers
         title = ' - '.join(split_basename[1:])
         paren_index = title.find('(')
+        remixers = []
         if paren_index != -1:
             title = title[0:paren_index]
             remix_segment = title[paren_index + 1:len(title) - 1].split(' ')
             if remix_segment[-1] == 'Remix':
                 remixer_segment = ' '.join(remix_segment[0:-1])
                 remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')
-        else:
-            remixers = []
 
         camelot_code, key, bpm = track_md
         key = CANONICAL_KEY_MAP.get(key.lower())
         key = None if key is None else key[0].upper() + ''.join(key[1:])
         date_added = track.get_date_added()
 
-        return TrackMetadata(title, artists, remixers, None, None, bpm, key, camelot_code, None, date_added())
+        return TrackMetadata(title, artists, remixers, None, None, bpm, key, camelot_code, None, date_added)
 
 
 if __name__ == '__main__':
