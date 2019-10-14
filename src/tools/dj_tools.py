@@ -6,7 +6,8 @@ from shutil import copyfile
 import stat
 
 from src.definitions.harmonic_mixing import *
-from src.utils.file_processing import *
+from src.utils.data_management import *
+from src.utils.file_management import *
 from src.utils.harmonic_mixing import *
 
 
@@ -45,7 +46,8 @@ class DJTools:
         for f in input_files:
             old_name = join(input_dir, f)
             old_base_name = basename(old_name)
-            id3_data = extract_id3_data(old_name)
+            track = Track(old_name)
+            id3_data = track.get_id3_data()
 
             if id3_data is None or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
                 # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming
@@ -55,23 +57,11 @@ class DJTools:
                 new_name = join(target_dir, input())
                 copyfile(old_name, new_name)
             else:
-                # Extract ID3 metadata
-                title = id3_data[ID3_MAP[ID3Tag.TITLE]]
-                artist = id3_data[ID3_MAP[ID3Tag.ARTIST]]
-                key = id3_data[ID3_MAP[ID3Tag.KEY]]
-                bpm = id3_data[ID3_MAP[ID3Tag.BPM]]
-
-                # Generate new formatted file name
-                formatted_title, featured = format_title(title)
-                formatted_artists = format_artists(artist.split(', '), [] if featured is None else [featured])
-                formatted_key = CANONICAL_KEY_MAP[key.lower()]
-                camelot_prefix = ' - '.join(
-                    ['[' + CAMELOT_MAP[formatted_key], formatted_key.capitalize(), str(bpm) + ']'])
-                artist_midfix = formatted_artists + (' ft. ' + featured if featured is not None else '')
-                formatted_name = camelot_prefix + ' ' + artist_midfix + ' - ' + formatted_title
+                # Generate formatted track name
+                formatted_name = track.format_track_name()
                 new_name = ''.join([join(target_dir, formatted_name).strip(), '.', old_name.split('.')[-1].strip()])
 
-                # Copy formatted track to user audio directory
+                # Copy track to user audio directory with new formatting
                 copyfile(old_name, new_name)
                 new_track = load(new_name).tag
                 new_track.title = formatted_name

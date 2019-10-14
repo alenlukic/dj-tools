@@ -1,32 +1,31 @@
 from enum import Enum
-import json
 import re
 
 
 class ID3Tag(Enum):
-    TITLE = 1
-    ARTIST = 2
-    BPM = 3
-    KEY = 4
+    TITLE = 'TIT2'
+    ARTIST = 'TPE1'
+    REMIXER = 'TPE4'
+    GENRE = 'TCON'
+    BPM = 'TBPM'
+    KEY = 'TKEY'
+    LABEL = 'TPUB'
+    COMMENT = 'COMM'
+    BEATPORT = 'TENC'
 
 
-CONFIG = json.load(open('config.json', 'r'))
-PROCESSED_MUSIC_DIR = CONFIG['PROCESSED_MUSIC_DIR']
-TMP_MUSIC_DIR = CONFIG['TMP_MUSIC_DIR']
+class CustomTag(Enum):
+    FEATURED = 'FEATURED'
+    CAMELOT_CODE = 'CAMELOT_CODE'
+    TRACK_NAME = 'TRACK_NAME'
+    ENERGY = 'ENERGY'
 
-AUDIO_TYPES = {'mp3', 'wav', 'flac', 'ogg', 'aif', 'aiff', 'm3u'}
-LOSSLESS = {'wav', 'flac', 'aif', 'aiff'}
 
-ALL_ID3_TAGS = {'TIT2', 'TPE1', 'TPE4', 'TBPM', 'TKEY'}
-REQUIRED_ID3_TAGS = {'TIT2', 'TPE1', 'TBPM', 'TKEY'}
-BEATPORT_ID3_TAG = 'TENC'
+ALL_ID3_TAGS = set([t.value for t in ID3Tag])
 
-ID3_MAP = {
-    ID3Tag.TITLE: 'TIT2',
-    ID3Tag.ARTIST: 'TPE1',
-    ID3Tag.BPM: 'TBPM',
-    ID3Tag.KEY: 'TKEY'
-}
+REQUIRED_ID3_TAGS = {ID3Tag.TITLE, ID3Tag.ARTIST, ID3Tag.BPM, ID3Tag.KEY}
+
+UNSUPPORTED_ID3_TAGS = {'GRP1'}
 
 CANONICAL_KEY_MAP = {
     k.lower(): v.lower() for k, v in {
@@ -135,4 +134,4 @@ CAMELOT_MAP = {
     'e': '12B'
 }
 
-FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+MD_FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')

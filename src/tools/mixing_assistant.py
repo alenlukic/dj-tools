@@ -80,7 +80,7 @@ class MixingAssistant:
         self.tools.get_transition_matches(int(bpm), camelot_code)
 
     def print_malformed_tracks(self):
-        """ Prints malformed track names to stdout to facilitate correction. """
+        """ Prints malformed track names to stdout to facilitate corrections. """
         self.tools.show_malformed_tracks()
 
     def reload_track_data(self):
