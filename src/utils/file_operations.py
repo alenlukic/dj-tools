@@ -1,10 +1,11 @@
 from eyed3 import load
-from os import listdir, remove
+from os import chmod, listdir, remove
 from os.path import basename, isfile, join
 from shutil import copyfile
+import stat
 
 from src.definitions.data_management import ID3Tag
-from src.definitions.file_management import *
+from src.definitions.file_operations import *
 
 
 def get_audio_files(input_dir):
@@ -58,3 +59,16 @@ def separate_low_and_high_quality(source_dir, lq_dir, hq_dir):
         # Move file to destination and delete from source
         copyfile(f, new_name)
         remove(f)
+
+
+def set_audio_file_permissions(audio_dir):
+    """
+    Makes all audio files in directory readable and writable.
+
+    :param audio_dir - directory where audio files are located.
+    """
+
+    permissions = stat.S_IREAD | stat.S_IROTH | stat.S_IWRITE | stat.S_IWOTH
+    audio_files = get_audio_files(audio_dir)
+    for file in audio_files:
+        chmod(join(audio_dir, file), permissions)

@@ -4,7 +4,7 @@ import logging
 from src.definitions.common import *
 from src.definitions.data_management import *
 from src.tools.data_management.track import Track
-from src.utils.file_management import *
+from src.utils.file_operations import *
 
 
 # Suppress annoying eyed3 logs
