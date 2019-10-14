@@ -1,12 +1,8 @@
 import logging
 from math import ceil, floor
-from os import chmod, remove
-from os.path import basename
-from shutil import copyfile
-import stat
 
+from src.definitions.common import *
 from src.definitions.harmonic_mixing import *
-from src.utils.data_management import *
 from src.utils.file_management import *
 from src.utils.harmonic_mixing import *
 
@@ -31,85 +27,6 @@ class DJTools:
 
     #############################
     # File processing functions #
-    #############################
-
-    def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None):
-        """
-        Standardizes song names and copy them to library.
-
-        :param input_dir - directory containing audio files to rename.
-        :param target_dir - directory where updated audio files should be saved
-        """
-
-        target_dir = target_dir or self.audio_dir
-        input_files = get_audio_files(input_dir)
-        for f in input_files:
-            old_name = join(input_dir, f)
-            old_base_name = basename(old_name)
-            track = Track(old_name)
-            id3_data = track.get_id3_data()
-
-            if id3_data is None or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
-                # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming
-                # - user will need to enter new name manually.
-                print('Can\'t automatically rename this track: %s' % old_base_name)
-                print('Enter the new name here:')
-                new_name = join(target_dir, input())
-                copyfile(old_name, new_name)
-            else:
-                # Generate formatted track name
-                formatted_name = track.format_track_name()
-                new_name = ''.join([join(target_dir, formatted_name).strip(), '.', old_name.split('.')[-1].strip()])
-
-                # Copy track to user audio directory with new formatting
-                copyfile(old_name, new_name)
-                new_track = load(new_name).tag
-                new_track.title = formatted_name
-                new_track.save()
-
-            new_base_name = basename(new_name)
-            try:
-                print('\nRenaming:\t%s\nto:\t\t%s' % (old_base_name, new_base_name))
-            except Exception as e:
-                print('Could not rename %s to %s (exception: %s)' % (old_base_name, new_base_name, str(e)))
-
-    def set_audio_file_permissions(self):
-        """ Makes all audio files in user's music directory readable and writable. """
-        permissions = stat.S_IREAD | stat.S_IROTH | stat.S_IWRITE | stat.S_IWOTH
-        for file in self.audio_files:
-            chmod(join(self.audio_dir, file), permissions)
-
-    def show_malformed_tracks(self):
-        """ Prints any malformed track names to stdout. """
-        return print_malformed_tracks(self.audio_files)
-
-    @staticmethod
-    def separate_low_and_high_quality(source_dir, lq_dir, hq_dir):
-        """
-        Takes all files in source_dir and moves the low quality ones to low_quality_dir and the high quality ones to
-        high_quality_dir. This is useful for cleaning up directories containing audio files or varying quality.
-        N.B.: this will delete all files in the original directory.
-
-        :param source_dir - directory containing all audio files
-        :param lq_dir - directory to save low quality files to
-        :param hq_dir - directory to save high quality files to
-        """
-
-        for f in get_audio_files(source_dir):
-            track_path = join(source_dir, f)
-            track_name = basename(f)
-
-            # Determine destination based on file quality estimate
-            destination = hq_dir if is_high_quality(track_path) else lq_dir
-            new_name = join(destination, track_name)
-            print('Moving:\t%s\nto:\t\t%s' % (track_name, destination))
-
-            # Move file to destination and delete from source
-            copyfile(f, new_name)
-            remove(f)
-
-    #############################
-    # Harmonic mixing functions #
     #############################
 
     def reload_track_data(self):

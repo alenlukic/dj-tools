@@ -1,7 +1,9 @@
 from sys import exit
 
 from src.definitions.mixing_assistant import *
+from src.tools.data_management.data_manager import DataManager
 from src.tools.dj_tools import DJTools
+from src.tools.file_management.file_manager import FileManager
 from src.utils.mixing_assistant import CommandParsingException
 
 
@@ -40,6 +42,8 @@ class MixingAssistant:
     def __init__(self):
         """ Initializes DJ tools class. """
         self.tools = DJTools()
+        self.dm = DataManager()
+        self.fm = FileManager()
 
     def execute(self, user_input):
         """
@@ -81,7 +85,7 @@ class MixingAssistant:
 
     def print_malformed_tracks(self):
         """ Prints malformed track names to stdout to facilitate corrections. """
-        self.tools.show_malformed_tracks()
+        self.dm.show_malformed_tracks()
 
     def reload_track_data(self):
         """ Reloads tracks from the audio directory and regenerates Camelot map. """
@@ -90,7 +94,7 @@ class MixingAssistant:
 
     def rename_tracks(self):
         """ Rename tracks in tmp directory. """
-        self.tools.rename_songs()
+        self.dm.rename_songs()
         print('\nSongs renamed.')
 
     def shutdown(self):
