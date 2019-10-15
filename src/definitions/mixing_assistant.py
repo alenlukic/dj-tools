@@ -30,8 +30,8 @@ COMMANDS = {
         'Find harmonic mixing matches for the given BPM and Camelot code.', 'get_transition_matches',
         MATCH_ALIASES,
         [
-            CommandArgument('bpm_input', 'integer', 'The BPM of the current track.', 0, 128),
-            CommandArgument('camelot_code', 'string', 'The Camelot code of the current track.', 1, '08A')
+            CommandArgument('track_path', 'string', 'Qualified path of the current track.', 0,
+                            '/Users/user/Music/[05A - Cm - 140] Leftfield - Song Of Life (John Askew Remix).mp3')
         ]
     ),
     LINT: Command(LINT, 'Prints malformed track names to stdout.', 'print_malformed_tracks'),

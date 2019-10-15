@@ -5,6 +5,7 @@ from sys import exit
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
 from src.tools.data_management.data_manager import DataManager
+from src.tools.mixing.transition_match import TransitionMatch
 from src.utils.harmonic_mixing import *
 from src.utils.mixing_assistant import *
 
@@ -19,7 +20,8 @@ class MixingAssistant:
     def __init__(self):
         """ Initializes data manager. """
         self.dm = DataManager()
-        self.camelot_map = generate_camelot_map(self.dm.audio_files)
+        self.metadata = self.dm.load_collection_metadata()['Track Metadata']
+        self.camelot_map = generate_camelot_map(self.metadata)
 
     def execute(self, user_input):
         """
@@ -37,28 +39,35 @@ class MixingAssistant:
         # Validate arguments
         cmd_name = ALIAS_MAPPING.get(cmd_alias, cmd_alias)
         command = COMMANDS[cmd_name]
-        args = segments[1:]
+
+        # TODO: fix below hack
+        args = [' '.join(segments[1:])] if cmd_name == MATCH else segments[1:]
+
         expected_args = command.get_arguments()
         num_args = len(args)
         num_expected_args = len(expected_args)
         if num_args != num_expected_args:
             formatted_args = '' if num_args == 0 else ' - got: %s' % ' '.join(args)
-            raise CommandParsingException('%s expects %d arguments%s.' % (cmd_name, num_args, formatted_args))
+            raise CommandParsingException('%s expects %d arguments%s.' % (cmd_name, num_expected_args, formatted_args))
 
         # Execute command
         cmd_function = command.get_function()
         cmd_args = {expected_args[i].get_name(): args[i] for i in range(num_args)}
         return getattr(self, cmd_function)(**cmd_args)
 
-    def get_transition_matches(self, bpm_input, camelot_code):
+    def get_transition_matches(self, track_path):
         """
         Prints transition matches for given BPM and Camelot code.
 
-        :param bpm_input - track BPM
-        :param camelot_code - track Camelot code
+        :param track_path
         """
 
-        bpm = int(bpm_input)
+        current_track_md = self.metadata.get(track_path)
+        if current_track_md is None:
+            raise Exception('%s not found in metadata.' % track_path)
+
+        bpm = int(current_track_md['BPM'])
+        camelot_code = current_track_md['Camelot Code']
         code_number = int(camelot_code[0:2])
         code_letter = camelot_code[-1].upper()
 
@@ -66,18 +75,18 @@ class MixingAssistant:
         # same key > major/minor jump > one key jump > adjacent jump > one octave jump > two key jump
         harmonic_codes = [
             # Same key
-            (code_number, code_letter, 0),
+            (code_number, code_letter, 4),
             # One key jump
-            ((code_number + 1) % 12, code_letter, 2),
+            ((code_number + 1) % 12, code_letter, 3),
             # Two key jump
-            ((code_number + 2) % 12, code_letter, 5),
+            ((code_number + 2) % 12, code_letter, 0),
             # One octave jump
-            ((code_number + 7) % 12, code_letter, 4),
+            ((code_number + 7) % 12, code_letter, 1),
             # Major/minor jump
-            ((code_number + (3 if code_letter == 'A' else -3)) % 12, flip_camelot_letter(code_letter), 1),
+            ((code_number + (3 if code_letter == 'A' else - 3)) % 12, flip_camelot_letter(code_letter), 3),
             # Adjacent key jumps
-            ((code_number + (1 if code_letter == 'B' else - 1)) % 12, flip_camelot_letter(code_letter), 3),
-            (code_number, flip_camelot_letter(code_letter), 3)
+            ((code_number + (1 if code_letter == 'B' else - 1)) % 12, flip_camelot_letter(code_letter), 2),
+            (code_number, flip_camelot_letter(code_letter), 2)
         ]
 
         # We also find matching tracks one key above and below the current key, such that if these tracks were sped up
@@ -90,13 +99,13 @@ class MixingAssistant:
         for code_number, code_letter, priority in harmonic_codes:
             cc = format_camelot_number(code_number) + code_letter
             same_key, higher_key, lower_key = self._get_matches_for_code(bpm, cc, code_number, code_letter)
-            same_key_results.extend([(priority, sk) for sk in same_key])
-            higher_key_results.extend([(priority, hk) for hk in higher_key])
-            lower_key_results.extend([(priority, lk) for lk in lower_key])
+            same_key_results.extend([TransitionMatch(sk, current_track_md, priority) for sk in same_key])
+            higher_key_results.extend([TransitionMatch(hk, current_track_md, priority) for hk in higher_key])
+            lower_key_results.extend([TransitionMatch(lk, current_track_md, priority) for lk in lower_key])
 
-        higher_key_results = [x[1] for x in sorted(list(set(higher_key_results)))]
-        lower_key_results = [x[1] for x in sorted(list(set(lower_key_results)))]
-        same_key_results = [x[1] for x in sorted(list(set(same_key_results)))]
+        higher_key_results = [tm.format() for tm in sorted(higher_key_results, reverse=True)]
+        lower_key_results = [tm.format() for tm in sorted(lower_key_results, reverse=True)]
+        same_key_results = [tm.format() for tm in sorted(same_key_results, reverse=True)]
 
         print('Higher key (step down) results:\n')
         for result in higher_key_results:

@@ -1,5 +1,6 @@
 from collections import defaultdict, OrderedDict
 import logging
+from os.path import exists
 
 from src.definitions.common import *
 from src.definitions.data_management import *
@@ -24,6 +25,7 @@ class DataManager:
         self.audio_dir = audio_dir
         self.data_dir = data_dir
         self.audio_files = get_audio_files(self.audio_dir)
+        self.collection_metadata = self.load_collection_metadata()
 
     def generate_collection_metadata(self, output_file='metadata.json'):
         """
@@ -40,9 +42,7 @@ class DataManager:
             track_path = join(self.audio_dir, track_file)
             track_metadata = self.generate_track_metadata(track_path)
             if track_metadata is not None:
-                track_name = '.'.join(track_file.split('.')[0:-1])
-                collection_metadata[track_name] = track_metadata.get_metadata()
-
+                collection_metadata[track_path] = track_metadata.get_metadata()
                 for artist in track_metadata.artists + track_metadata.remixers:
                     artist_counts[artist] += 1
 
@@ -78,11 +78,26 @@ class DataManager:
         try:
             track_metadata = (self._generate_metadata_heuristically(track) if id3_data is None else
                               track.generate_metadata_from_id3())
-            track_metadata.write_metadata_to_comment(track_path)
+            track_metadata.write_tags(track_path)
             return track_metadata
         except Exception as e:
             print('Error while processing track %s: %s' % (track_path, e))
             return None
+
+    def load_collection_metadata(self, data_dir=DATA_DIR, file_name='metadata.json'):
+        """
+        Loads collection metadata from JSON.
+
+        :param data_dir - directory where metadata JSON is located
+        :param file_name - name of file containing metadata
+        """
+
+        file_path = join(data_dir, file_name)
+        if exists(file_path):
+            with open(file_path, 'r') as f:
+                return json.load(f)
+
+        return {}
 
     def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None):
         """
@@ -227,3 +242,8 @@ class DataManager:
         date_added = track.get_date_added()
 
         return track.generate_metadata(title, artists, remixers, None, None, bpm, key, camelot_code, None, date_added)
+
+
+if __name__ == '__main__':
+    dm = DataManager()
+    dm.generate_collection_metadata()

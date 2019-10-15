@@ -21,6 +21,17 @@ class CustomTag(Enum):
     ENERGY = 'ENERGY'
 
 
+READABLE_TO_ID3 = {
+    'Title': ID3Tag.TITLE.value,
+    'Artists': ID3Tag.ARTIST.value,
+    'Remixers': ID3Tag.REMIXER.value,
+    'Genre': ID3Tag.GENRE.value,
+    'BPM': ID3Tag.BPM.value,
+    'Key': ID3Tag.KEY.value,
+    'Label': ID3Tag.LABEL.value,
+    'Comment': ID3Tag.COMMENT.value
+}
+
 ALL_ID3_TAGS = set([t.value for t in ID3Tag])
 
 REQUIRED_ID3_TAGS = {ID3Tag.TITLE, ID3Tag.ARTIST, ID3Tag.BPM, ID3Tag.KEY}

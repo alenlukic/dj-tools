@@ -14,6 +14,8 @@ class Track:
     class TrackMetadata:
         """ Wrapper class for track metadata. """
 
+        KEYS_TO_OMIT = {'Artists', 'Remixers'}
+
         def __init__(self, title, artists, remixers, genre, label, bpm, key, camelot_code, energy, date_added):
             """
             Initializes class with all metadata.
@@ -43,21 +45,22 @@ class Track:
 
         def get_metadata(self):
             """ Return non-empty metadata in dictionary form. """
+            title_metadata = self._get_metadata_from_title()
             return {k: v for k, v in {
                 'Title': self.title,
                 'Artists': self.artists,
                 'Remixers': self.remixers,
                 'Genre': self.genre,
                 'Label': self.label,
-                'BPM': self.bpm,
-                'Key': self.key,
-                'Camelot Code': self.camelot_code,
+                'BPM': title_metadata.get('BPM') or self.bpm,
+                'Key': title_metadata.get('Key') or self.key,
+                'Camelot Code': title_metadata.get('Camelot Code') or self.camelot_code,
                 'Energy': self.energy,
                 'Date Added': self.date_added
             }.items() if not is_empty(v)}
 
-        def write_metadata_to_comment(self, track_path):
-            """ Write track's metadata to the ID3 comment field.
+        def write_tags(self, track_path):
+            """ Write track's tags and metadata to ID3 fields, if they don't already exist.
 
             :param track_path - Full qualified path to the track file.
             """
@@ -66,15 +69,63 @@ class Track:
             if md is None:
                 return
 
+            # Remove tags not supported by eyed3
             md = md.tag
             self._remove_unsupported_tags(md)
-            comment_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3Tag.COMMENT.value, md.frameiter()))
 
-            if len(comment_frame) == 1:
-                comment_frame[0].text = 'Metadata: ' + str(self.get_metadata())
-                md.save()
-            else:
-                print('No comment frame found for %s' % track_path)
+            # Update tags to fix any discrepancies
+            frames = list(md.frameiter())
+            track_metadata = self.get_metadata()
+            for k, v in track_metadata.items():
+                if k in self.KEYS_TO_OMIT:
+                    continue
+
+                frame = self._get_frame_with_metadata_key(k, frames)
+                if frame is None:
+                    continue
+
+                frame.text = v
+
+            # Write metadata
+            comment_frame = self._get_frame_with_metadata_key('Comment', frames)
+            if comment_frame is None:
+                return
+
+            comment_frame.text = 'Metadata: ' + str(track_metadata)
+            md.save()
+
+        @staticmethod
+        def _get_frame_with_metadata_key(metadata_key, frames):
+            """
+            Uses metadata key to retrieve corresponding ID3 frame, if available.
+
+            :param metadata_key - the metadata key.
+            :param frames - track's ID3 frames.
+            """
+            tag = READABLE_TO_ID3.get(metadata_key)
+            if tag is None:
+                return None
+
+            target_frame = list(filter(lambda frame: frame.id.decode('utf-8') == tag, frames))
+            if len(target_frame) == 1:
+                return target_frame[0]
+
+            return None
+
+        def _get_metadata_from_title(self):
+            """ Extracts Camelot Code, key, and BPM from track title."""
+
+            title_md = re.findall(MD_FORMAT_REGEX, self.title)
+            if len(title_md) == 1:
+                camelot_code, key, bpm = title_md[0]
+
+                return {
+                    'Camelot Code': camelot_code,
+                    'Key': key,
+                    'BPM': bpm
+                }
+
+            return {}
 
         @staticmethod
         def _remove_unsupported_tags(md_tag):
