@@ -12,7 +12,7 @@ class CamelotPriority(Enum):
     ADJACENT_JUMP = 2
     ONE_KEY_JUMP = 3
     MAJOR_MINOR_JUMP = 3
-    SAME_KEY = 4
+    SAME_KEY = 3
 
 
 EXIT = 'exit'

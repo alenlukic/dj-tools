@@ -244,5 +244,4 @@ class DataManager:
 
 
 if __name__ == '__main__':
-    dm = DataManager()
-    dm.generate_collection_metadata()
+    DataManager().generate_collection_metadata()

@@ -14,10 +14,6 @@ from src.utils.mixing_assistant import *
 logging.getLogger('eyed3').setLevel(logging.ERROR)
 
 
-class MixingException(Exception):
-    pass
-
-
 class MixingAssistant:
     """" CLI mixing assistant functions."""
 
@@ -209,6 +205,10 @@ class MixingAssistant:
         print('\n\n%s results:\n' % result_type)
         for result in results:
             print(result)
+
+
+class MixingException(Exception):
+    pass
 
 
 if __name__ == '__main__':
