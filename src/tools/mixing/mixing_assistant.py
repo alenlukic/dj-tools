@@ -145,6 +145,26 @@ class MixingAssistant:
             (code_number, flip_camelot_letter(code_letter), CamelotPriority.ADJACENT_JUMP.value)
         ]
 
+    def _get_matches(self, bpm, camelot_code, upper_bound, lower_bound):
+        """
+        Calculate BPM ranges and find matching tracks.
+
+        :param bpm - track BPM
+        :param camelot_code - full Camelot code
+        :param upper_bound - max percentage difference between current BPM and higher BPMs
+        :param lower_bound - max percentage difference between current BPM and lower BPMs
+        """
+
+        upper_bpm = int(floor(get_bpm_bound(bpm, lower_bound)))
+        lower_bpm = int(ceil(get_bpm_bound(bpm, upper_bound)))
+
+        results = []
+        code_map = self.camelot_map[camelot_code]
+        for b in range(lower_bpm, upper_bpm + 1):
+            results.extend(code_map[str(b)])
+
+        return results
+
     def _get_matches_for_code(self, harmonic_codes, cur_track_md):
         """
         Find matches for the given track.
@@ -178,26 +198,6 @@ class MixingAssistant:
         lower_key = sorted([t.format() for t in lower_key], reverse=True)
 
         return same_key, higher_key, lower_key
-
-    def _get_matches(self, bpm, camelot_code, upper_bound, lower_bound):
-        """
-        Calculate BPM ranges and find matching tracks.
-
-        :param bpm - track BPM
-        :param camelot_code - full Camelot code
-        :param upper_bound - max percentage difference between current BPM and higher BPMs
-        :param lower_bound - max percentage difference between current BPM and lower BPMs
-        """
-
-        upper_bpm = int(floor(get_bpm_bound(bpm, lower_bound)))
-        lower_bpm = int(ceil(get_bpm_bound(bpm, upper_bound)))
-
-        results = []
-        code_map = self.camelot_map[camelot_code]
-        for b in range(lower_bpm, upper_bpm + 1):
-            results.extend(code_map[str(b)])
-
-        return results
 
     def _print_transition_ranks(self, result_type, results):
         """
