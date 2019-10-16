@@ -14,6 +14,10 @@ from src.utils.mixing_assistant import *
 logging.getLogger('eyed3').setLevel(logging.ERROR)
 
 
+class MixingException(Exception):
+    pass
+
+
 class MixingAssistant:
     """" CLI mixing assistant functions."""
 
@@ -40,7 +44,7 @@ class MixingAssistant:
         cmd_name = ALIAS_MAPPING.get(cmd_alias, cmd_alias)
         command = COMMANDS[cmd_name]
 
-        # TODO: fix below hack
+        # TODO: fix this hack
         args = [' '.join(segments[1:])] if cmd_name == MATCH else segments[1:]
 
         expected_args = command.get_arguments()
@@ -57,76 +61,48 @@ class MixingAssistant:
 
     def get_transition_matches(self, track_path):
         """
-        Prints transition matches for given BPM and Camelot code.
+        Prints transition matches for the given track.
 
-        :param track_path
+        :param track_path - full qualified path to the track.
         """
 
-        current_track_md = self.metadata.get(track_path)
-        if current_track_md is None:
-            raise Exception('%s not found in metadata.' % track_path)
+        try:
+            # Validate metadata exists
+            cur_track_md = self.metadata.get(track_path)
+            if cur_track_md is None:
+                raise MixingException('%s not found in metadata.' % track_path)
 
-        bpm = int(current_track_md['BPM'])
-        camelot_code = current_track_md['Camelot Code']
-        code_number = int(camelot_code[0:2])
-        code_letter = camelot_code[-1].upper()
+            # Validate BPM and Camelot code exist and are well-formatted
+            bpm = cur_track_md.get('BPM')
+            camelot_code = cur_track_md.get('Camelot Code')
+            if bpm is None:
+                raise MixingException('Did not find a BPM for %s.' % track_path)
+            if not bpm.isnumeric():
+                raise MixingException('Malformed BPM (%s) for %s.' % (bpm, track_path))
+            if camelot_code is None:
+                raise MixingException('Did not find a Camelot code for %s.' % track_path)
 
-        # Harmonic transitions to find. Results are printed in an assigned priority, which is:
-        # same key > major/minor jump > one key jump > adjacent jump > one octave jump > two key jump
-        harmonic_codes = [
-            # Same key
-            (code_number, code_letter, 4),
-            # One key jump
-            ((code_number + 1) % 12, code_letter, 3),
-            # Two key jump
-            ((code_number + 2) % 12, code_letter, 0),
-            # One octave jump
-            ((code_number + 7) % 12, code_letter, 1),
-            # Major/minor jump
-            ((code_number + (3 if code_letter == 'A' else - 3)) % 12, flip_camelot_letter(code_letter), 3),
-            # Adjacent key jumps
-            ((code_number + (1 if code_letter == 'B' else - 1)) % 12, flip_camelot_letter(code_letter), 2),
-            (code_number, flip_camelot_letter(code_letter), 2)
-        ]
+            # Generate and rank matches
+            harmonic_codes = self._get_all_harmonic_codes(cur_track_md)
+            same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md)
 
-        # We also find matching tracks one key above and below the current key, such that if these tracks were sped up
-        # or slowed down to the current track's BPM, they would be a valid haromic transition.
-        # e.g. if current track is 128 BPM Am, then a 122 BPM D#m track is a valid transition - if it was sped up to
-        # 128, the key would be pitched up to Em, which is a valid harmonc transition from Am.
-        same_key_results = []
-        higher_key_results = []
-        lower_key_results = []
-        for code_number, code_letter, priority in harmonic_codes:
-            cc = format_camelot_number(code_number) + code_letter
-            same_key, higher_key, lower_key = self._get_matches_for_code(bpm, cc, code_number, code_letter)
-            same_key_results.extend([TransitionMatch(sk, current_track_md, priority) for sk in same_key])
-            higher_key_results.extend([TransitionMatch(hk, current_track_md, priority) for hk in higher_key])
-            lower_key_results.extend([TransitionMatch(lk, current_track_md, priority) for lk in lower_key])
-
-        higher_key_results = [tm.format() for tm in sorted(higher_key_results, reverse=True)]
-        lower_key_results = [tm.format() for tm in sorted(lower_key_results, reverse=True)]
-        same_key_results = [tm.format() for tm in sorted(same_key_results, reverse=True)]
-
-        print('Higher key (step down) results:\n')
-        for result in higher_key_results:
-            print(result)
-
-        print('\n\nLower key (step up) results:\n')
-        for result in lower_key_results:
-            print(result)
-
-        print('\n\nSame key results:\n')
-        for result in same_key_results:
-            print(result)
+            # Print matches
+            self._print_transition_ranks('Higher key (step down)', higher_key)
+            self._print_transition_ranks('Lower key (step up)', lower_key)
+            self._print_transition_ranks('Same key', same_key)
+        except Exception as e:
+            raise MixingException(str(e))
 
     def print_malformed_tracks(self):
         """ Prints malformed track names to stdout to facilitate corrections. """
         self.dm.show_malformed_tracks()
 
     def reload_track_data(self):
-        """ Reloads tracks from the audio directory and regenerates Camelot map. """
+        """ Reloads tracks from the audio directory and regenerates Camelot map and metadata. """
         self.dm = DataManager()
-        self.camelot_map = generate_camelot_map(self.dm.audio_files)
+        self.dm.generate_collection_metadata()
+        self.metadata = self.dm.load_collection_metadata()['Track Metadata']
+        self.camelot_map = generate_camelot_map(self.metadata)
         print('Track data reloaded.')
 
     def rename_tracks(self):
@@ -139,24 +115,68 @@ class MixingAssistant:
         print('Goodbye.')
         exit()
 
-    def _get_matches_for_code(self, bpm, camelot_code, code_number, code_letter):
+    def _get_all_harmonic_codes(self, cur_track_md):
         """
-        Find matches for the given BPM and camelot code.
+        Get all the Camelot codes which are harmonic transitions for the given track.
 
-        :param bpm - track BPM
-        :param camelot_code - full Camelot code
-        :param code_number - numerical portion of the Camelot code
-        :param code_letter - alphabetic portion of the Camelot code
+        :param cur_track_md - current track's metadata.
         """
 
-        hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
-        lk_code = format_camelot_number((code_number - 7) % 12) + code_letter
+        camelot_code = cur_track_md.get('Camelot Code')
+        code_number = int(camelot_code[0:2])
+        code_letter = camelot_code[-1].upper()
 
-        same_key_results = self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND)
-        higher_key_results = self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND)
-        lower_key_results = self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND)
+        return [
+            # Same key
+            (code_number, code_letter, CamelotPriority.SAME_KEY.value),
+            # One key jump
+            ((code_number + 1) % 12, code_letter, CamelotPriority.ONE_KEY_JUMP.value),
+            # Two key jump
+            ((code_number + 2) % 12, code_letter, CamelotPriority.TWO_OCTAVE_JUMP.value),
+            # One octave jump
+            ((code_number + 7) % 12, code_letter, CamelotPriority.ONE_OCTAVE_JUMP.value),
+            # Major/minor jump
+            ((code_number + (3 if code_letter == 'A' else - 3)) % 12, flip_camelot_letter(code_letter),
+             CamelotPriority.MAJOR_MINOR_JUMP.value),
+            # Adjacent key jumps
+            ((code_number + (1 if code_letter == 'B' else - 1)) % 12, flip_camelot_letter(code_letter),
+             CamelotPriority.ADJACENT_JUMP.value),
+            (code_number, flip_camelot_letter(code_letter), CamelotPriority.ADJACENT_JUMP.value)
+        ]
 
-        return same_key_results, higher_key_results, lower_key_results
+    def _get_matches_for_code(self, harmonic_codes, cur_track_md):
+        """
+        Find matches for the given track.
+
+        :param harmonic_codes - list of harmonic Camelot codes and their respective transition priorities.
+        :param cur_track_md - current track's metadata.
+        """
+
+        bpm = int(cur_track_md['BPM'])
+        same_key = []
+        higher_key = []
+        lower_key = []
+
+        # Find all the matches
+        for code_number, code_letter, priority in harmonic_codes:
+            camelot_code = format_camelot_number(code_number) + code_letter
+            hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
+            lk_code = format_camelot_number((code_number - 7) % 12) + code_letter
+
+            same_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+                            self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND))
+            higher_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+                              self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND))
+            lower_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+                             self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
+
+        # Rank and format results
+        same_key = sorted([t.format() for t in list(filter(
+            lambda match: match.get('Title') != cur_track_md.get('Title'), same_key))], reverse=True)
+        higher_key = sorted([t.format() for t in higher_key], reverse=True)
+        lower_key = sorted([t.format() for t in lower_key], reverse=True)
+
+        return same_key, higher_key, lower_key
 
     def _get_matches(self, bpm, camelot_code, upper_bound, lower_bound):
         """
@@ -177,6 +197,17 @@ class MixingAssistant:
             results.extend(code_map[str(b)])
 
         return results
+
+    def _print_transition_ranks(self, result_type, results):
+        """
+        Prints ranked transition results.
+
+        :param result_type - the type of result (same key, higher key, or lower key).
+        :param results - ranked, formatted results.
+        """
+        print('\n\n%s results:\n' % result_type)
+        for result in results:
+            print(result)
 
 
 if __name__ == '__main__':

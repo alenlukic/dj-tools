@@ -25,7 +25,6 @@ class DataManager:
         self.audio_dir = audio_dir
         self.data_dir = data_dir
         self.audio_files = get_audio_files(self.audio_dir)
-        self.collection_metadata = self.load_collection_metadata()
 
     def generate_collection_metadata(self, output_file='metadata.json'):
         """

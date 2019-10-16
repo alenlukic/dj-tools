@@ -1,7 +1,19 @@
 from collections import ChainMap
+from enum import Enum
 
 from src.tools.mixing.command import Command
 from src.tools.mixing.command_argument import CommandArgument
+
+
+# Priorities indicate how harmonic a particular key transition is (higher = more harmonic)
+class CamelotPriority(Enum):
+    TWO_OCTAVE_JUMP = 0
+    ONE_OCTAVE_JUMP = 1
+    ADJACENT_JUMP = 2
+    ONE_KEY_JUMP = 3
+    MAJOR_MINOR_JUMP = 3
+    SAME_KEY = 4
+
 
 EXIT = 'exit'
 MATCH = 'match'

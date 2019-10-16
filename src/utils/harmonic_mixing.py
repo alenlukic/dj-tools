@@ -24,23 +24,15 @@ def generate_camelot_map(metadata):
     """
     Generate double-nested map of camelot code -> BPM -> set of tracks.
 
-    :param metadata - full qualified paths of all audio files in user's audio directory.
+    :param metadata - map of full qualified paths of all audio files in user's audio directory to their metadata.
     """
 
     cm = defaultdict(lambda: defaultdict(list))
-    for title, track_md in metadata.items():
+    for path, track_md in metadata.items():
+        track_md['Path'] = path
         camelot_code = track_md['Camelot Code']
         bpm = track_md['BPM']
         cm[camelot_code][bpm].append(track_md)
-
-    # for track in track_paths:
-    #     try:
-    #         triad = track[track.find('['): track.find(']') + 1].replace('[', '').replace(']', '')
-    #         camelot_code, _, bpm = tuple([x.strip() for x in triad.split('-')])
-    #         cm[camelot_code][bpm].append(track)
-    #     except Exception as e:
-    #         print('%s (offending track: %s)' % (e, track))
-    #         continue
 
     return cm
 
