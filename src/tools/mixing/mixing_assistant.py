@@ -99,6 +99,7 @@ class MixingAssistant:
 
     def reload_track_data(self):
         """ Reloads tracks from the audio directory and regenerates Camelot map and metadata. """
+
         self.dm = DataManager()
         self.dm.generate_collection_metadata()
         self.metadata = self.dm.load_collection_metadata()['Track Metadata']
@@ -172,7 +173,7 @@ class MixingAssistant:
 
         # Rank and format results
         same_key = sorted([t.format() for t in list(filter(
-            lambda match: match.get('Title') != cur_track_md.get('Title'), same_key))], reverse=True)
+            lambda match: match.metadata.get('Title') != cur_track_md.get('Title'), same_key))], reverse=True)
         higher_key = sorted([t.format() for t in higher_key], reverse=True)
         lower_key = sorted([t.format() for t in lower_key], reverse=True)
 
