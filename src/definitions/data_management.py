@@ -34,9 +34,11 @@ READABLE_TO_ID3 = {
 
 ALL_ID3_TAGS = set([t.value for t in ID3Tag])
 
-REQUIRED_ID3_TAGS = {ID3Tag.TITLE, ID3Tag.ARTIST, ID3Tag.BPM, ID3Tag.KEY}
+REQUIRED_ID3_TAGS = {ID3Tag.TITLE.value, ID3Tag.ARTIST.value, ID3Tag.BPM.value, ID3Tag.KEY.value}
 
 UNSUPPORTED_ID3_TAGS = {'GRP1'}
+
+KEYS_TO_OMIT_FROM_MD_UPDATES = {'Artists', 'Remixers'}
 
 CANONICAL_KEY_MAP = {
     k.lower(): v.lower() for k, v in {

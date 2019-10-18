@@ -45,3 +45,5 @@ def get_bpm_bound(bpm, bound):
     :param bound - percentage difference between current BPM and higher/lower BPMs.
     """
     return bpm / (1 + bound)
+
+    # bpm / other_bpm = (1 + bound)

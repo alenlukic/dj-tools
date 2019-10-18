@@ -14,8 +14,6 @@ class Track:
     class TrackMetadata:
         """ Wrapper class for track metadata. """
 
-        KEYS_TO_OMIT = {'Artists', 'Remixers'}
-
         def __init__(self, title, artists, remixers, genre, label, bpm, key, camelot_code, energy, date_added):
             """
             Initializes class with all metadata.
@@ -77,7 +75,7 @@ class Track:
             frames = list(md.frameiter())
             track_metadata = self.get_metadata()
             for k, v in track_metadata.items():
-                if k in self.KEYS_TO_OMIT:
+                if k in KEYS_TO_OMIT_FROM_MD_UPDATES:
                     continue
 
                 frame = self._get_frame_with_metadata_key(k, frames)
@@ -215,7 +213,7 @@ class Track:
             energy = None if not segment.isnumeric() else int(segment)
         elif comment.startswith('Metadata: '):
             track_metadata = literal_eval(comment.split('Metadata: ')[1])
-            energy = track_metadata['Energy']
+            energy = track_metadata.get('Energy')
 
         self.formatted[CustomTag.ENERGY.value] = energy
 
@@ -296,14 +294,14 @@ class Track:
         if track_name is not None:
             return track_name
 
-        title = self.format_title()
-        artists, featured = self.format_artists()
+        title, featured = self.format_title()
+        artists = self.format_artists()
         bpm = self.format_bpm()
         key = self.format_key()
         camelot_code = self.format_camelot_code()
 
         metadata_prefix = ' - '.join(['[' + camelot_code, key.capitalize(), bpm + ']'])
-        artist_midfix = artists + (' ft. ' + '' if featured is None else featured)
+        artist_midfix = artists + ('' if featured is None else ' ft. ' + featured)
         track_name = metadata_prefix + ' ' + artist_midfix + ' - ' + title
         self.formatted[CustomTag.TRACK_NAME] = track_name
 

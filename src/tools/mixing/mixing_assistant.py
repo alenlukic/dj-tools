@@ -188,10 +188,10 @@ class MixingAssistant:
                              self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
 
         # Rank and format results
-        same_key = sorted([t.format() for t in list(filter(
-            lambda match: match.metadata.get('Title') != cur_track_md.get('Title'), same_key))], reverse=True)
-        higher_key = sorted([t.format() for t in higher_key], reverse=True)
-        lower_key = sorted([t.format() for t in lower_key], reverse=True)
+        same_key = [t.format() for t in sorted(list(filter(
+            lambda match: match.metadata.get('Title') != cur_track_md.get('Title'), same_key)), reverse=True)]
+        higher_key = [t.format() for t in sorted(higher_key, reverse=True)]
+        lower_key = [t.format() for t in sorted(lower_key, reverse=True)]
 
         return same_key, higher_key, lower_key
 
