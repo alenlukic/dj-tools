@@ -20,7 +20,7 @@ class MixingAssistant:
     def __init__(self):
         """ Initializes data manager. """
         self.dm = DataManager()
-        self.metadata = self.dm.load_collection_metadata()['Track Metadata']
+        self.metadata = self.dm.load_collection_metadata()
         self.camelot_map = generate_camelot_map(self.metadata)
 
     def execute(self, user_input):
@@ -64,7 +64,7 @@ class MixingAssistant:
 
         try:
             # Validate metadata exists
-            cur_track_md = self.metadata.get(track_path)
+            cur_track_md = self.metadata['Track Metadata'].get(track_path)
             if cur_track_md is None:
                 raise MixingException('%s not found in metadata.' % track_path)
 
@@ -98,7 +98,7 @@ class MixingAssistant:
 
         self.dm = DataManager()
         self.dm.generate_collection_metadata()
-        self.metadata = self.dm.load_collection_metadata()['Track Metadata']
+        self.metadata = self.dm.load_collection_metadata()
         self.camelot_map = generate_camelot_map(self.metadata)
         print('Track data reloaded.')
 

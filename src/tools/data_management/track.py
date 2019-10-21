@@ -209,11 +209,12 @@ class Track:
 
         comment = self.get_tag(ID3Tag.COMMENT) or ''
         if comment.startswith('Energy'):
-            segment = [s.strip() for s in comment.split()][-1]
+            segment = str([s.strip() for s in comment.split()][-1])
             energy = None if not segment.isnumeric() else int(segment)
         elif comment.startswith('Metadata: '):
             track_metadata = literal_eval(comment.split('Metadata: ')[1])
-            energy = track_metadata.get('Energy')
+            energy = str(track_metadata.get('Energy', ''))
+            energy = None if not energy.isnumeric() else int(energy)
 
         self.formatted[CustomTag.ENERGY.value] = energy
 
@@ -334,6 +335,7 @@ class Track:
         remixers = [] if remixers is None else remixers.split(', ')
         genre = self.get_tag(ID3Tag.GENRE)
         label = self.get_tag(ID3Tag.LABEL)
+        label = None if label is None else label.lower().strip()
         bpm = self.get_tag(ID3Tag.BPM)
         key = self.format_key()
         key = None if key is None else key[0].upper() + ''.join(key[1:])

@@ -35,6 +35,7 @@ class DataManager:
 
         collection_metadata = {}
         artist_counts = defaultdict(int)
+        label_counts = defaultdict(int)
 
         # Generate metadata
         for track_file in self.audio_files:
@@ -44,6 +45,8 @@ class DataManager:
                 collection_metadata[track_path] = track_metadata.get_metadata()
                 for artist in track_metadata.artists + track_metadata.remixers:
                     artist_counts[artist] += 1
+                if track_metadata.label is not None:
+                    label_counts[track_metadata.label] += 1
 
         # Sort track names alphabetically
         sorted_track_metadata = OrderedDict()
@@ -57,10 +60,17 @@ class DataManager:
         for count, artist in sorted_count_tuples:
             sorted_artist_counts[artist] = count
 
+        # Sort label counts in order of decreasing frequency
+        sorted_label_counts = OrderedDict()
+        sorted_count_tuples = sorted([(v, k) for k, v in label_counts.items()], reverse=True)
+        for count, label in sorted_count_tuples:
+            sorted_label_counts[label] = count
+
         # Write metadata to file
         output = {
             'Track Metadata': sorted_track_metadata,
-            'Artist Counts': sorted_artist_counts
+            'Artist Counts': sorted_artist_counts,
+            'Label Counts': sorted_label_counts
         }
         with open(join(self.data_dir, output_file), 'w') as w:
             json.dump(output, w, indent=2)
