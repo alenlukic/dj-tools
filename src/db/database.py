@@ -59,12 +59,3 @@ class Database:
 
 class QueryExecutionException(Exception):
     pass
-
-
-
-
-
-
-
-
-
