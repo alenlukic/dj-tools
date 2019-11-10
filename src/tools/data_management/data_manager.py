@@ -185,36 +185,6 @@ class DataManager:
         for track, error in malformed:
             print('Track: %s\nError: %s\n\n' % (track, error))
 
-    def standardize_key_tags(self):
-        """ Uses track titles to set a standard ID3 key tag for all audio files. """
-
-        warnings = []
-        errors = []
-        for track in self.audio_files:
-            try:
-                md = load(join(PROCESSED_MUSIC_DIR, track))
-                if md is None:
-                    warnings.append('Could not load ID3 data for %s' % track)
-                    continue
-                md = md.tag
-                key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3Tag.KEY.value, md.frameiter()))
-
-                if len(key_frame) == 1:
-                    track_md = re.findall(MD_FORMAT_REGEX, track)
-                    _, key, _ = track_md[0]
-                    key_frame[0].text = key
-                    md.save()
-                else:
-                    warnings.append('No key frame found for %s' % track)
-            except Exception as e:
-                errors.append('Error with track %s: %s' % (track, str(e)))
-                continue
-
-        warnings = '\n'.join(sorted(warnings))
-        errors = '\n'.join(sorted(errors))
-        print('Warnings:\n%s' % warnings)
-        print('\n\nErrors:\n%s' % errors)
-
     def _generate_metadata_heuristically(self, track):
         """
         Use formatted track name to derive subset of track metadata when ID3 tags not available.

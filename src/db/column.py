@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer
 
 
-class ColumnConfig:
+class DBColumn:
     """ Specifies configuration for a sqlalchemy Column. """
 
     def __init__(self, name, pg_type):
