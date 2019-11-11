@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine, MetaData
 
-from src.db.table import DBTable
 from src.definitions.common import CONFIG
 
 
@@ -23,7 +22,7 @@ class Database:
             conn_string = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, name)
             self.engine = create_engine(conn_string)
             self.conn = self.engine.connect()
-            self.meta = MetaData(self.engine)
+            self.metadata = MetaData(self.engine)
 
     def __init__(self):
         """ Constructor. Opens connection to the database if it doesn't exist. """
@@ -32,24 +31,22 @@ class Database:
             self.db = self.__Database()
             self.engine = self.db.engine
             self.conn = self.db.conn
-            self.meta = self.db.meta
-
-    def create_table(self, table_name, columns):
-        """
-        Creates and returns the specified table.
-
-        :param table_name - name of the table to create.
-        :param columns - list of columns the table will contain.
-        """
-
-        table = DBTable(table_name, self.meta, columns)
-        table.create()
-        return table
+            self.metadata = self.db.metadata
 
     def get_connnection(self):
         """ Returns DB connection. """
         self._ensure_connection()
         return self.conn
+
+    def get_db(self):
+        """ Returns DB object. """
+        self._ensure_connection()
+        return self.db
+
+    def get_metadata(self):
+        """ Returns metadata object. """
+        self._ensure_connection()
+        return self.metadata
 
     def close_connection(self):
         """ Closes the connection to the DB. """
@@ -65,7 +62,7 @@ class Database:
             self.db = self.__Database()
             self.engine = self.db.engine
             self.conn = self.db.conn
-            self.meta = self.db.meta
+            self.meta = self.db.metadata
 
 
 class QueryExecutionException(Exception):

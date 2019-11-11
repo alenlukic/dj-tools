@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column, ForeignKey, Integer
 
 
 class DBColumn:
@@ -15,11 +15,13 @@ class DBColumn:
         self.name = name
         self.type_ = pg_type
         self.primary_key = False
+        self.foreign_key = None
         self.autoincrement = None
         self.default = None
         self.nullable = False
         self.index = False
         self.onupdate = None
+        self.unique = None
 
     def create(self):
         """ Creates the column with set class members. """
@@ -32,8 +34,19 @@ class DBColumn:
             args['default'] = self.default
         if self.onupdate is not None:
             args['onupdate'] = self.onupdate
+        if self.unique is not None:
+            args['unique'] = self.unique
 
-        return Column(**args)
+        return Column(**args) if self.foreign_key is None else Column(ForeignKey(self.foreign_key), **args)
+
+    def as_foreign_key(self, foreign_key):
+        """
+        Creates column as a foreign key.
+
+        :param foreign_key - string representation of the foreign key.
+        """
+        self.foreign_key = foreign_key
+        return self
 
     def as_index(self):
         """ Creates column as an index. """
@@ -48,6 +61,11 @@ class DBColumn:
     def as_primary_key(self):
         """ Creates column as a primary key. """
         self.primary_key = True
+        return self
+
+    def as_unique(self):
+        """ Indicates column value is unique. """
+        self.unique = True
         return self
 
     def with_autoincrement(self, autoincrement='auto'):
