@@ -35,6 +35,7 @@ class DataManager:
 
         collection_metadata = {}
         artist_counts = defaultdict(int)
+        label_counts = defaultdict(int)
 
         # Generate metadata
         for track_file in self.audio_files:
@@ -44,6 +45,8 @@ class DataManager:
                 collection_metadata[track_path] = track_metadata.get_metadata()
                 for artist in track_metadata.artists + track_metadata.remixers:
                     artist_counts[artist] += 1
+                if track_metadata.label is not None:
+                    label_counts[track_metadata.label] += 1
 
         # Sort track names alphabetically
         sorted_track_metadata = OrderedDict()
@@ -57,10 +60,17 @@ class DataManager:
         for count, artist in sorted_count_tuples:
             sorted_artist_counts[artist] = count
 
+        # Sort label counts in order of decreasing frequency
+        sorted_label_counts = OrderedDict()
+        sorted_count_tuples = sorted([(v, k) for k, v in label_counts.items()], reverse=True)
+        for count, label in sorted_count_tuples:
+            sorted_label_counts[label] = count
+
         # Write metadata to file
         output = {
             'Track Metadata': sorted_track_metadata,
-            'Artist Counts': sorted_artist_counts
+            'Artist Counts': sorted_artist_counts,
+            'Label Counts': sorted_label_counts
         }
         with open(join(self.data_dir, output_file), 'w') as w:
             json.dump(output, w, indent=2)
@@ -175,36 +185,6 @@ class DataManager:
         for track, error in malformed:
             print('Track: %s\nError: %s\n\n' % (track, error))
 
-    def standardize_key_tags(self):
-        """ Uses track titles to set a standard ID3 key tag for all audio files. """
-
-        warnings = []
-        errors = []
-        for track in self.audio_files:
-            try:
-                md = load(join(PROCESSED_MUSIC_DIR, track))
-                if md is None:
-                    warnings.append('Could not load ID3 data for %s' % track)
-                    continue
-                md = md.tag
-                key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3Tag.KEY.value, md.frameiter()))
-
-                if len(key_frame) == 1:
-                    track_md = re.findall(MD_FORMAT_REGEX, track)
-                    _, key, _ = track_md[0]
-                    key_frame[0].text = key
-                    md.save()
-                else:
-                    warnings.append('No key frame found for %s' % track)
-            except Exception as e:
-                errors.append('Error with track %s: %s' % (track, str(e)))
-                continue
-
-        warnings = '\n'.join(sorted(warnings))
-        errors = '\n'.join(sorted(errors))
-        print('Warnings:\n%s' % warnings)
-        print('\n\nErrors:\n%s' % errors)
-
     def _generate_metadata_heuristically(self, track):
         """
         Use formatted track name to derive subset of track metadata when ID3 tags not available.
@@ -213,24 +193,24 @@ class DataManager:
         """
 
         base_path = basename(track.get_track_path())
-        track_name = '.'.join(base_path.split('.')[0:-1])
+        title = '.'.join(base_path.split('.')[0:-1])
 
         # Chop up the filename
         track_md = re.findall(MD_FORMAT_REGEX, base_path)[0]
         md_str = '[' + ' - '.join(track_md) + ']'
-        base_name = track_name.split(md_str + ' ')[1]
+        base_name = title.split(md_str + ' ')[1]
         split_basename = base_name.split(' - ')
 
         # Derive artists
         artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
 
-        # Derive title and remixers
-        title = ' - '.join(split_basename[1:])
-        paren_index = title.find('(')
+        # Derive remixers
+        title_suffix = ' - '.join(split_basename[1:])
+        paren_index = title_suffix.find('(')
         remixers = []
         if paren_index != -1:
-            title = title[0:paren_index]
-            remix_segment = title[paren_index + 1:len(title) - 1].split(' ')
+            title_suffix = title_suffix[0:paren_index]
+            remix_segment = title_suffix[paren_index + 1:len(title_suffix) - 1].split(' ')
             if remix_segment[-1] == 'Remix':
                 remixer_segment = ' '.join(remix_segment[0:-1])
                 remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')
@@ -244,5 +224,4 @@ class DataManager:
 
 
 if __name__ == '__main__':
-    dm = DataManager()
-    dm.generate_collection_metadata()
+    DataManager().generate_collection_metadata()

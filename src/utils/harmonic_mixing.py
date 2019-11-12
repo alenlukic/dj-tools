@@ -28,8 +28,11 @@ def generate_camelot_map(metadata):
     """
 
     cm = defaultdict(lambda: defaultdict(list))
-    for path, track_md in metadata.items():
+    track_metadata = metadata['Track Metadata']
+    label_counts = metadata['Label Counts']
+    for path, track_md in track_metadata.items():
         track_md['Path'] = path
+        track_md['Label Count'] = label_counts.get(track_md.get('Label', '')) or 0
         camelot_code = track_md['Camelot Code']
         bpm = track_md['BPM']
         cm[camelot_code][bpm].append(track_md)
@@ -45,3 +48,5 @@ def get_bpm_bound(bpm, bound):
     :param bound - percentage difference between current BPM and higher/lower BPMs.
     """
     return bpm / (1 + bound)
+
+    # bpm / other_bpm = (1 + bound)

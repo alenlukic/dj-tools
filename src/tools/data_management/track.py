@@ -1,6 +1,6 @@
 from ast import literal_eval
 from collections import defaultdict, ChainMap
-from os.path import getctime
+from os import stat
 from time import ctime
 from eyed3 import id3 as metadata, load
 
@@ -13,8 +13,6 @@ class Track:
 
     class TrackMetadata:
         """ Wrapper class for track metadata. """
-
-        KEYS_TO_OMIT = {'Artists', 'Remixers'}
 
         def __init__(self, title, artists, remixers, genre, label, bpm, key, camelot_code, energy, date_added):
             """
@@ -77,7 +75,7 @@ class Track:
             frames = list(md.frameiter())
             track_metadata = self.get_metadata()
             for k, v in track_metadata.items():
-                if k in self.KEYS_TO_OMIT:
+                if k in KEYS_TO_OMIT_FROM_MD_UPDATES:
                     continue
 
                 frame = self._get_frame_with_metadata_key(k, frames)
@@ -211,11 +209,12 @@ class Track:
 
         comment = self.get_tag(ID3Tag.COMMENT) or ''
         if comment.startswith('Energy'):
-            segment = [s.strip() for s in comment.split()][-1]
+            segment = str([s.strip() for s in comment.split()][-1])
             energy = None if not segment.isnumeric() else int(segment)
         elif comment.startswith('Metadata: '):
             track_metadata = literal_eval(comment.split('Metadata: ')[1])
-            energy = track_metadata['Energy']
+            energy = str(track_metadata.get('Energy', ''))
+            energy = None if not energy.isnumeric() else int(energy)
 
         self.formatted[CustomTag.ENERGY.value] = energy
 
@@ -296,14 +295,14 @@ class Track:
         if track_name is not None:
             return track_name
 
-        title = self.format_title()
-        artists, featured = self.format_artists()
+        title, featured = self.format_title()
+        artists = self.format_artists()
         bpm = self.format_bpm()
         key = self.format_key()
         camelot_code = self.format_camelot_code()
 
         metadata_prefix = ' - '.join(['[' + camelot_code, key.capitalize(), bpm + ']'])
-        artist_midfix = artists + (' ft. ' + '' if featured is None else featured)
+        artist_midfix = artists + ('' if featured is None else ' ft. ' + featured)
         track_name = metadata_prefix + ' ' + artist_midfix + ' - ' + title
         self.formatted[CustomTag.TRACK_NAME] = track_name
 
@@ -336,6 +335,7 @@ class Track:
         remixers = [] if remixers is None else remixers.split(', ')
         genre = self.get_tag(ID3Tag.GENRE)
         label = self.get_tag(ID3Tag.LABEL)
+        label = None if label is None else label.lower().strip()
         bpm = self.get_tag(ID3Tag.BPM)
         key = self.format_key()
         key = None if key is None else key[0].upper() + ''.join(key[1:])
@@ -347,7 +347,7 @@ class Track:
 
     def get_date_added(self):
         """ Returns when track was added to collection (Unix timestamp). """
-        return ctime(getctime(self.track_path))
+        return ctime(stat(self.track_path).st_birthtime)
 
     def get_id3_data(self):
         """ Returns dictionary mapping ID3 tags to values. """

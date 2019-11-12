@@ -14,17 +14,13 @@ from src.utils.mixing_assistant import *
 logging.getLogger('eyed3').setLevel(logging.ERROR)
 
 
-class MixingException(Exception):
-    pass
-
-
 class MixingAssistant:
     """" CLI mixing assistant functions."""
 
     def __init__(self):
         """ Initializes data manager. """
         self.dm = DataManager()
-        self.metadata = self.dm.load_collection_metadata()['Track Metadata']
+        self.metadata = self.dm.load_collection_metadata()
         self.camelot_map = generate_camelot_map(self.metadata)
 
     def execute(self, user_input):
@@ -68,7 +64,7 @@ class MixingAssistant:
 
         try:
             # Validate metadata exists
-            cur_track_md = self.metadata.get(track_path)
+            cur_track_md = self.metadata['Track Metadata'].get(track_path)
             if cur_track_md is None:
                 raise MixingException('%s not found in metadata.' % track_path)
 
@@ -102,7 +98,7 @@ class MixingAssistant:
 
         self.dm = DataManager()
         self.dm.generate_collection_metadata()
-        self.metadata = self.dm.load_collection_metadata()['Track Metadata']
+        self.metadata = self.dm.load_collection_metadata()
         self.camelot_map = generate_camelot_map(self.metadata)
         print('Track data reloaded.')
 
@@ -192,10 +188,10 @@ class MixingAssistant:
                              self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
 
         # Rank and format results
-        same_key = sorted([t.format() for t in list(filter(
-            lambda match: match.metadata.get('Title') != cur_track_md.get('Title'), same_key))], reverse=True)
-        higher_key = sorted([t.format() for t in higher_key], reverse=True)
-        lower_key = sorted([t.format() for t in lower_key], reverse=True)
+        same_key = [t.format() for t in sorted(list(filter(
+            lambda match: match.metadata.get('Title') != cur_track_md.get('Title'), same_key)), reverse=True)]
+        higher_key = [t.format() for t in sorted(higher_key, reverse=True)]
+        lower_key = [t.format() for t in sorted(lower_key, reverse=True)]
 
         return same_key, higher_key, lower_key
 
@@ -209,6 +205,10 @@ class MixingAssistant:
         print('\n\n%s results:\n' % result_type)
         for result in results:
             print(result)
+
+
+class MixingException(Exception):
+    pass
 
 
 if __name__ == '__main__':
