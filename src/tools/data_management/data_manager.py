@@ -193,24 +193,24 @@ class DataManager:
         """
 
         base_path = basename(track.get_track_path())
-        track_name = '.'.join(base_path.split('.')[0:-1])
+        title = '.'.join(base_path.split('.')[0:-1])
 
         # Chop up the filename
         track_md = re.findall(MD_FORMAT_REGEX, base_path)[0]
         md_str = '[' + ' - '.join(track_md) + ']'
-        base_name = track_name.split(md_str + ' ')[1]
+        base_name = title.split(md_str + ' ')[1]
         split_basename = base_name.split(' - ')
 
         # Derive artists
         artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
 
-        # Derive title and remixers
-        title = ' - '.join(split_basename[1:])
-        paren_index = title.find('(')
+        # Derive remixers
+        title_suffix = ' - '.join(split_basename[1:])
+        paren_index = title_suffix.find('(')
         remixers = []
         if paren_index != -1:
-            title = title[0:paren_index]
-            remix_segment = title[paren_index + 1:len(title) - 1].split(' ')
+            title_suffix = title_suffix[0:paren_index]
+            remix_segment = title_suffix[paren_index + 1:len(title_suffix) - 1].split(' ')
             if remix_segment[-1] == 'Remix':
                 remixer_segment = ' '.join(remix_segment[0:-1])
                 remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')

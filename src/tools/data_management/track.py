@@ -1,6 +1,6 @@
 from ast import literal_eval
 from collections import defaultdict, ChainMap
-from os.path import getctime
+from os import stat
 from time import ctime
 from eyed3 import id3 as metadata, load
 
@@ -347,7 +347,7 @@ class Track:
 
     def get_date_added(self):
         """ Returns when track was added to collection (Unix timestamp). """
-        return ctime(getctime(self.track_path))
+        return ctime(stat(self.track_path).st_birthtime)
 
     def get_id3_data(self):
         """ Returns dictionary mapping ID3 tags to values. """

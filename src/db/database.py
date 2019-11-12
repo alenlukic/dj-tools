@@ -22,7 +22,7 @@ class Database:
             conn_string = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, name)
             self.engine = create_engine(conn_string)
             self.conn = self.engine.connect()
-            self.metadata = MetaData(self.engine)
+            self.metadata = MetaData(self.engine, reflect=True)
 
     def __init__(self):
         """ Constructor. Opens connection to the database if it doesn't exist. """
@@ -42,6 +42,11 @@ class Database:
         """ Returns DB object. """
         self._ensure_connection()
         return self.db
+
+    def get_engine(self):
+        """ Returns engine object. """
+        self._ensure_connection()
+        return self.engine
 
     def get_metadata(self):
         """ Returns metadata object. """
