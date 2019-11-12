@@ -1,6 +1,6 @@
 from sqlalchemy import Integer, String
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import session as sezzion, sessionmaker
 from sqlalchemy.sql import select
 
 from src.db.column import DBColumn
@@ -72,16 +72,6 @@ def create_tables():
     metadata.create_all()
 
 
-def close_sessions(session):
-    """
-    Closes all open DB sessions.
-
-    :param session - session object.
-    """
-    if session is not None:
-        session.close_all()
-
-
 def migrate_data():
     """ Migrates existing JSON data to the database. """
 
@@ -132,11 +122,9 @@ def migrate_data():
         except Exception as e:
             print('Error: %s' % str(e))
             session.rollback()
+            continue
 
-        finally:
-            close_sessions(session)
-
-    close_sessions(session)
+    sezzion.close_all_sessions()
 
 
 if __name__ == '__main__':
