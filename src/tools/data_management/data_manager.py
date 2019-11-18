@@ -157,8 +157,7 @@ class DataManager:
 
                 # Create row in track table
                 track_entity_data = track_metadata.get_database_row(track_name)
-                track_entity = TrackEntity(**track_entity_data)
-                session.add(track_entity)
+                session.add(TrackEntity(**track_entity_data))
                 session.commit()
 
                 # Update artists' data
@@ -167,17 +166,14 @@ class DataManager:
                     # Create or update row in artist table
                     artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
                     if artist_row is None:
-                        artist_entity = ArtistEntity(**{'name': artist, 'track_count': 1})
-                        session.add(artist_entity)
+                        session.add(ArtistEntity(**{'name': artist, 'track_count': 1}))
                         session.commit()
                         artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
                     else:
                         artist_row.track_count += 1
 
                     # Create row in artist_track table
-                    artist_id = artist_row.id
-                    artist_track_entity = ArtistTrackEntity(**{'track_id': track_id, 'artist_id': artist_id})
-                    session.add(artist_track_entity)
+                    session.add(ArtistTrackEntity(**{'track_id': track_id, 'artist_id': artist_row.id}))
 
                 session.commit()
 
