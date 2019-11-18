@@ -1,6 +1,7 @@
 from collections import defaultdict, OrderedDict
 import logging
-from os.path import exists
+from os.path import basename, exists
+from shutil import copyfile
 
 from src.definitions.common import *
 from src.definitions.data_management import *
@@ -108,6 +109,31 @@ class DataManager:
 
         return {}
 
+    def update_collection_metadata(self, new_tracks, data_dir=DATA_DIR, file_name='metadata.json'):
+        """
+        Updates the metadata collection with new tracks.
+
+        :param new_tracks - dictionary mapping new track name to its metadata
+        :param data_dir - directory where metadata JSON is located
+        :param file_name - name of file containing metadata
+        """
+
+        metadata = self.load_collection_metadata(data_dir, file_name)
+
+        for track_name, track_metadata in new_tracks.items():
+            md_dict = track_metadata.get_metadata()
+            metadata['Track Metadata'][track_name] = md_dict
+
+            artists = md_dict.get('Artists', []) + md_dict.get('Remixers', [])
+            for artist in artists:
+                metadata['Artist Counts'][artist] = metadata['Artist Counts'].get(artist, 0) + 1
+            label = md_dict.get('Label')
+            if label is not None:
+                metadata['Label Counts'][label] = metadata['Label Counts'].get(label, 0) + 1
+
+        with open(join(data_dir, file_name), 'w') as w:
+            json.dump(metadata, w, indent=2)
+
     def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None):
         """
         Standardizes song names and copy them to library.
@@ -118,6 +144,8 @@ class DataManager:
 
         target_dir = target_dir or self.audio_dir
         input_files = get_audio_files(input_dir)
+        new_tracks = {}
+
         for f in input_files:
             old_name = join(input_dir, f)
             old_base_name = basename(old_name)
@@ -136,18 +164,24 @@ class DataManager:
                 formatted_name = track.format_track_name()
                 new_name = ''.join([join(target_dir, formatted_name).strip(), '.', old_name.split('.')[-1].strip()])
 
-                # Copy track to user audio directory and update metadata
+                # Copy track to user audio directory
                 copyfile(old_name, new_name)
                 new_track = load(new_name).tag
                 new_track.title = formatted_name
                 new_track.save()
-                self.generate_track_metadata(new_name)
+
+                # Create metadata
+                metadata = self.generate_track_metadata(new_name)
+                new_tracks[new_name] = metadata
 
             new_base_name = basename(new_name)
             try:
                 print('\nRenaming:\t%s\nto:\t\t%s' % (old_base_name, new_base_name))
             except Exception as e:
                 print('Could not rename %s to %s (exception: %s)' % (old_base_name, new_base_name, str(e)))
+
+        # Update collection metadata
+        self.update_collection_metadata(new_tracks)
 
     def show_malformed_tracks(self):
         """ Prints any malformed track names to stdout. """

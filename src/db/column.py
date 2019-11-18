@@ -1,4 +1,5 @@
-from sqlalchemy import Column, ForeignKey, Integer, Sequence
+from sqlalchemy import Column, ForeignKey, Sequence
+
 
 class DBColumn:
     """ Specifies configuration for a sqlalchemy Column. """

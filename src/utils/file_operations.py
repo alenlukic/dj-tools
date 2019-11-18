@@ -1,7 +1,6 @@
 from eyed3 import load
-from os import chmod, listdir, remove
-from os.path import basename, isfile, join
-from shutil import copyfile
+from os import chmod, listdir
+from os.path import isfile, join
 import stat
 
 from src.definitions.data_management import ID3Tag
