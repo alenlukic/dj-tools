@@ -170,7 +170,6 @@ class DataManager:
                         artist_entity = ArtistEntity(**{'name': artist, 'track_count': 1})
                         session.add(artist_entity)
                         session.commit()
-
                         artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
                     else:
                         artist_row.track_count += 1
