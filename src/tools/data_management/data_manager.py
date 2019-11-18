@@ -118,7 +118,7 @@ class DataManager:
 
     def update_collection_metadata(self, new_tracks, data_dir=DATA_DIR, file_name='metadata.json'):
         """
-        Updates the metadata collection with new tracks.
+        Updates the metadata collection with new tracks. TODO: deprecate this.
 
         :param new_tracks - dictionary mapping new track name to its metadata
         :param data_dir - directory where metadata JSON is located
@@ -236,7 +236,7 @@ class DataManager:
                 print('Could not rename %s to %s (exception: %s)' % (old_base_name, new_base_name, str(e)))
 
         # Update collection metadata
-        # self.update_collection_metadata(new_tracks)
+        self.update_collection_metadata(new_tracks)
         self.update_database(new_tracks)
 
     def show_malformed_tracks(self):
