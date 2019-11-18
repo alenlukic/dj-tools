@@ -156,8 +156,7 @@ class DataManager:
                 sessions.append(session)
 
                 # Create row in track table
-                track_entity_data = track_metadata.get_database_row(track_name)
-                session.add(TrackEntity(**track_entity_data))
+                session.add(TrackEntity(**track_metadata.get_database_row(track_name)))
                 session.commit()
 
                 # Update artists' data
