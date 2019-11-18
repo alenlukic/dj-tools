@@ -177,7 +177,6 @@ class DataManager:
                 session.commit()
 
             except Exception as e:
-                print('Error: %s' % str(e))
                 session.rollback()
                 raise e
 
