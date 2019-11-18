@@ -63,7 +63,7 @@ def create_artist_track_table(metadata):
 
 
 def create_tables():
-    """ Creates track, artist, and artist_track entities, if they don't exist. """
+    """ Creates track, artist, and artist_track tables, if they don't exist. """
 
     metadata = database.get_metadata()
     create_track_table(metadata)
