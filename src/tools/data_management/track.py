@@ -43,6 +43,7 @@ class Track:
 
         def get_metadata(self):
             """ Return non-empty metadata in dictionary form. """
+
             title_metadata = self._get_metadata_from_title()
             return {k: v for k, v in {
                 'Title': self.title,
@@ -57,8 +58,25 @@ class Track:
                 'Date Added': self.date_added
             }.items() if not is_empty(v)}
 
+        def get_database_row(self, file_path):
+            """ Returns non-empty metadata in sqlalchemy-ready format. """
+
+            track_metadata = self.get_metadata()
+            return {col: value for col, value in {
+                'file_path': file_path,
+                'title': track_metadata.get('Title'),
+                'bpm': int(track_metadata.get('BPM', '-1')),
+                'key': track_metadata.get('Key'),
+                'camelot_code': track_metadata.get('Camelot Code'),
+                'energy': int(track_metadata.get('Energy', '-1')),
+                'genre': track_metadata.get('Genre'),
+                'label': ' '.join([w.capitalize() for w in track_metadata.get('Label', '').split()]),
+                'date_added': track_metadata.get('Date Added')
+            }.items() if not (is_empty(value) or value == -1)}
+
         def write_tags(self, track_path):
-            """ Write track's tags and metadata to ID3 fields, if they don't already exist.
+            """
+            Write track's tags and metadata to ID3 fields, if they don't already exist.
 
             :param track_path - Full qualified path to the track file.
             """

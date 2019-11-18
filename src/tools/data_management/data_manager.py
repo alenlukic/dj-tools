@@ -2,7 +2,13 @@ from collections import defaultdict, OrderedDict
 import logging
 from os.path import basename, exists
 from shutil import copyfile
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.sql import select
 
+from src.db.database import Database
+from src.db.entities.artist import Artist as ArtistEntity
+from src.db.entities.artist_track import ArtistTrack as ArtistTrackEntity
+from src.db.entities.track import Track as TrackEntity
 from src.definitions.common import *
 from src.definitions.data_management import *
 from src.tools.data_management.track import Track
@@ -25,6 +31,7 @@ class DataManager:
 
         self.audio_dir = audio_dir
         self.data_dir = data_dir
+        self.database = Database()
         self.audio_files = get_audio_files(self.audio_dir)
 
     def generate_collection_metadata(self, output_file='metadata.json'):
@@ -134,6 +141,54 @@ class DataManager:
         with open(join(data_dir, file_name), 'w') as w:
             json.dump(metadata, w, indent=2)
 
+    def update_database(self, new_tracks):
+        """
+        Updates the database with new tracks' info.
+
+        :param new_tracks - dictionary mapping new track name to its metadata
+        """
+
+        sessions = []
+
+        for track_name, track_metadata in new_tracks.items():
+            try:
+                session = self.database.create_session()
+                sessions.append(session)
+
+                # Create row in track table
+                track_entity_data = track_metadata.get_database_row(track_name)
+                track_entity = TrackEntity(**track_entity_data)
+                session.add(track_entity)
+                session.commit()
+
+                # Update artists' data
+                track_id = session.query(TrackEntity).filter_by(file_path=track_name).first().id
+                for artist in (track_metadata.artists or []) + (track_metadata.remixers or []):
+                    # Create or update row in artist table
+                    artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
+                    if artist_row is None:
+                        artist_entity = ArtistEntity(**{'name': artist, 'track_count': 1})
+                        session.add(artist_entity)
+                        session.commit()
+
+                        artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
+                    else:
+                        artist_row.track_count += 1
+
+                    # Create row in artist_track table
+                    artist_id = artist_row.id
+                    artist_track_entity = ArtistTrackEntity(**{'track_id': track_id, 'artist_id': artist_id})
+                    session.add(artist_track_entity)
+
+                session.commit()
+
+            except Exception as e:
+                print('Error: %s' % str(e))
+                session.rollback()
+                raise e
+
+        self.database.close_sessions(sessions)
+
     def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None):
         """
         Standardizes song names and copy them to library.
@@ -181,7 +236,8 @@ class DataManager:
                 print('Could not rename %s to %s (exception: %s)' % (old_base_name, new_base_name, str(e)))
 
         # Update collection metadata
-        self.update_collection_metadata(new_tracks)
+        # self.update_collection_metadata(new_tracks)
+        self.update_database(new_tracks)
 
     def show_malformed_tracks(self):
         """ Prints any malformed track names to stdout. """
