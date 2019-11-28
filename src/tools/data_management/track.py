@@ -92,13 +92,13 @@ class Track:
             self._remove_unsupported_tags(md)
 
             # Update tags to fix any discrepancies
-            frames = list(md.frameiter())
+            track_frames = list(md.frameiter())
             track_metadata = self.get_metadata()
             for k, v in track_metadata.items():
-                if k in KEYS_TO_OMIT_FROM_MD_UPDATES or self._exclude_tag(k, tag_filter):
+                if self._exclude_tag(k, tag_filter):
                     continue
 
-                frame = self._get_frame_with_metadata_key(k, frames)
+                frame = self._get_frame_with_metadata_key(k, track_frames)
                 if frame is None:
                     continue
 
@@ -107,7 +107,7 @@ class Track:
             # Write metadata
             comment = ID3Tag.COMMENT.value
             comment_frame = (None if self._exclude_tag(comment, tag_filter)
-                             else self._get_frame_with_metadata_key(comment, frames))
+                             else self._get_frame_with_metadata_key(comment, track_frames))
             if comment_frame is None:
                 return
 
@@ -115,18 +115,18 @@ class Track:
             md.save()
 
         @staticmethod
-        def _get_frame_with_metadata_key(metadata_key, frames):
+        def _get_frame_with_metadata_key(metadata_key, track_frames):
             """
             Uses metadata key to retrieve corresponding ID3 frame, if available.
 
             :param metadata_key - the metadata key.
-            :param frames - track's ID3 frames.
+            :param track_frames - track's ID3 frames.
             """
             tag = READABLE_TO_ID3.get(metadata_key)
             if tag is None:
                 return None
 
-            target_frame = list(filter(lambda frame: frame.id.decode('utf-8') == tag, frames))
+            target_frame = list(filter(lambda frame: frame.id.decode('utf-8') == tag, track_frames))
             if len(target_frame) == 1:
                 return target_frame[0]
 
@@ -156,7 +156,7 @@ class Track:
             :param tag_filter - Set of tags whose ID3 frames should be updated.
             """
 
-            return not (tag_filter is None or tag in tag_filter)
+            return tag in KEYS_TO_OMIT_FROM_MD_UPDATES or not (tag_filter is None or tag in tag_filter)
 
         @staticmethod
         def _remove_unsupported_tags(md_tag):
