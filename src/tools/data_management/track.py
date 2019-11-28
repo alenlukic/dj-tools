@@ -94,7 +94,7 @@ class Track:
             frames = list(md.frameiter())
             track_metadata = self.get_metadata()
             for k, v in track_metadata.items():
-                if k in KEYS_TO_OMIT_FROM_MD_UPDATES or not self._include_tag(k, tag_filter):
+                if k in KEYS_TO_OMIT_FROM_MD_UPDATES or self._exclude_tag(k, tag_filter):
                     continue
 
                 frame = self._get_frame_with_metadata_key(k, frames)
@@ -105,7 +105,7 @@ class Track:
 
             # Write metadata
             comment = ID3Tag.COMMENT.value
-            comment_frame = (None if not self._include_tag(comment, tag_filter)
+            comment_frame = (None if self._exclude_tag(comment, tag_filter)
                              else self._get_frame_with_metadata_key(comment, frames))
             if comment_frame is None:
                 return
@@ -147,15 +147,15 @@ class Track:
             return {}
 
         @staticmethod
-        def _include_tag(tag, tag_filter):
+        def _exclude_tag(tag, tag_filter):
             """
-            Returns whether the updated tag should be written to its ID3 frame.
+            Returns whether the given tag's updates should be omitted.
 
             :param tag - Name of the tag.
-            :param tag_filter - Set of tags to write to their ID3 frames.
+            :param tag_filter - Set of tags whose ID3 frames should be updated.
             """
 
-            return tag_filter is None or tag in tag_filter
+            return not (tag_filter is None or tag in tag_filter)
 
         @staticmethod
         def _remove_unsupported_tags(md_tag):
@@ -235,20 +235,27 @@ class Track:
     def format_energy(self):
         """ Formats energy level. """
 
-        energy = self.formatted[CustomTag.ENERGY.value]
+        energy = self.formatted[ID3Tag.ENERGY.value]
         if energy is not None:
+            return energy
+
+        energy = self.get_tag(ID3Tag.ENERGY)
+        if energy is not None:
+            energy = int(energy)
+            self.formatted[ID3Tag.ENERGY.value] = energy
             return energy
 
         comment = self.get_tag(ID3Tag.COMMENT) or ''
         if comment.startswith('Energy'):
-            segment = str([s.strip() for s in comment.split()][-1])
-            energy = None if not segment.isnumeric() else int(segment)
+            segments = [s.strip() for s in comment.split()]
+            if len(segments) > 1 and segments[1].isnumeric():
+                energy = int(segments[1])
         elif comment.startswith('Metadata: '):
             track_metadata = literal_eval(comment.split('Metadata: ')[1])
             energy = str(track_metadata.get('Energy', ''))
             energy = None if not energy.isnumeric() else int(energy)
 
-        self.formatted[CustomTag.ENERGY.value] = energy
+        self.formatted[ID3Tag.ENERGY.value] = energy
 
         return energy
 
@@ -398,12 +405,11 @@ class Track:
 
         md = load(self.track_path)
         if md is None:
-            return None
+            return {}
 
         md = md.tag
-        frame_types = {metadata.frames.TextFrame, metadata.frames.CommentFrame}
-        track_frames = md.frameiter()
+        frame_types = {metadata.frames.TextFrame, metadata.frames.CommentFrame, metadata.frames.UserTextFrame}
+        track_frames = list(md.frameiter())
         id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
-        keys = list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))
 
-        return defaultdict(str, {k: id3[k] for k in keys})
+        return defaultdict(str, {k: id3[k] for k in list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))})

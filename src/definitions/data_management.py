@@ -9,6 +9,7 @@ class ID3Tag(Enum):
     GENRE = 'TCON'
     BPM = 'TBPM'
     KEY = 'TKEY'
+    ENERGY = 'TXXX'
     LABEL = 'TPUB'
     COMMENT = 'COMM'
     BEATPORT = 'TENC'
@@ -28,6 +29,7 @@ READABLE_TO_ID3 = {
     'Genre': ID3Tag.GENRE.value,
     'BPM': ID3Tag.BPM.value,
     'Key': ID3Tag.KEY.value,
+    'Energy': ID3Tag.ENERGY.value,
     'Label': ID3Tag.LABEL.value,
     'Comment': ID3Tag.COMMENT.value
 }

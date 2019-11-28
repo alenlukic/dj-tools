@@ -8,11 +8,11 @@ from src.tools.data_management.data_manager import DataManager
 from src.utils.file_operations import get_audio_files
 
 
-def add_comment_column():
-    """ Add comment column to the track table in the DB. """
+def update_comment_column():
+    """ Create (if it doesn't exist) and update comment column in track table. """
 
-    dm = DataManager()
     database.add_column('track', 'comment')
+    dm = DataManager()
     session = database.create_session()
     errors = False
 
@@ -35,4 +35,4 @@ def add_comment_column():
 
 
 if __name__ == '__main__':
-    add_comment_column()
+    update_comment_column()
