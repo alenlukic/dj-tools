@@ -30,7 +30,6 @@ def update_energy_column():
 
             if energy.isnumeric():
                 track.energy = int(energy)
-
         except Exception as e:
             print('Error processing %s: %s' % (track_path, str(e)))
             errors = True

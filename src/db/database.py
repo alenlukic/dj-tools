@@ -39,11 +39,9 @@ class Database:
             self.Base = declarative_base(metadata=self.metadata)
             self.BoundSessionInstantiator = sessionmaker(bind=self.engine)
 
-    """
-    ==============
-    Getter methods
-    ==============
-    """
+    # ==============
+    # Getter methods
+    # ==============
 
     def get_base(self):
         """ Get ORM base entity. """
@@ -69,17 +67,16 @@ class Database:
         """ Returns list of entities in this DB. """
         return self.metadata.tables
 
-    """
-    ===============
-    Session methods
-    ===============
-    """
+    # ===============
+    # Session methods
+    # ===============
 
     def create_session(self):
         """ Creates and returns a new DB session. """
         return self.BoundSessionInstantiator()
 
-    def close_sessions(self, sessions):
+    @staticmethod
+    def close_sessions(sessions):
         """
         Closes the given sessions.
 
@@ -89,15 +86,14 @@ class Database:
         for session in sessions:
             session.close()
 
-    def close_all_sessions(self):
+    @staticmethod
+    def close_all_sessions():
         """ Closes all open sessions. """
         sezzion.close_all_sessions()
 
-    """
-    =================
-    DB update methods
-    =================
-    """
+    # =================
+    # DB update methods
+    # =================
 
     def add_column(self, table_name, column_name, column_type='varchar'):
         """
