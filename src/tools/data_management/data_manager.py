@@ -2,8 +2,6 @@ from collections import defaultdict, OrderedDict
 import logging
 from os.path import basename, exists
 from shutil import copyfile
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.sql import select
 
 from src.db.database import Database
 from src.db.entities.artist import Artist as ArtistEntity
@@ -48,7 +46,7 @@ class DataManager:
         # Generate metadata
         for track_file in self.audio_files:
             track_path = join(self.audio_dir, track_file)
-            track_metadata = self.generate_track_metadata(track_path)
+            track_metadata = self.write_track_metadata(track_path)
             if track_metadata is not None:
                 collection_metadata[track_path] = track_metadata.get_metadata()
                 for artist in track_metadata.artists + track_metadata.remixers:
@@ -85,7 +83,7 @@ class DataManager:
 
     def generate_track_metadata(self, track_path):
         """
-        Generate formatted metadata for a track and write it to its comment field.
+        Generate formatted metadata for a track.
 
         :param track_path - Qualified path to the track.
         """
@@ -93,12 +91,27 @@ class DataManager:
         track = Track(track_path)
         id3_data = track.get_id3_data()
         try:
-            track_metadata = (self._generate_metadata_heuristically(track) if id3_data is None else
-                              track.generate_metadata_from_id3())
+            return (self._generate_metadata_heuristically(track) if id3_data is None else
+                    track.generate_metadata_from_id3())
+        except Exception as e:
+            print('Error while generating metadata for track %s: %s' % (track_path, e))
+            return None
+
+    def write_track_metadata(self, track_path):
+        """
+        Generate formatted metadata for a track and write it to its comment field.
+
+        :param track_path - Qualified path to the track.
+        """
+
+        try:
+            track_metadata = self.generate_track_metadata(track_path)
+            if track_metadata is None:
+                return None
             track_metadata.write_tags(track_path)
             return track_metadata
         except Exception as e:
-            print('Error while processing track %s: %s' % (track_path, e))
+            print('Error while writing metadata for track %s: %s' % (track_path, e))
             return None
 
     def load_collection_metadata(self, data_dir=DATA_DIR, file_name='metadata.json'):
@@ -219,7 +232,7 @@ class DataManager:
                 new_track.save()
 
                 # Create metadata
-                metadata = self.generate_track_metadata(new_name)
+                metadata = self.write_track_metadata(new_name)
                 new_tracks[new_name] = metadata
 
             new_base_name = basename(new_name)

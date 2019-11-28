@@ -3,11 +3,12 @@ from os import chmod, listdir
 from os.path import isfile, join
 import stat
 
+from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import ID3Tag
 from src.definitions.file_operations import *
 
 
-def get_audio_files(input_dir):
+def get_audio_files(input_dir=PROCESSED_MUSIC_DIR):
     """
     Gets all the audio files in the given directory.
 
@@ -35,7 +36,7 @@ def is_high_quality(track_path):
     return False if md is None else any(frame.id == ID3Tag.BEATPORT for frame in md.tag.frameiter())
 
 
-def set_audio_file_permissions(audio_dir):
+def set_audio_file_permissions(audio_dir=PROCESSED_MUSIC_DIR):
     """
     Makes all audio files in directory readable and writable.
 

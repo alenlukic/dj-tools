@@ -33,11 +33,47 @@ class Database:
 
         if self.db is None:
             self.db = self.__Database()
-            self.engine = self.db.engine
             self.conn = self.db.conn
+            self.engine = self.db.engine
             self.metadata = self.db.metadata
             self.Base = declarative_base(metadata=self.metadata)
             self.BoundSessionInstantiator = sessionmaker(bind=self.engine)
+
+    """
+    ==============
+    Getter methods
+    ==============
+    """
+
+    def get_base(self):
+        """ Get ORM base entity. """
+        return self.Base
+
+    def get_connnection(self):
+        """ Returns DB connection. """
+        return self.conn
+
+    def get_db(self):
+        """ Returns DB object. """
+        return self.db
+
+    def get_engine(self):
+        """ Returns engine object. """
+        return self.engine
+
+    def get_metadata(self):
+        """ Returns metadata object. """
+        return self.metadata
+
+    def get_tables(self):
+        """ Returns list of entities in this DB. """
+        return self.metadata.tables
+
+    """
+    ===============
+    Session methods
+    ===============
+    """
 
     def create_session(self):
         """ Creates and returns a new DB session. """
@@ -57,56 +93,19 @@ class Database:
         """ Closes all open sessions. """
         sezzion.close_all_sessions()
 
-    def get_base(self):
-        """ Get ORM base entity. """
-        self._ensure_connection()
-        return self.Base
+    """
+    =================
+    DB update methods
+    =================
+    """
 
-    def get_connnection(self):
-        """ Returns DB connection. """
-        self._ensure_connection()
-        return self.conn
+    def add_column(self, table_name, column_name, column_type='varchar'):
+        """
+        Adds column to an existing table, if it does not exist.
 
-    def get_db(self):
-        """ Returns DB object. """
-        self._ensure_connection()
-        return self.db
+        :param table_name - name of the table being updated.
+        :param column_name - name of the column being added.
+        :param column_type - type of the column being added.
+        """
 
-    def get_engine(self):
-        """ Returns engine object. """
-        self._ensure_connection()
-        return self.engine
-
-    def get_metadata(self):
-        """ Returns metadata object. """
-        self._ensure_connection()
-        return self.metadata
-
-    def get_tables(self):
-        """ Returns list of entities in this DB. """
-        self._ensure_connection()
-        return self.metadata.tables
-
-    def close_connection(self):
-        """ Closes the connection to the DB. """
-
-        if self.db is not None:
-            self.conn.close()
-            self.close_all_sessions()
-            self.db = None
-
-    def _ensure_connection(self):
-        """ Opens connection to the database if it doesn't exist. """
-
-        if self.db is None:
-            self.db = self.__Database()
-            self.engine = self.db.engine
-            self.conn = self.db.conn
-            self.metadata = self.db.metadata
-            self.Base = automap_base()
-            self.Base.prepare(self.engine, reflect=True)
-            self.BoundSessionInstantiator = sessionmaker(bind=self.engine)
-
-
-class QueryExecutionException(Exception):
-    pass
+        self.engine.execute('ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s' % (table_name, column_name, column_type))

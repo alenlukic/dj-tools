@@ -74,11 +74,12 @@ class Track:
                 'date_added': track_metadata.get('Date Added')
             }.items() if not (is_empty(value) or value == -1)}
 
-        def write_tags(self, track_path):
+        def write_tags(self, track_path, tag_filter=None):
             """
             Write track's tags and metadata to ID3 fields, if they don't already exist.
 
             :param track_path - Full qualified path to the track file.
+            :param tag_filter (optional) - Set of tags to write.
             """
 
             md = load(track_path)
@@ -93,7 +94,7 @@ class Track:
             frames = list(md.frameiter())
             track_metadata = self.get_metadata()
             for k, v in track_metadata.items():
-                if k in KEYS_TO_OMIT_FROM_MD_UPDATES:
+                if k in KEYS_TO_OMIT_FROM_MD_UPDATES or not self._include_tag(k, tag_filter):
                     continue
 
                 frame = self._get_frame_with_metadata_key(k, frames)
@@ -103,7 +104,9 @@ class Track:
                 frame.text = v
 
             # Write metadata
-            comment_frame = self._get_frame_with_metadata_key('Comment', frames)
+            comment = ID3Tag.COMMENT.value
+            comment_frame = (None if not self._include_tag(comment, tag_filter)
+                             else self._get_frame_with_metadata_key(comment, frames))
             if comment_frame is None:
                 return
 
@@ -142,6 +145,17 @@ class Track:
                 }
 
             return {}
+
+        @staticmethod
+        def _include_tag(tag, tag_filter):
+            """
+            Returns whether the updated tag should be written to its ID3 frame.
+
+            :param tag - Name of the tag.
+            :param tag_filter - Set of tags to write to their ID3 frames.
+            """
+
+            return tag_filter is None or tag in tag_filter
 
         @staticmethod
         def _remove_unsupported_tags(md_tag):
