@@ -3,6 +3,7 @@ from collections import defaultdict, ChainMap
 from os import stat
 from time import ctime
 from eyed3 import id3 as metadata, load
+from eyed3.id3 import frames
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
@@ -401,14 +402,14 @@ class Track:
         return self.track_path
 
     def _extract_id3_data(self):
-        """ Extracts mp3 metadata needed to automatically rename songs using the eyed3 lib. """
+        """ Extracts mp3 metadata using the eyed3 lib. """
 
         md = load(self.track_path)
         if md is None:
             return {}
 
         md = md.tag
-        frame_types = {metadata.frames.TextFrame, metadata.frames.CommentFrame, metadata.frames.UserTextFrame}
+        frame_types = {frames.TextFrame, frames.CommentFrame, frames.UserTextFrame}
         track_frames = list(md.frameiter())
         id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
 
