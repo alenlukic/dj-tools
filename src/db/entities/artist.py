@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, Sequence
 
 from src.db import metadata
-from src.db.entities import Base
+from src.db import Base
 
 
 class Artist(Base):
