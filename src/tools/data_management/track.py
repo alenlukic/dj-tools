@@ -2,7 +2,7 @@ from ast import literal_eval
 from collections import defaultdict, ChainMap
 from os import stat
 from time import ctime
-from eyed3 import id3 as metadata, load
+from eyed3 import load
 from eyed3.id3 import frames
 
 from src.definitions.data_management import *
