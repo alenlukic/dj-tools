@@ -334,7 +334,3 @@ class DataManager:
 
         return track.generate_metadata(formatted_title, artists, remixers, None, None,
                                        bpm, key, camelot_code, None, date_added)
-
-
-if __name__ == '__main__':
-    DataManager().generate_collection_metadata()
