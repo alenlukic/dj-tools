@@ -7,6 +7,7 @@ from eyed3.id3 import frames
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
+from src.utils.data_management import *
 
 
 class Track:
@@ -196,9 +197,14 @@ class Track:
 
         featured = self.formatted[CustomTag.FEATURED.value]
         artists = self.get_tag(ID3Tag.ARTIST)
-
         featured_set = set() if featured is None else set(featured)
-        filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
+
+        formatted_title, _ = self.format_title()
+        filtered_artists = consolidate_artist_aliases(
+            list(filter(lambda artist: artist not in featured_set, artists.split(', '))),
+            formatted_title
+        )
+
         # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
         separator = ' and ' if any('&' in artist for artist in filtered_artists) else ' & '
 
@@ -285,44 +291,7 @@ class Track:
         if title is None:
             return None, None
 
-        featured = None
-        segments = title.split(' ')
-        filtered_segments = []
-
-        i = 0
-        n = len(segments)
-        open_paren_found = False
-        while i < n:
-            segment = segments[i]
-
-            if '(' in segment:
-                open_paren_found = True
-
-            # Replace all instances of 'feat.' with 'ft.' inside the parenthetical phrase indicating mix type.
-            # e.g. "(Hydroid feat. Santiago Nino Mix)" becomes "(Hydroid ft. Santiago Nino Mix)"
-            if segment.lower() == 'feat.':
-                if open_paren_found:
-                    filtered_segments.append('ft.')
-                    i += 1
-                else:
-                    # If we haven't seen an open parentheses yet, then the featured artist's name is composed of all
-                    # words occuring before the parentheses. This heuristic works for MP3 files purchased on Beatport.
-                    featured = []
-                    for j in range(i + 1, n):
-                        next_part = segments[j]
-                        if '(' in next_part:
-                            break
-                        featured.append(next_part)
-                    featured = ' '.join(featured)
-                    i = j
-            else:
-                filtered_segments.append(segment.strip())
-                i += 1
-
-        # Get rid of "(Original Mix)" and "(Extended Mix)" as these are redundant phrases that unnecessarily lengthen
-        # the file name.
-        formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')
-
+        formatted_title, featured = parse_title(title)
         self.formatted[ID3Tag.TITLE.value] = formatted_title
         self.formatted[CustomTag.FEATURED.value] = featured
 

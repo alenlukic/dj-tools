@@ -10,6 +10,8 @@ from src.db.entities.track import Track as TrackEntity
 from src.definitions.common import *
 from src.definitions.data_management import *
 from src.tools.data_management.track import Track
+from src.utils.common import is_empty
+from src.utils.data_management import *
 from src.utils.file_operations import *
 
 
@@ -91,7 +93,7 @@ class DataManager:
         track = Track(track_path)
         id3_data = track.get_id3_data()
         try:
-            return (self._generate_metadata_heuristically(track) if id3_data is None else
+            return (self._generate_metadata_heuristically(track) if is_empty(id3_data) else
                     track.generate_metadata_from_id3())
         except Exception as e:
             print('Error while generating metadata for track %s: %s' % (track_path, e))
@@ -213,7 +215,7 @@ class DataManager:
             track = Track(old_name)
             id3_data = track.get_id3_data()
 
-            if id3_data is None or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
+            if is_empty(id3_data) is None or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
                 # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming
                 # - user will need to enter new name manually.
                 print('Can\'t automatically rename this track: %s' % old_base_name)
@@ -294,11 +296,18 @@ class DataManager:
         # Chop up the filename
         track_md = re.findall(MD_FORMAT_REGEX, base_path)[0]
         md_str = '[' + ' - '.join(track_md) + ']'
+        print('sup: %s' % md_str)
         base_name = title.split(md_str + ' ')[1]
         split_basename = base_name.split(' - ')
 
+        # Format title and derive featured artist
+        formatted_title, featured = parse_title(base_name)
+
         # Derive artists
-        artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
+        artists = consolidate_artist_aliases(
+            split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & '),
+            formatted_title
+        ) + [featured]
 
         # Derive remixers
         title_suffix = ' - '.join(split_basename[1:])
@@ -306,17 +315,25 @@ class DataManager:
         remixers = []
         if paren_index != -1:
             title_suffix = title_suffix[0:paren_index]
-            remix_segment = title_suffix[paren_index + 1:len(title_suffix) - 1].split(' ')
-            if remix_segment[-1] == 'Remix':
+            remix_span = title_suffix[paren_index + 1:len(title_suffix) - 1]
+            remix_segment = remix_span.split(' ')
+
+            if "'s" in remix_span:
+                remixers.append(remix_span.split("'s")[0])
+            elif remix_segment[-1] == 'Remix':
                 remixer_segment = ' '.join(remix_segment[0:-1])
-                remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')
+                remixers = consolidate_artist_aliases(
+                    remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & '),
+                    formatted_title
+                )
 
         camelot_code, key, bpm = track_md
         key = CANONICAL_KEY_MAP.get(key.lower())
         key = None if key is None else key[0].upper() + ''.join(key[1:])
         date_added = track.get_date_added()
 
-        return track.generate_metadata(title, artists, remixers, None, None, bpm, key, camelot_code, None, date_added)
+        return track.generate_metadata(formatted_title, artists, remixers, None, None,
+                                       bpm, key, camelot_code, None, date_added)
 
 
 if __name__ == '__main__':
