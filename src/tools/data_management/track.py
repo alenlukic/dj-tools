@@ -198,14 +198,10 @@ class Track:
         featured = self.formatted[CustomTag.FEATURED.value]
         artists = self.get_tag(ID3Tag.ARTIST)
         featured_set = set() if featured is None else set(featured)
-
-        formatted_title, _ = self.format_title()
-        filtered_artists = consolidate_artist_aliases(
-            list(filter(lambda artist: artist not in featured_set, artists.split(', '))),
-            formatted_title
-        )
+        filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
 
         # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
+        # TODO: handle artist aliases and "ft."
         separator = ' and ' if any('&' in artist for artist in filtered_artists) else ' & '
 
         formatted_artists = separator.join(filtered_artists)
@@ -242,15 +238,18 @@ class Track:
     def format_energy(self):
         """ Formats energy level. """
 
-        energy = self.formatted[ID3Tag.ENERGY.value]
+        energy = self.formatted[CustomTag.ENERGY.value]
         if energy is not None:
             return energy
 
-        energy = self.get_tag(ID3Tag.ENERGY)
-        if energy is not None:
-            energy = int(energy)
-            self.formatted[ID3Tag.ENERGY.value] = energy
-            return energy
+        user_comment = self.get_tag(ID3Tag.USER_COMMENT)
+        if user_comment is not None:
+            try:
+                energy = int(user_comment)
+                self.formatted[CustomTag.ENERGY.value] = energy
+                return energy
+            except Exception:
+                pass
 
         comment = self.get_tag(ID3Tag.COMMENT) or ''
         if comment.startswith('Energy'):
@@ -262,7 +261,7 @@ class Track:
             energy = str(track_metadata.get('Energy', ''))
             energy = None if not energy.isnumeric() else int(energy)
 
-        self.formatted[ID3Tag.ENERGY.value] = energy
+        self.formatted[CustomTag.ENERGY.value] = energy
 
         return energy
 

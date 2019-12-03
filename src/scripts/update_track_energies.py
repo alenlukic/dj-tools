@@ -23,7 +23,7 @@ def update_energy_column():
                 continue
 
             track_wrapper = Track(track_path)
-            energy = track_wrapper.get_tag(ID3Tag.ENERGY)
+            energy = track_wrapper.get_tag(ID3Tag.USER_COMMENT)
             if energy is None:
                 comment = literal_eval(track_wrapper.get_tag(ID3Tag.COMMENT) or '{}')
                 energy = comment.get('Energy', '')

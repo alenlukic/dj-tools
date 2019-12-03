@@ -294,24 +294,26 @@ class DataManager:
         title = '.'.join(base_path.split('.')[0:-1])
 
         # Chop up the filename
-        track_md = re.findall(MD_FORMAT_REGEX, base_path)[0]
+        track_md_matches = re.findall(MD_FORMAT_REGEX, base_path)
+
+        if len(track_md_matches) == 1:
+            track_md = track_md_matches[0]
+        else:
+            raise Exception('Could not parse metadata from title for track %s' % base_path)
+
         md_str = '[' + ' - '.join(track_md) + ']'
-        print('sup: %s' % md_str)
         base_name = title.split(md_str + ' ')[1]
         split_basename = base_name.split(' - ')
+        title_suffix = ' - '.join(split_basename[1:])
+        paren_index = title_suffix.find('(')
 
         # Format title and derive featured artist
         formatted_title, featured = parse_title(base_name)
 
-        # Derive artists
-        artists = consolidate_artist_aliases(
-            split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & '),
-            formatted_title
-        ) + [featured]
+        # Derive artists - TODO: handle artist aliases and "ft."
+        artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ') + [featured]
 
         # Derive remixers
-        title_suffix = ' - '.join(split_basename[1:])
-        paren_index = title_suffix.find('(')
         remixers = []
         if paren_index != -1:
             title_suffix = title_suffix[0:paren_index]
@@ -321,11 +323,9 @@ class DataManager:
             if "'s" in remix_span:
                 remixers.append(remix_span.split("'s")[0])
             elif remix_segment[-1] == 'Remix':
+                # TODO: handle artist aliases and "ft."
                 remixer_segment = ' '.join(remix_segment[0:-1])
-                remixers = consolidate_artist_aliases(
-                    remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & '),
-                    formatted_title
-                )
+                remixers = remixer_segment.split(' and ' if ' and ' in remixer_segment else ' & ')
 
         camelot_code, key, bpm = track_md
         key = CANONICAL_KEY_MAP.get(key.lower())
