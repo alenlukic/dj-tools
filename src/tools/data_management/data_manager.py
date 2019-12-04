@@ -166,6 +166,7 @@ class DataManager:
         sessions = []
 
         for track_name, track_metadata in new_tracks.items():
+            print(str(track_metadata.get_metadata()))
             try:
                 session = self.database.create_session()
                 sessions.append(session)
@@ -197,12 +198,13 @@ class DataManager:
 
         self.database.close_sessions(sessions)
 
-    def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None):
+    def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None, preserve_title=False):
         """
         Standardizes song names and copy them to library.
 
         :param input_dir - directory containing audio files to rename.
         :param target_dir - directory where updated audio files should be saved
+        :param preserve_title - if True, original base track title is retained in target directory
         """
 
         target_dir = target_dir or self.audio_dir
@@ -215,7 +217,12 @@ class DataManager:
             track = Track(old_name)
             id3_data = track.get_id3_data()
 
-            if is_empty(id3_data) is None or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
+            if preserve_title is True:
+                metadata = self._generate_metadata_heuristically(track)
+                new_name = join(target_dir, old_base_name)
+                # copyfile(old_name, new_name)
+                new_tracks[new_name] = metadata
+            elif is_empty(id3_data) or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
                 # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming
                 # - user will need to enter new name manually.
                 print('Can\'t automatically rename this track: %s' % old_base_name)
@@ -311,7 +318,8 @@ class DataManager:
         formatted_title, featured = parse_title(base_name)
 
         # Derive artists - TODO: handle artist aliases and "ft."
-        artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ') + [featured]
+        artists = split_basename[0].split(' and ' if ' and ' in split_basename[0] else ' & ')
+        artists.extend([] if featured is None else [featured])
 
         # Derive remixers
         remixers = []
