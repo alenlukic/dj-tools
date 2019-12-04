@@ -1,4 +1,3 @@
-from src.definitions.common import *
 from src.definitions.data_management import *
 from src.utils.file_operations import *
 
@@ -8,7 +7,7 @@ def standardize_key_tags():
 
     warnings = []
     errors = []
-    for track in get_audio_files(PROCESSED_MUSIC_DIR):
+    for track in get_audio_files():
         try:
             md = load(join(PROCESSED_MUSIC_DIR, track))
             if md is None:

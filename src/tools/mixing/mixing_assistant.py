@@ -20,8 +20,8 @@ class MixingAssistant:
     def __init__(self):
         """ Initializes data manager. """
         self.dm = DataManager()
-        self.metadata = self.dm.load_collection_metadata()
-        self.camelot_map = generate_camelot_map(self.metadata)
+        self.tracks = self.dm.load_tracks()
+        self.camelot_map, self.track_md_index = generate_camelot_map(self.tracks)
 
     def execute(self, user_input):
         """
@@ -64,17 +64,15 @@ class MixingAssistant:
 
         try:
             # Validate metadata exists
-            cur_track_md = self.metadata['Track Metadata'].get(track_path)
+            cur_track_md = self.track_md_index.get(track_path)
             if cur_track_md is None:
-                raise MixingException('%s not found in metadata.' % track_path)
+                raise MixingException('%s not found in tracks.' % track_path)
 
             # Validate BPM and Camelot code exist and are well-formatted
             bpm = cur_track_md.get('BPM')
             camelot_code = cur_track_md.get('Camelot Code')
             if bpm is None:
                 raise MixingException('Did not find a BPM for %s.' % track_path)
-            if not bpm.isnumeric():
-                raise MixingException('Malformed BPM (%s) for %s.' % (bpm, track_path))
             if camelot_code is None:
                 raise MixingException('Did not find a Camelot code for %s.' % track_path)
 
@@ -97,9 +95,8 @@ class MixingAssistant:
         """ Reloads tracks from the audio directory and regenerates Camelot map and metadata. """
 
         self.dm = DataManager()
-        self.dm.generate_collection_metadata()
-        self.metadata = self.dm.load_collection_metadata()
-        self.camelot_map = generate_camelot_map(self.metadata)
+        self.tracks = self.dm.load_tracks()
+        self.camelot_map, self.track_md_index = generate_camelot_map(self.tracks)
         print('Track data reloaded.')
 
     def rename_tracks(self):
@@ -116,10 +113,10 @@ class MixingAssistant:
         """
         Get all the Camelot codes which are harmonic transitions for the given track.
 
-        :param cur_track_md - current track's metadata.
+        :param cur_track_md - current track metadata.
         """
 
-        camelot_code = cur_track_md.get('Camelot Code')
+        camelot_code = cur_track_md['Camelot Code']
         code_number = int(camelot_code[0:2])
         code_letter = camelot_code[-1].upper()
 
@@ -157,7 +154,7 @@ class MixingAssistant:
         results = []
         code_map = self.camelot_map[camelot_code]
         for b in range(lower_bpm, upper_bpm + 1):
-            results.extend(code_map[str(b)])
+            results.extend(code_map[b])
 
         return results
 
@@ -166,7 +163,7 @@ class MixingAssistant:
         Find matches for the given track.
 
         :param harmonic_codes - list of harmonic Camelot codes and their respective transition priorities.
-        :param cur_track_md - current track's metadata.
+        :param cur_track_md - current track metadata.
         """
 
         bpm = int(cur_track_md['BPM'])

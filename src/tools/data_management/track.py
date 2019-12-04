@@ -2,10 +2,12 @@ from ast import literal_eval
 from collections import defaultdict, ChainMap
 from os import stat
 from time import ctime
-from eyed3 import id3 as metadata, load
+from eyed3 import load
+from eyed3.id3 import frames
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
+from src.utils.data_management import *
 
 
 class Track:
@@ -43,6 +45,7 @@ class Track:
 
         def get_metadata(self):
             """ Return non-empty metadata in dictionary form. """
+
             title_metadata = self._get_metadata_from_title()
             return {k: v for k, v in {
                 'Title': self.title,
@@ -57,10 +60,28 @@ class Track:
                 'Date Added': self.date_added
             }.items() if not is_empty(v)}
 
-        def write_tags(self, track_path):
-            """ Write track's tags and metadata to ID3 fields, if they don't already exist.
+        def get_database_row(self, file_path):
+            """ Returns non-empty metadata in sqlalchemy-ready format. """
+
+            track_metadata = self.get_metadata()
+            return {col: value for col, value in {
+                'file_path': file_path,
+                'title': track_metadata.get('Title'),
+                'bpm': int(track_metadata.get('BPM', '-1')),
+                'key': track_metadata.get('Key'),
+                'camelot_code': track_metadata.get('Camelot Code'),
+                'energy': int(track_metadata.get('Energy', '-1')),
+                'genre': track_metadata.get('Genre'),
+                'label': ' '.join([w.capitalize() for w in track_metadata.get('Label', '').split()]),
+                'date_added': track_metadata.get('Date Added')
+            }.items() if not (is_empty(value) or value == -1)}
+
+        def write_tags(self, track_path, tag_filter=None):
+            """
+            Write track's tags and metadata to ID3 fields, if they don't already exist.
 
             :param track_path - Full qualified path to the track file.
+            :param tag_filter (optional) - Set of tags to write.
             """
 
             md = load(track_path)
@@ -72,20 +93,22 @@ class Track:
             self._remove_unsupported_tags(md)
 
             # Update tags to fix any discrepancies
-            frames = list(md.frameiter())
+            track_frames = list(md.frameiter())
             track_metadata = self.get_metadata()
             for k, v in track_metadata.items():
-                if k in KEYS_TO_OMIT_FROM_MD_UPDATES:
+                if self._exclude_tag(k, tag_filter):
                     continue
 
-                frame = self._get_frame_with_metadata_key(k, frames)
+                frame = self._get_frame_with_metadata_key(k, track_frames)
                 if frame is None:
                     continue
 
                 frame.text = v
 
             # Write metadata
-            comment_frame = self._get_frame_with_metadata_key('Comment', frames)
+            comment = ID3Tag.COMMENT.value
+            comment_frame = (None if self._exclude_tag(comment, tag_filter)
+                             else self._get_frame_with_metadata_key(comment, track_frames))
             if comment_frame is None:
                 return
 
@@ -93,18 +116,18 @@ class Track:
             md.save()
 
         @staticmethod
-        def _get_frame_with_metadata_key(metadata_key, frames):
+        def _get_frame_with_metadata_key(metadata_key, track_frames):
             """
             Uses metadata key to retrieve corresponding ID3 frame, if available.
 
             :param metadata_key - the metadata key.
-            :param frames - track's ID3 frames.
+            :param track_frames - track's ID3 frames.
             """
             tag = READABLE_TO_ID3.get(metadata_key)
             if tag is None:
                 return None
 
-            target_frame = list(filter(lambda frame: frame.id.decode('utf-8') == tag, frames))
+            target_frame = list(filter(lambda frame: frame.id.decode('utf-8') == tag, track_frames))
             if len(target_frame) == 1:
                 return target_frame[0]
 
@@ -124,6 +147,17 @@ class Track:
                 }
 
             return {}
+
+        @staticmethod
+        def _exclude_tag(tag, tag_filter):
+            """
+            Returns whether the given tag's updates should be omitted.
+
+            :param tag - Name of the tag.
+            :param tag_filter - Set of tags whose ID3 frames should be updated.
+            """
+
+            return tag in KEYS_TO_OMIT_FROM_MD_UPDATES or not (tag_filter is None or tag in tag_filter)
 
         @staticmethod
         def _remove_unsupported_tags(md_tag):
@@ -163,10 +197,11 @@ class Track:
 
         featured = self.formatted[CustomTag.FEATURED.value]
         artists = self.get_tag(ID3Tag.ARTIST)
-
         featured_set = set() if featured is None else set(featured)
         filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
+
         # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
+        # TODO: handle artist aliases and "ft."
         separator = ' and ' if any('&' in artist for artist in filtered_artists) else ' & '
 
         formatted_artists = separator.join(filtered_artists)
@@ -207,10 +242,20 @@ class Track:
         if energy is not None:
             return energy
 
+        user_comment = self.get_tag(ID3Tag.USER_COMMENT)
+        if user_comment is not None:
+            try:
+                energy = int(user_comment)
+                self.formatted[CustomTag.ENERGY.value] = energy
+                return energy
+            except Exception:
+                pass
+
         comment = self.get_tag(ID3Tag.COMMENT) or ''
         if comment.startswith('Energy'):
-            segment = str([s.strip() for s in comment.split()][-1])
-            energy = None if not segment.isnumeric() else int(segment)
+            segments = [s.strip() for s in comment.split()]
+            if len(segments) > 1 and segments[1].isnumeric():
+                energy = int(segments[1])
         elif comment.startswith('Metadata: '):
             track_metadata = literal_eval(comment.split('Metadata: ')[1])
             energy = str(track_metadata.get('Energy', ''))
@@ -245,44 +290,7 @@ class Track:
         if title is None:
             return None, None
 
-        featured = None
-        segments = title.split(' ')
-        filtered_segments = []
-
-        i = 0
-        n = len(segments)
-        open_paren_found = False
-        while i < n:
-            segment = segments[i]
-
-            if '(' in segment:
-                open_paren_found = True
-
-            # Replace all instances of 'feat.' with 'ft.' inside the parenthetical phrase indicating mix type.
-            # e.g. "(Hydroid feat. Santiago Nino Mix)" becomes "(Hydroid ft. Santiago Nino Mix)"
-            if segment.lower() == 'feat.':
-                if open_paren_found:
-                    filtered_segments.append('ft.')
-                    i += 1
-                else:
-                    # If we haven't seen an open parentheses yet, then the featured artist's name is composed of all
-                    # words occuring before the parentheses. This heuristic works for MP3 files purchased on Beatport.
-                    featured = []
-                    for j in range(i + 1, n):
-                        next_part = segments[j]
-                        if '(' in next_part:
-                            break
-                        featured.append(next_part)
-                    featured = ' '.join(featured)
-                    i = j
-            else:
-                filtered_segments.append(segment.strip())
-                i += 1
-
-        # Get rid of "(Original Mix)" and "(Extended Mix)" as these are redundant phrases that unnecessarily lengthen
-        # the file name.
-        formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')
-
+        formatted_title, featured = parse_title(title)
         self.formatted[ID3Tag.TITLE.value] = formatted_title
         self.formatted[CustomTag.FEATURED.value] = featured
 
@@ -362,16 +370,15 @@ class Track:
         return self.track_path
 
     def _extract_id3_data(self):
-        """ Extracts mp3 metadata needed to automatically rename songs using the eyed3 lib. """
+        """ Extracts mp3 metadata using the eyed3 lib. """
 
         md = load(self.track_path)
         if md is None:
-            return None
+            return {}
 
         md = md.tag
-        frame_types = {metadata.frames.TextFrame, metadata.frames.CommentFrame}
-        track_frames = md.frameiter()
+        frame_types = {frames.TextFrame, frames.CommentFrame, frames.UserTextFrame}
+        track_frames = list(md.frameiter())
         id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
-        keys = list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))
 
-        return defaultdict(str, {k: id3[k] for k in keys})
+        return defaultdict(str, {k: id3[k] for k in list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))})

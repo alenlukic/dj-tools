@@ -104,6 +104,7 @@ def migrate_data():
 
             # Create rows in artist table
             track_row = session.execute(select([track_table]).where(track_table.c.file_path == file_path)).fetchone()
+            track_id = track_row['id']
             for artist in track_metadata.get('Artists', []) + track_metadata.get('Remixers', []):
                 track_count = artist_counts.get(artist, 0)
                 session.execute(
@@ -115,7 +116,8 @@ def migrate_data():
 
                 # Create row in artist_track table
                 artist_row = session.execute(select([artist_table]).where(artist_table.c.name == artist)).fetchone()
-                session.execute(artist_track_table.insert(), {'track_id': track_row['id'], 'artist_id': artist_row['id']})
+                artist_id = artist_row['id']
+                session.execute(artist_track_table.insert(), {'track_id': track_id, 'artist_id': artist_id})
 
             session.commit()
 

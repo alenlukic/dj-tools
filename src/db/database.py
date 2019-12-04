@@ -1,4 +1,6 @@
 from sqlalchemy import create_engine, MetaData
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import session as sezzion, sessionmaker
 
 from src.definitions.common import CONFIG
 
@@ -6,6 +8,8 @@ from src.definitions.common import CONFIG
 class Database:
     """ Encapsulates interface to DB for storing collection data. """
 
+    Base = None
+    BoundSessionInstantiator = None
     db = None
 
     class __Database:
@@ -29,46 +33,75 @@ class Database:
 
         if self.db is None:
             self.db = self.__Database()
-            self.engine = self.db.engine
             self.conn = self.db.conn
+            self.engine = self.db.engine
             self.metadata = self.db.metadata
+            self.Base = declarative_base(metadata=self.metadata)
+            self.BoundSessionInstantiator = sessionmaker(bind=self.engine)
+
+    # ==============
+    # Getter methods
+    # ==============
+
+    def get_base(self):
+        """ Get ORM base entity. """
+        return self.Base
 
     def get_connnection(self):
         """ Returns DB connection. """
-        self._ensure_connection()
         return self.conn
 
     def get_db(self):
         """ Returns DB object. """
-        self._ensure_connection()
         return self.db
 
     def get_engine(self):
         """ Returns engine object. """
-        self._ensure_connection()
         return self.engine
 
     def get_metadata(self):
         """ Returns metadata object. """
-        self._ensure_connection()
         return self.metadata
 
-    def close_connection(self):
-        """ Closes the connection to the DB. """
+    def get_tables(self):
+        """ Returns list of entities in this DB. """
+        return self.metadata.tables
 
-        if self.db is not None:
-            self.conn.close()
-            self.db = None
+    # ===============
+    # Session methods
+    # ===============
 
-    def _ensure_connection(self):
-        """ Opens connection to the database if it doesn't exist. """
+    def create_session(self):
+        """ Creates and returns a new DB session. """
+        return self.BoundSessionInstantiator()
 
-        if self.db is None:
-            self.db = self.__Database()
-            self.engine = self.db.engine
-            self.conn = self.db.conn
-            self.meta = self.db.metadata
+    @staticmethod
+    def close_sessions(sessions):
+        """
+        Closes the given sessions.
 
+        :param sessions - sessions to close
+        """
 
-class QueryExecutionException(Exception):
-    pass
+        for session in sessions:
+            session.close()
+
+    @staticmethod
+    def close_all_sessions():
+        """ Closes all open sessions. """
+        sezzion.close_all_sessions()
+
+    # =================
+    # DB update methods
+    # =================
+
+    def add_column(self, table_name, column_name, column_type='varchar'):
+        """
+        Adds column to an existing table, if it does not exist.
+
+        :param table_name - name of the table being updated.
+        :param column_name - name of the column being added.
+        :param column_type - type of the column being added.
+        """
+
+        self.engine.execute('ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s' % (table_name, column_name, column_type))
