@@ -1,4 +1,7 @@
+from ast import literal_eval
 from collections import defaultdict
+
+from src.utils.common import is_empty
 
 
 def flip_camelot_letter(camelot_letter):
@@ -20,24 +23,43 @@ def format_camelot_number(camelot_number):
     return str(camelot_number) if camelot_number >= 10 else '0' + str(camelot_number)
 
 
-def generate_camelot_map(metadata):
+def generate_camelot_map(tracks):
     """
     Generate double-nested map of camelot code -> BPM -> set of tracks.
 
-    :param metadata - map of full qualified paths of all audio files in user's audio directory to their metadata.
+    :param tracks - set of all tracks in the DB.
     """
 
+    label_counts = defaultdict(int)
+    for track in tracks:
+        if track.label is not None:
+            label_counts[track.label] += 1
+
+    track_md_index = {}
     cm = defaultdict(lambda: defaultdict(list))
-    track_metadata = metadata['Track Metadata']
-    label_counts = metadata['Label Counts']
-    for path, track_md in track_metadata.items():
-        track_md['Path'] = path
-        track_md['Label Count'] = label_counts.get(track_md.get('Label', '')) or 0
+    for track in tracks:
+        comment = literal_eval(track.comment)
+        track_md = {k: v for k, v in {
+            'Path': track.file_path,
+            'Title': track.title,
+            'Artists': comment.get('Artists'),
+            'Remixers': comment.get('Remixers'),
+            'BPM': track.bpm,
+            'Key': track.key,
+            'Camelot Code': track.camelot_code,
+            'Label': track.label,
+            'Label Count': label_counts[track.label],
+            'Genre': track.genre,
+            'Energy': track.energy,
+            'Date Added': track.date_added
+        }.items() if not is_empty(v)}
+        track_md_index[track.file_path] = track_md
+
         camelot_code = track_md['Camelot Code']
         bpm = track_md['BPM']
         cm[camelot_code][bpm].append(track_md)
 
-    return cm
+    return cm, track_md_index
 
 
 def get_bpm_bound(bpm, bound):
@@ -48,5 +70,3 @@ def get_bpm_bound(bpm, bound):
     :param bound - percentage difference between current BPM and higher/lower BPMs.
     """
     return bpm / (1 + bound)
-
-    # bpm / other_bpm = (1 + bound)

@@ -1,9 +1,8 @@
-from collections import defaultdict, OrderedDict
 import logging
-from os.path import basename, exists
+from os.path import basename
 from shutil import copyfile
 
-from src.db.database import Database
+from src.db import database
 from src.db.entities.artist import Artist as ArtistEntity
 from src.db.entities.artist_track import ArtistTrack as ArtistTrackEntity
 from src.db.entities.track import Track as TrackEntity
@@ -22,7 +21,7 @@ logging.getLogger('eyed3').setLevel(logging.ERROR)
 class DataManager:
     """ Encapsulates track collection metadata management utilities. """
 
-    def __init__(self, audio_dir=PROCESSED_MUSIC_DIR, data_dir=DATA_DIR):
+    def __init__(self, audio_dir=PROCESSED_MUSIC_DIR):
         """
         Initializes class with music directory info.
 
@@ -30,58 +29,17 @@ class DataManager:
         """
 
         self.audio_dir = audio_dir
-        self.data_dir = data_dir
-        self.database = Database()
+        self.database = database
         self.audio_files = get_audio_files(self.audio_dir)
 
-    def generate_collection_metadata(self, output_file='metadata.json'):
-        """
-        Generates collection and track metadata.
+    def load_tracks(self):
+        """ Loads tracks from the database into memory. """
 
-        :param output_file - name of output JSON file to be saved in the data directory.
-        """
+        session = self.database.create_session()
+        tracks = session.query(TrackEntity).all()
+        self.database.close_sessions([session])
 
-        collection_metadata = {}
-        artist_counts = defaultdict(int)
-        label_counts = defaultdict(int)
-
-        # Generate metadata
-        for track_file in self.audio_files:
-            track_path = join(self.audio_dir, track_file)
-            track_metadata = self.write_track_metadata(track_path)
-            if track_metadata is not None:
-                collection_metadata[track_path] = track_metadata.get_metadata()
-                for artist in track_metadata.artists + track_metadata.remixers:
-                    artist_counts[artist] += 1
-                if track_metadata.label is not None:
-                    label_counts[track_metadata.label] += 1
-
-        # Sort track names alphabetically
-        sorted_track_metadata = OrderedDict()
-        sorted_track_names = sorted(list(collection_metadata.keys()))
-        for track_name in sorted_track_names:
-            sorted_track_metadata[track_name] = collection_metadata[track_name]
-
-        # Sort artist counts in order of decreasing frequency
-        sorted_artist_counts = OrderedDict()
-        sorted_count_tuples = sorted([(v, k) for k, v in artist_counts.items()], reverse=True)
-        for count, artist in sorted_count_tuples:
-            sorted_artist_counts[artist] = count
-
-        # Sort label counts in order of decreasing frequency
-        sorted_label_counts = OrderedDict()
-        sorted_count_tuples = sorted([(v, k) for k, v in label_counts.items()], reverse=True)
-        for count, label in sorted_count_tuples:
-            sorted_label_counts[label] = count
-
-        # Write metadata to file
-        output = {
-            'Track Metadata': sorted_track_metadata,
-            'Artist Counts': sorted_artist_counts,
-            'Label Counts': sorted_label_counts
-        }
-        with open(join(self.data_dir, output_file), 'w') as w:
-            json.dump(output, w, indent=2)
+        return tracks
 
     def generate_track_metadata(self, track_path):
         """
@@ -116,46 +74,6 @@ class DataManager:
             print('Error while writing metadata for track %s: %s' % (track_path, e))
             return None
 
-    def load_collection_metadata(self, data_dir=DATA_DIR, file_name='metadata.json'):
-        """
-        Loads collection metadata from JSON.
-
-        :param data_dir - directory where metadata JSON is located
-        :param file_name - name of file containing metadata
-        """
-
-        file_path = join(data_dir, file_name)
-        if exists(file_path):
-            with open(file_path, 'r') as f:
-                return json.load(f)
-
-        return {}
-
-    def update_collection_metadata(self, new_tracks, data_dir=DATA_DIR, file_name='metadata.json'):
-        """
-        Updates the metadata collection with new tracks. TODO: deprecate this.
-
-        :param new_tracks - dictionary mapping new track name to its metadata
-        :param data_dir - directory where metadata JSON is located
-        :param file_name - name of file containing metadata
-        """
-
-        metadata = self.load_collection_metadata(data_dir, file_name)
-
-        for track_name, track_metadata in new_tracks.items():
-            md_dict = track_metadata.get_metadata()
-            metadata['Track Metadata'][track_name] = md_dict
-
-            artists = md_dict.get('Artists', []) + md_dict.get('Remixers', [])
-            for artist in artists:
-                metadata['Artist Counts'][artist] = metadata['Artist Counts'].get(artist, 0) + 1
-            label = md_dict.get('Label')
-            if label is not None:
-                metadata['Label Counts'][label] = metadata['Label Counts'].get(label, 0) + 1
-
-        with open(join(data_dir, file_name), 'w') as w:
-            json.dump(metadata, w, indent=2)
-
     def update_database(self, new_tracks):
         """
         Updates the database with new tracks' info.
@@ -166,7 +84,6 @@ class DataManager:
         sessions = []
 
         for track_name, track_metadata in new_tracks.items():
-            print(str(track_metadata.get_metadata()))
             try:
                 session = self.database.create_session()
                 sessions.append(session)
@@ -220,7 +137,7 @@ class DataManager:
             if preserve_title is True:
                 metadata = self._generate_metadata_heuristically(track)
                 new_name = join(target_dir, old_base_name)
-                # copyfile(old_name, new_name)
+                copyfile(old_name, new_name)
                 new_tracks[new_name] = metadata
             elif is_empty(id3_data) or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
                 # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming
@@ -250,8 +167,7 @@ class DataManager:
             except Exception as e:
                 print('Could not rename %s to %s (exception: %s)' % (old_base_name, new_base_name, str(e)))
 
-        # Update collection metadata
-        self.update_collection_metadata(new_tracks)
+        # Update database
         self.update_database(new_tracks)
 
     def show_malformed_tracks(self):
