@@ -38,7 +38,10 @@ def generate_camelot_map(tracks):
     track_md_index = {}
     cm = defaultdict(lambda: defaultdict(list))
     for track in tracks:
-        comment = literal_eval(track.comment)
+        try:
+            comment = literal_eval(track.comment)
+        except Exception:
+            comment = {}
         track_md = {k: v for k, v in {
             'Path': track.file_path,
             'Title': track.title,
