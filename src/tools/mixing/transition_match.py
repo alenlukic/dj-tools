@@ -7,18 +7,20 @@ from src.definitions.harmonic_mixing import CamelotPriority
 class TransitionMatch:
     """ Wrapper for a track with a harmonic transition from the current track. """
 
-    def __init__(self, metadata, cur_track_md, camelot_priority):
+    def __init__(self, metadata, cur_track_md, camelot_priority, collection_md):
         """
         Initialize this track and playing track's metadata.
 
         :param metadata - this track's metadata.
         :param cur_track_md - playing track's metadata.
         :param camelot_priority - priority of the transition.
+        :param collection_md - collection metadata.
         """
 
         self.metadata = metadata
         self.cur_track_md = cur_track_md
         self.camelot_priority = camelot_priority
+        self.collection_md = collection_md
         self.score = None
 
     def format(self):
@@ -51,12 +53,13 @@ class TransitionMatch:
         """ Calculate the transition score using several factors. """
         if self.score is None:
             score_weights = [
-                (self._get_artist_score(), 0.225),
-                (self.get_bpm_score(), 0.2),
-                (self.get_camelot_priority_score(), 0.125),
+                (self._get_artist_score(), 0.15),
+                (self.get_bpm_score(), 0.225),
+                (self.get_camelot_priority_score(), 0.15),
                 (self._get_energy_score(), 0.1),
-                (self._get_attribute_score('Genre'), 0.125),
-                (self._get_label_score(), 0.225),
+                (self._get_freshness_score(), 0.15),
+                (self._get_attribute_score('Genre'), 0.1),
+                (self._get_label_score(), 0.125),
             ]
             self.score = sum([score * weight for score, weight in score_weights])
 
@@ -91,6 +94,10 @@ class TransitionMatch:
         cur_track_energy = int(cur_track_energy)
         return 1.0 - (abs(energy - cur_track_energy) / 10.0)
 
+    def _get_freshness_score(self):
+        """ Calculates the freshness component of the score. """
+        return self.metadata['Date Added'] / self.collection_md['Newest Timestamp']
+
     def _get_label_score(self):
         """ Calculates the energy match component of the score. """
 
@@ -99,7 +106,7 @@ class TransitionMatch:
         if label is None or cur_label is None:
             return 1.0 / log2(10)
 
-        return 0.0 if label != cur_label else 1.0 / log2(self.metadata['Label Count'])
+        return 0.0 if label != cur_label else 1.0 / log2(self.collection_md['Label Counts'])
 
     def __lt__(self, other):
         return ((self.get_score(), self.get_bpm_score(), self.get_camelot_priority_score()) <

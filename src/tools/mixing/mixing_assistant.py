@@ -21,7 +21,7 @@ class MixingAssistant:
         """ Initializes data manager. """
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
-        self.camelot_map, self.track_md_index = generate_camelot_map(self.tracks)
+        self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
 
     def execute(self, user_input):
         """
@@ -96,7 +96,7 @@ class MixingAssistant:
 
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
-        self.camelot_map, self.track_md_index = generate_camelot_map(self.tracks)
+        self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
         print('Track data reloaded.')
 
     def rename_tracks(self):
@@ -177,11 +177,11 @@ class MixingAssistant:
             hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
             lk_code = format_camelot_number((code_number - 7) % 12) + code_letter
 
-            same_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+            same_key.extend(TransitionMatch(md, cur_track_md, priority, self.collection_md) for md in
                             self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND))
-            higher_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+            higher_key.extend(TransitionMatch(md, cur_track_md, priority,  self.collection_md) for md in
                               self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND))
-            lower_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+            lower_key.extend(TransitionMatch(md, cur_track_md, priority,  self.collection_md) for md in
                              self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
 
         # Rank and format results
