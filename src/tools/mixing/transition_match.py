@@ -135,7 +135,7 @@ class TransitionMatch:
         return 0.0 if (genre is None or cur_track_genre is None or genre != cur_track_genre) else 1.0
 
     def get_label_score(self):
-        """ Calculates the energy match component of the score. """
+        """ Calculates the label match component of the score. """
 
         label_tuple = self.metadata.get('Label')
         cur_label_tuple = self.cur_track_md.get('Label')
