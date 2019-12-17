@@ -34,12 +34,25 @@ def generate_camelot_map(tracks):
 
     collection_md = {'Newest Timestamp': -1}
 
-    # Generate label counts
+    # Generate label and artist counts
     label_counts = defaultdict(int)
+    artist_counts = defaultdict(int)
     for track in tracks:
-        if track.label is not None:
+        if not is_empty(track.label):
             label_counts[track.label] += 1
+
+        try:
+            comment = literal_eval(track.comment)
+        except Exception:
+            comment = {}
+
+        for artist in comment.get('Artists', []) + comment.get('Remixers', []):
+            if not is_empty(artist):
+                artist_counts[artist] += 1
+
+    # Add sum of counts to collection metadata counter
     collection_md['Label Counts'] = sum(label_counts.values())
+    collection_md['Artist Counts'] = sum(artist_counts.values())
 
     track_md_index = {}
     camelot_map = defaultdict(lambda: defaultdict(list))
@@ -51,13 +64,12 @@ def generate_camelot_map(tracks):
         track_md = {k: v for k, v in {
             'Path': track.file_path,
             'Title': track.title,
-            'Artists': comment.get('Artists'),
-            'Remixers': comment.get('Remixers'),
+            'Artists': {artist: artist_counts[artist] for artist in comment.get('Artists', [])},
+            'Remixers': {artist: artist_counts[artist] for artist in comment.get('Remixers', [])},
             'BPM': track.bpm,
             'Key': track.key,
             'Camelot Code': track.camelot_code,
-            'Label': track.label,
-            'Label Count': label_counts[track.label],
+            'Label': (track.label, label_counts[track.label]),
             'Genre': track.genre,
             'Energy': track.energy,
             'Date Added': datetime.strptime(track.date_added, TIMESTAMP_FORMAT).timestamp(),
