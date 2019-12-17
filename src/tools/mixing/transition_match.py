@@ -38,8 +38,19 @@ class TransitionMatch:
 
         bpm = int(bpm)
         cur_track_bpm = int(cur_track_bpm)
+        diff = abs(bpm - cur_track_bpm)
+
+        if diff == 0:
+            return 1.0
+        if diff <= 1:
+            return 0.75
+        if diff <= 2:
+            return 0.5
+        if diff <= 3:
+            return 0.25
 
         return min(bpm, cur_track_bpm) / max(bpm, cur_track_bpm)
+
 
     def get_camelot_priority_score(self):
         """ Gets camelot priority component of the score. """
@@ -53,9 +64,9 @@ class TransitionMatch:
         """ Calculate the transition score using several factors. """
         if self.score is None:
             score_weights = [
-                (self._get_artist_score(), 0.15),
-                (self.get_bpm_score(), 0.225),
-                (self.get_camelot_priority_score(), 0.15),
+                (self._get_artist_score(), 0.125),
+                (self.get_bpm_score(), 0.2),
+                (self.get_camelot_priority_score(), 0.2),
                 (self._get_energy_score(), 0.1),
                 (self._get_freshness_score(), 0.15),
                 (self._get_attribute_score('Genre'), 0.1),
@@ -70,9 +81,12 @@ class TransitionMatch:
 
         artists = set(self.metadata.get('Artists', []) + self.metadata.get('Remixers', []))
         cur_track_artists = set(self.cur_track_md.get('Artists', []) + self.cur_track_md.get('Remixers', []))
-        total_artists = float(len(artists) + len(cur_track_artists))
+        total_artists = len(artists) + len(cur_track_artists)
 
-        return len(artists.intersection(cur_track_artists)) / total_artists
+        if total_artists == 0:
+            return 0.0
+
+        return len(artists.intersection(cur_track_artists)) / float(total_artists)
 
     def _get_attribute_score(self, attribute):
         """ Default scoring method - returns 1 if the attributes match, 0.5 if one or both missing, and 0 otherwise. """
@@ -96,6 +110,7 @@ class TransitionMatch:
 
     def _get_freshness_score(self):
         """ Calculates the freshness component of the score. """
+        res = self.metadata['Date Added'] / self.collection_md['Newest Timestamp']
         return self.metadata['Date Added'] / self.collection_md['Newest Timestamp']
 
     def _get_label_score(self):

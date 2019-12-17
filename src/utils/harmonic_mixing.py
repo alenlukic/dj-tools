@@ -39,7 +39,7 @@ def generate_camelot_map(tracks):
     for track in tracks:
         if track.label is not None:
             label_counts[track.label] += 1
-    collection_md['Label Counts'] = label_counts
+    collection_md['Label Counts'] = sum(label_counts.values())
 
     track_md_index = {}
     camelot_map = defaultdict(lambda: defaultdict(list))
