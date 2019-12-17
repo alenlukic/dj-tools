@@ -1,6 +1,8 @@
 from ast import literal_eval
 from collections import defaultdict
+from datetime import datetime
 
+from src.definitions.harmonic_mixing import TIMESTAMP_FORMAT
 from src.utils.common import is_empty
 
 
@@ -25,18 +27,35 @@ def format_camelot_number(camelot_number):
 
 def generate_camelot_map(tracks):
     """
-    Generate double-nested map of camelot code -> BPM -> set of tracks.
+    Generate and return map of camelot code -> BPM -> set of tracks, along with collection metadata.
 
     :param tracks - set of all tracks in the DB.
     """
 
+    collection_md = {'Newest Timestamp': -1}
+
+    # Generate label and artist counts
     label_counts = defaultdict(int)
+    artist_counts = defaultdict(int)
     for track in tracks:
-        if track.label is not None:
+        if not is_empty(track.label):
             label_counts[track.label] += 1
 
+        try:
+            comment = literal_eval(track.comment)
+        except Exception:
+            comment = {}
+
+        for artist in comment.get('Artists', []) + comment.get('Remixers', []):
+            if not is_empty(artist):
+                artist_counts[artist] += 1
+
+    # Add sum of counts to collection metadata counter
+    collection_md['Label Counts'] = sum(label_counts.values())
+    collection_md['Artist Counts'] = sum(artist_counts.values())
+
     track_md_index = {}
-    cm = defaultdict(lambda: defaultdict(list))
+    camelot_map = defaultdict(lambda: defaultdict(list))
     for track in tracks:
         try:
             comment = literal_eval(track.comment)
@@ -45,24 +64,26 @@ def generate_camelot_map(tracks):
         track_md = {k: v for k, v in {
             'Path': track.file_path,
             'Title': track.title,
-            'Artists': comment.get('Artists'),
-            'Remixers': comment.get('Remixers'),
+            'Artists': {artist: artist_counts[artist] for artist in comment.get('Artists', [])},
+            'Remixers': {artist: artist_counts[artist] for artist in comment.get('Remixers', [])},
             'BPM': track.bpm,
             'Key': track.key,
             'Camelot Code': track.camelot_code,
-            'Label': track.label,
-            'Label Count': label_counts[track.label],
+            'Label': (track.label, label_counts[track.label]),
             'Genre': track.genre,
             'Energy': track.energy,
-            'Date Added': track.date_added
+            'Date Added': datetime.strptime(track.date_added, TIMESTAMP_FORMAT).timestamp(),
         }.items() if not is_empty(v)}
         track_md_index[track.file_path] = track_md
 
+        if track_md['Date Added'] > collection_md['Newest Timestamp']:
+            collection_md['Newest Timestamp'] = track_md['Date Added']
+
         camelot_code = track_md['Camelot Code']
         bpm = track_md['BPM']
-        cm[camelot_code][bpm].append(track_md)
+        camelot_map[camelot_code][bpm].append(track_md)
 
-    return cm, track_md_index
+    return camelot_map, track_md_index, collection_md
 
 
 def get_bpm_bound(bpm, bound):

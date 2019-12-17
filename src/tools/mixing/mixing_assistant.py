@@ -1,7 +1,9 @@
 import logging
 from math import ceil, floor
+from os.path import join
 from sys import exit
 
+from src.definitions.common import TMP_MUSIC_DIR
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
 from src.tools.data_management.data_manager import DataManager
@@ -21,7 +23,7 @@ class MixingAssistant:
         """ Initializes data manager. """
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
-        self.camelot_map, self.track_md_index = generate_camelot_map(self.tracks)
+        self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
 
     def execute(self, user_input):
         """
@@ -96,12 +98,13 @@ class MixingAssistant:
 
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
-        self.camelot_map, self.track_md_index = generate_camelot_map(self.tracks)
+        self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
         print('Track data reloaded.')
 
     def rename_tracks(self):
-        """ Rename tracks in tmp directory. """
-        self.dm.rename_songs()
+        """ Rename tracks in tmp directories. """
+        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'mp3'))
+        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'lossless'))
         print('\nSongs renamed.')
 
     def shutdown(self):
@@ -177,11 +180,11 @@ class MixingAssistant:
             hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
             lk_code = format_camelot_number((code_number - 7) % 12) + code_letter
 
-            same_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+            same_key.extend(TransitionMatch(md, cur_track_md, priority, self.collection_md) for md in
                             self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND))
-            higher_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+            higher_key.extend(TransitionMatch(md, cur_track_md, priority,  self.collection_md) for md in
                               self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND))
-            lower_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
+            lower_key.extend(TransitionMatch(md, cur_track_md, priority, self.collection_md) for md in
                              self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
 
         # Rank and format results
