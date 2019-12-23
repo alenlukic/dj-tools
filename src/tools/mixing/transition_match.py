@@ -1,7 +1,5 @@
-from math import log2
-from os.path import basename
-
 from src.definitions.harmonic_mixing import *
+from src.utils.common import log2smooth
 
 
 class TransitionMatch:
@@ -29,12 +27,12 @@ class TransitionMatch:
         if self.score is None:
             score_weights = [
                 (self.get_artist_score(), 0.11),
-                (self.get_bpm_score(), 0.2),
+                (self.get_bpm_score(), 0.21),
                 (self.get_camelot_priority_score(), 0.22),
                 (self.get_energy_score(), 0.08),
-                (self.get_freshness_score(), 0.17),
-                (self.get_genre_score(), 0.09),
-                (self.get_label_score(), 0.13),
+                (self.get_freshness_score(), 0.14),
+                (self.get_genre_score(), 0.1),
+                (self.get_label_score(), 0.14),
             ]
             self.score = sum([score * weight for score, weight in score_weights])
 
@@ -65,8 +63,8 @@ class TransitionMatch:
             for k, v in count_dict.items():
                 unified_counts[k] = v
 
-        log_artist_count = log2(self.collection_md['Artist Counts'])
-        return sum([1.0 - (log2(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
+        log_artist_count = log2smooth(self.collection_md['Artist Counts'])
+        return sum([1.0 - (log2smooth(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
 
     def get_bpm_score(self):
         """ Calculates BPM match component of the score. """
@@ -139,21 +137,19 @@ class TransitionMatch:
     def get_label_score(self):
         """ Calculates the label match component of the score. """
 
-        label_tuple = self.metadata.get('Label')
-        cur_label_tuple = self.cur_track_md.get('Label')
-        if label_tuple is None or cur_label_tuple is None or label_tuple[0] != cur_label_tuple[0]:
+        label, label_count = self.metadata.get('Label', (None, None))
+        cur_label, cur_label_count = self.cur_track_md.get('Label', (None, None))
+        if label is None or cur_label is None or label != cur_label:
             return 0.0
 
-        return 1.0 - (log2(label_tuple[1]) / log2(self.collection_md['Label Counts']))
+        return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md['Label Counts']))
 
     def format(self):
         """ Format result with score and track's base file name. """
-        return '\t\t'.join([str(self.camelot_priority), '{:.3f}'.format(self.get_score()),
-                            basename(self.metadata['Path'])])
+        return '\t\t'.join([str(self.camelot_priority), '{:.3f}'.format(self.get_score()), self.metadata['Title']])
 
     def __lt__(self, other):
-        return ((self.get_score(), self.get_bpm_score(), self.get_camelot_priority_score()) <
-                (other.get_score(), other.get_bpm_score(), other.get_camelot_priority_score()))
+        return (self.get_score(), self.get_freshness_score()) < (other.get_score(), other.get_freshness_score())
 
     def __hash__(self):
-        return hash(self.metadata['Title'])
+        return hash(self.metadata['Path'])
