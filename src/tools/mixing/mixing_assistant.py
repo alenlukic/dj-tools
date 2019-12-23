@@ -202,7 +202,14 @@ class MixingAssistant:
         :param result_type - the type of result (same key, higher key, or lower key).
         :param results - ranked, formatted results.
         """
-        print('\n\n%s results:\n' % result_type)
+
+        dashed_line = ''.join(['-'] * 148)
+
+        print('\n\n\n%s results:\n\n\n' % result_type)
+        print(dashed_line)
+        print('\t\t\t'.join(['Score', 'Track']))
+        print(dashed_line)
+
         for result in results:
             print(result)
 

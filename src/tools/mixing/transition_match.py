@@ -1,7 +1,7 @@
-from math import log2
 from os.path import basename
 
 from src.definitions.harmonic_mixing import *
+from src.utils.common import log2smooth
 
 
 class TransitionMatch:
@@ -24,16 +24,17 @@ class TransitionMatch:
         self.score = None
 
     def get_score(self):
-        """ Calculate the transition score using several factors. """
+        """ Calculate the transition score using multiple weighed subscores. """
+
         if self.score is None:
             score_weights = [
-                (self.get_artist_score(), 0.125),
-                (self.get_bpm_score(), 0.175),
-                (self.get_camelot_priority_score(), 0.175),
-                (self.get_energy_score(), 0.1),
-                (self.get_freshness_score(), 0.175),
-                (self.get_genre_score(), 0.1),
-                (self.get_label_score(), 0.15),
+                (self.get_artist_score(), 0.12),
+                (self.get_bpm_score(), 0.22),
+                (self.get_camelot_priority_score(), 0.24),
+                (self.get_energy_score(), 0.05),
+                (self.get_freshness_score(), 0.08),
+                (self.get_genre_score(), 0.12),
+                (self.get_label_score(), 0.16),
             ]
             self.score = sum([score * weight for score, weight in score_weights])
 
@@ -64,8 +65,8 @@ class TransitionMatch:
             for k, v in count_dict.items():
                 unified_counts[k] = v
 
-        log_artist_count = log2(self.collection_md['Artist Counts'])
-        return sum([1.0 - (log2(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
+        log_artist_count = log2smooth(self.collection_md['Artist Counts'])
+        return sum([1.0 - (log2smooth(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
 
     def get_bpm_score(self):
         """ Calculates BPM match component of the score. """
@@ -106,10 +107,13 @@ class TransitionMatch:
     def get_camelot_priority_score(self):
         """ Gets camelot priority component of the score. """
 
-        if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
-            return 0.25
         if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
             return 0.1
+        if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
+            return 0.2
+        if self.camelot_priority == CamelotPriority.MAJOR_MINOR_JUMP:
+            return 0.9
+
         return float(self.camelot_priority / CamelotPriority.SAME_KEY.value)
 
     def get_energy_score(self):
@@ -124,7 +128,7 @@ class TransitionMatch:
 
     def get_freshness_score(self):
         """ Calculates the freshness component of the score. """
-        return self.metadata['Date Added'] / self.collection_md['Newest Timestamp']
+        return (self.metadata['Date Added'] - self.collection_md['Oldest Timestamp']) / self.collection_md['Time Range']
 
     def get_genre_score(self):
         """ Returns 1 if genres match and 0 otherwise. """
@@ -137,21 +141,23 @@ class TransitionMatch:
     def get_label_score(self):
         """ Calculates the label match component of the score. """
 
-        label_tuple = self.metadata.get('Label')
-        cur_label_tuple = self.cur_track_md.get('Label')
-        if label_tuple is None or cur_label_tuple is None or label_tuple[0] != cur_label_tuple[0]:
+        label, label_count = self.metadata.get('Label', (None, None))
+        cur_label, cur_label_count = self.cur_track_md.get('Label', (None, None))
+        if label is None or cur_label is None or label != cur_label:
             return 0.0
 
-        return 1.0 - (log2(label_tuple[1]) / log2(self.collection_md['Label Counts']))
+        return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md['Label Counts']))
 
     def format(self):
         """ Format result with score and track's base file name. """
-        return '\t\t'.join([str(self.camelot_priority), '{:.3f}'.format(self.get_score()),
-                            basename(self.metadata['Path'])])
+
+        score = '{:.3f}'.format(self.get_score())
+        title = '.'.join(basename(self.metadata['Path']).split('.')[:-1])
+
+        return '\t\t\t'.join([score, title if len(title) < 120 else title[:120] + '...'])
 
     def __lt__(self, other):
-        return ((self.get_score(), self.get_bpm_score(), self.get_camelot_priority_score()) <
-                (other.get_score(), other.get_bpm_score(), other.get_camelot_priority_score()))
+        return (self.get_score(), self.get_freshness_score()) < (other.get_score(), other.get_freshness_score())
 
     def __hash__(self):
-        return hash(self.metadata['Title'])
+        return hash(self.metadata['Path'])
