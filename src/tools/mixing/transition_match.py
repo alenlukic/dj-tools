@@ -1,3 +1,6 @@
+from math import exp
+from os.path import basename
+
 from src.definitions.harmonic_mixing import *
 from src.utils.common import log2smooth
 
@@ -26,13 +29,13 @@ class TransitionMatch:
 
         if self.score is None:
             score_weights = [
-                (self.get_artist_score(), 0.11),
-                (self.get_bpm_score(), 0.21),
-                (self.get_camelot_priority_score(), 0.22),
-                (self.get_energy_score(), 0.08),
-                (self.get_freshness_score(), 0.14),
-                (self.get_genre_score(), 0.1),
-                (self.get_label_score(), 0.14),
+                (self.get_artist_score(), 0.12),
+                (self.get_bpm_score(), 0.22),
+                (self.get_camelot_priority_score(), 0.24),
+                (self.get_energy_score(), 0.05),
+                (self.get_freshness_score(), 0.08),
+                (self.get_genre_score(), 0.12),
+                (self.get_label_score(), 0.16),
             ]
             self.score = sum([score * weight for score, weight in score_weights])
 
@@ -109,6 +112,8 @@ class TransitionMatch:
             return 0.1
         if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
             return 0.2
+        if self.camelot_priority == CamelotPriority.MAJOR_MINOR_JUMP:
+            return 0.9
 
         return float(self.camelot_priority / CamelotPriority.SAME_KEY.value)
 
@@ -124,7 +129,7 @@ class TransitionMatch:
 
     def get_freshness_score(self):
         """ Calculates the freshness component of the score. """
-        return self.metadata['Date Added'] / self.collection_md['Newest Timestamp']
+        return (self.metadata['Date Added'] - self.collection_md['Oldest Timestamp']) / self.collection_md['Time Range']
 
     def get_genre_score(self):
         """ Returns 1 if genres match and 0 otherwise. """
@@ -146,7 +151,11 @@ class TransitionMatch:
 
     def format(self):
         """ Format result with score and track's base file name. """
-        return '\t\t'.join([str(self.camelot_priority), '{:.3f}'.format(self.get_score()), self.metadata['Title']])
+
+        score = '{:.3f}'.format(self.get_score())
+        title = '.'.join(basename(self.metadata['Path']).split('.')[:-1])
+
+        return '\t\t\t'.join([score, title if len(title) < 120 else title[:120] + '...'])
 
     def __lt__(self, other):
         return (self.get_score(), self.get_freshness_score()) < (other.get_score(), other.get_freshness_score())
