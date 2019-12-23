@@ -1,7 +1,6 @@
 from ast import literal_eval
 from collections import defaultdict
 from datetime import datetime
-from math import ceil
 
 from src.definitions.harmonic_mixing import TIMESTAMP_FORMAT
 from src.utils.common import is_empty

@@ -1,4 +1,3 @@
-from math import exp
 from os.path import basename
 
 from src.definitions.harmonic_mixing import *
