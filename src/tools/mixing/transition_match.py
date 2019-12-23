@@ -24,16 +24,17 @@ class TransitionMatch:
         self.score = None
 
     def get_score(self):
-        """ Calculate the transition score using several factors. """
+        """ Calculate the transition score using multiple weighed subscores. """
+
         if self.score is None:
             score_weights = [
-                (self.get_artist_score(), 0.125),
-                (self.get_bpm_score(), 0.175),
-                (self.get_camelot_priority_score(), 0.175),
-                (self.get_energy_score(), 0.1),
-                (self.get_freshness_score(), 0.175),
-                (self.get_genre_score(), 0.1),
-                (self.get_label_score(), 0.15),
+                (self.get_artist_score(), 0.11),
+                (self.get_bpm_score(), 0.2),
+                (self.get_camelot_priority_score(), 0.22),
+                (self.get_energy_score(), 0.08),
+                (self.get_freshness_score(), 0.17),
+                (self.get_genre_score(), 0.09),
+                (self.get_label_score(), 0.13),
             ]
             self.score = sum([score * weight for score, weight in score_weights])
 
@@ -106,10 +107,11 @@ class TransitionMatch:
     def get_camelot_priority_score(self):
         """ Gets camelot priority component of the score. """
 
-        if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
-            return 0.25
         if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
             return 0.1
+        if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
+            return 0.2
+
         return float(self.camelot_priority / CamelotPriority.SAME_KEY.value)
 
     def get_energy_score(self):
