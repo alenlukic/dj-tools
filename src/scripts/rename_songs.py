@@ -1,6 +1,6 @@
 from os.path import join
 
-from src.definitions.common import TMP_MUSIC_DIR, PROCESSED_MUSIC_DIR
+from src.definitions.common import TMP_MUSIC_DIR
 from src.tools.data_management.data_manager import DataManager
 
 

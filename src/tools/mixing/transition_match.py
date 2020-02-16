@@ -36,7 +36,7 @@ class TransitionMatch:
                 (self.get_genre_score(), 0.12),
                 (self.get_label_score(), 0.16),
             ]
-            self.score = sum([score * weight for score, weight in score_weights])
+            self.score = 100 * sum([score * weight for score, weight in score_weights])
 
         return self.score
 
@@ -151,7 +151,7 @@ class TransitionMatch:
     def format(self):
         """ Format result with score and track's base file name. """
 
-        score = '{:.3f}'.format(self.get_score())
+        score = '{:.2f}'.format(self.get_score())
         title = '.'.join(basename(self.metadata['Path']).split('.')[:-1])
 
         return '\t\t\t'.join([score, title if len(title) < 120 else title[:120] + '...'])
