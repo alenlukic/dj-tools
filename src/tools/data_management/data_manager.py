@@ -131,25 +131,23 @@ class DataManager:
         for f in input_files:
             old_name = join(input_dir, f)
             old_base_name = basename(old_name)
+            file_ext = old_name.split('.')[-1].strip()
             track = Track(old_name)
             id3_data = track.get_id3_data()
 
-            if preserve_title is True:
-                metadata = self._generate_metadata_heuristically(track)
-                new_name = join(target_dir, old_base_name)
-                copyfile(old_name, new_name)
-                new_tracks[new_name] = metadata
-            elif is_empty(id3_data) or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
-                # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming
-                # - user will need to enter new name manually.
+            if is_empty(id3_data) or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
+                # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming.
+                # User will need to enter new name manually.
                 print('Can\'t automatically rename this track: %s' % old_base_name)
                 print('Enter the new name here:')
                 new_name = join(target_dir, input())
                 copyfile(old_name, new_name)
             else:
                 # Generate formatted track name
-                formatted_name = track.format_track_name()
-                new_name = ''.join([join(target_dir, formatted_name).strip(), '.', old_name.split('.')[-1].strip()])
+                formatted_name = ('.'.join([x.strip() for x in old_base_name.split('.')[0:-1]]) if preserve_title
+                                  else track.format_track_name())
+                new_name = (join(target_dir, old_base_name) if preserve_title
+                            else ''.join([join(target_dir, formatted_name).strip(), '.', file_ext]))
 
                 # Copy track to user audio directory
                 copyfile(old_name, new_name)
