@@ -194,9 +194,9 @@ class DataManager:
 
                 # Copy track to user audio directory
                 copyfile(old_name, new_name)
-                new_track = load(new_name).tag
-                new_track.title = formatted_name
-                new_track.save()
+                # new_track = load(new_name).tag
+                # new_track.title = formatted_name
+                # new_track.save()
 
                 # Create metadata
                 metadata = self.write_track_metadata(new_name)

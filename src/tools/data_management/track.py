@@ -2,8 +2,10 @@ from ast import literal_eval
 from collections import defaultdict, ChainMap
 from os import stat
 from time import ctime
+
 from eyed3 import load
 from eyed3.id3 import frames
+import mutagen
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
@@ -396,4 +398,11 @@ class Track:
 
     def _extract_id3_data_from_aiff(self):
         """ Use mutagen lib to extract ID3 metadata from an aiff file. """
+
+        tags = mutagen.File(self.track_path)
+        print(str(tags))
+        print(tags['TIT2'].text)
+
+        tags.save()
+
         return {}
