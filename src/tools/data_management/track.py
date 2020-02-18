@@ -370,7 +370,13 @@ class Track:
         return self.track_path
 
     def _extract_id3_data(self):
-        """ Extracts mp3 metadata using the eyed3 lib. """
+        """ Extracts ID3 metadata. """
+        file_ext = self.track_path.split('.')[-1]
+        return self._extract_id3_data_from_aiff() if file_ext.startswith('aif') else self._extract_id3_data_from_mp3()
+
+    def _extract_id3_data_from_mp3(self):
+        """ Use eyed3 lib to extract ID3 metadata from an mp3 file. """
+
         print('0')
         md = load(self.track_path)
         print('1')
@@ -387,3 +393,7 @@ class Track:
         print(str(id3))
 
         return defaultdict(str, {k: id3[k] for k in list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))})
+
+    def _extract_id3_data_from_aiff(self):
+        """ Use mutagen lib to extract ID3 metadata from an aiff file. """
+        return {}
