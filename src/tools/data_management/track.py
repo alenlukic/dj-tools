@@ -86,6 +86,13 @@ class Track:
             :param tag_filter (optional) - Set of tags to write.
             """
 
+            file_ext = track_path.split('.')[-1]
+            if file_ext == 'mp3':
+                self._write_tags_with_eyed3(track_path, tag_filter)
+            elif file_ext.startswith('aif'):
+                self._write_tags_with_mutagen(track_path, tag_filter)
+
+        def _write_tags_with_eyed3(self, track_path, tag_filter=None):
             md = load(track_path)
             if md is None:
                 return
@@ -116,6 +123,28 @@ class Track:
 
             comment_frame.text = 'Metadata: ' + str(track_metadata)
             md.save()
+
+        def _write_tags_with_mutagen(self, track_path, tag_filter):
+            id3 = mutagen.File(track_path).items()
+            if id3 is None:
+                return
+
+            # Update tags to fix any discrepancies
+            track_frames = set(id3.keys())
+            track_metadata = self.get_metadata()
+            for k, v in track_metadata.items():
+                if self._exclude_tag(k, tag_filter):
+                    continue
+
+                if k in track_frames:
+                    id3[k].text = [v]
+
+            # Write metadata
+            comment = ID3Tag.COMMENT.value
+            if comment in track_frames:
+                id3[comment].text = ['Metadata: ' + str(track_metadata)]
+
+            id3.save()
 
         @staticmethod
         def _get_frame_with_metadata_key(metadata_key, track_frames):
@@ -379,30 +408,20 @@ class Track:
     def _extract_id3_data_from_mp3(self):
         """ Use eyed3 lib to extract ID3 metadata from an mp3 file. """
 
-        print('0')
         md = load(self.track_path)
-        print('1')
         if md is None:
-            print('1.5')
             return {}
-        print('2')
+
         md = md.tag
-        print('3')
         frame_types = {frames.TextFrame, frames.CommentFrame, frames.UserTextFrame}
         track_frames = list(md.frameiter())
         id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
-
-        print(str(id3))
 
         return defaultdict(str, {k: id3[k] for k in list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))})
 
     def _extract_id3_data_from_aiff(self):
         """ Use mutagen lib to extract ID3 metadata from an aiff file. """
 
-        tags = mutagen.File(self.track_path)
-        print(str(tags))
-        print(tags['TIT2'].text)
-
-        tags.save()
-
-        return {}
+        id3 = mutagen.File(self.track_path).items()
+        return defaultdict(str, {k: id3[k].text[0] for k in list(filter(
+            lambda k: k in ALL_ID3_TAGS and len(id3[k].text or []) > 0, id3.keys()))})
