@@ -371,14 +371,19 @@ class Track:
 
     def _extract_id3_data(self):
         """ Extracts mp3 metadata using the eyed3 lib. """
-
+        print('0')
         md = load(self.track_path)
+        print('1')
         if md is None:
+            print('1.5')
             return {}
-
+        print('2')
         md = md.tag
+        print('3')
         frame_types = {frames.TextFrame, frames.CommentFrame, frames.UserTextFrame}
         track_frames = list(md.frameiter())
         id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
+
+        print(str(id3))
 
         return defaultdict(str, {k: id3[k] for k in list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))})

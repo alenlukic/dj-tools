@@ -103,8 +103,9 @@ class MixingAssistant:
 
     def rename_tracks(self):
         """ Rename tracks in tmp directories. """
-        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'mp3'))
-        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'lossless'))
+        # self.dm.rename_songs(join(TMP_MUSIC_DIR, 'mp3'))
+        # self.dm.rename_songs(join(TMP_MUSIC_DIR, 'lossless'))
+        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'test'), True)
         print('\nSongs renamed.')
 
     def shutdown(self):

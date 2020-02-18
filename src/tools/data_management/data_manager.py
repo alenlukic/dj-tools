@@ -5,7 +5,7 @@ from shutil import copyfile
 from src.db import database
 from src.db.entities.artist import Artist as ArtistEntity
 from src.db.entities.artist_track import ArtistTrack as ArtistTrackEntity
-from src.db.entities.track import Track as TrackEntity
+from src.db.entities.track import columns, Track as TrackEntity
 from src.definitions.common import *
 from src.definitions.data_management import *
 from src.tools.data_management.track import Track
@@ -74,16 +74,16 @@ class DataManager:
             print('Error while writing metadata for track %s: %s' % (track_path, e))
             return None
 
-    def update_database(self, new_tracks):
+    def insert_tracks(self, tracks):
         """
-        Updates the database with new tracks' info.
+        Inserts new track rows to the database.
 
-        :param new_tracks - dictionary mapping new track name to its metadata
+        :param tracks - dictionary mapping track name to its metadata
         """
 
         sessions = []
 
-        for track_name, track_metadata in new_tracks.items():
+        for track_name, track_metadata in tracks.items():
             try:
                 session = self.database.create_session()
                 sessions.append(session)
@@ -115,18 +115,61 @@ class DataManager:
 
         self.database.close_sessions(sessions)
 
-    def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None, preserve_title=False):
+    def upsert_tracks(self, tracks):
+        """
+        Upserts new metadata to existing track rows.
+
+        :param tracks - dictionary mapping track name to its metadata
+        """
+
+        sessions = []
+        columns_to_update = list(filter(lambda c: not (c == 'id' or c == 'file_path' or c == 'date_added'), columns))
+
+        for track_name, track_metadata in tracks.items():
+            try:
+                session = self.database.create_session()
+                sessions.append(session)
+
+                # Get existing row
+                existing_track = session.query(TrackEntity).filter_by(file_path=track_name).first()
+                if existing_track is None:
+                    raise Exception('Could not find track associated with file path %s in DB' % track_name)
+
+                # Update row with new metadata values
+                for col in columns_to_update:
+                    new_val = getattr(track_metadata, col)
+                    if new_val is not None:
+                        setattr(existing_track, col, new_val)
+
+                session.commit()
+
+            except Exception as e:
+                session.rollback()
+                raise e
+
+        self.database.close_sessions(sessions)
+
+    def update_database(self, tracks, upsert):
+        """
+        Updates the database with tracks' info.
+
+        :param tracks - dictionary mapping track name to its metadata
+        :param upsert - indicates whether to update existing tracks
+        """
+        self.upsert_tracks(tracks) if upsert else self.insert_tracks(tracks)
+
+    def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None, upsert=False):
         """
         Standardizes song names and copy them to library.
 
         :param input_dir - directory containing audio files to rename.
         :param target_dir - directory where updated audio files should be saved
-        :param preserve_title - if True, original base track title is retained in target directory
+        :param upsert - if True, tracks are upserted into the DB and original base names are retained
         """
 
         target_dir = target_dir or self.audio_dir
         input_files = get_audio_files(input_dir)
-        new_tracks = {}
+        tracks_to_save = {}
 
         for f in input_files:
             old_name = join(input_dir, f)
@@ -144,9 +187,9 @@ class DataManager:
                 copyfile(old_name, new_name)
             else:
                 # Generate formatted track name
-                formatted_name = ('.'.join([x.strip() for x in old_base_name.split('.')[0:-1]]) if preserve_title
+                formatted_name = ('.'.join([x.strip() for x in old_base_name.split('.')[0:-1]]) if upsert
                                   else track.format_track_name())
-                new_name = (join(target_dir, old_base_name) if preserve_title
+                new_name = (join(target_dir, old_base_name) if upsert
                             else ''.join([join(target_dir, formatted_name).strip(), '.', file_ext]))
 
                 # Copy track to user audio directory
@@ -157,7 +200,7 @@ class DataManager:
 
                 # Create metadata
                 metadata = self.write_track_metadata(new_name)
-                new_tracks[new_name] = metadata
+                tracks_to_save[new_name] = metadata
 
             new_base_name = basename(new_name)
             try:
@@ -166,7 +209,7 @@ class DataManager:
                 print('Could not rename %s to %s (exception: %s)' % (old_base_name, new_base_name, str(e)))
 
         # Update database
-        self.update_database(new_tracks)
+        self.update_database(tracks_to_save, upsert)
 
     def show_malformed_tracks(self):
         """ Prints any malformed track names to stdout. """
