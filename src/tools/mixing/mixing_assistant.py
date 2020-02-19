@@ -1,9 +1,7 @@
 import logging
 from math import ceil, floor
-from os.path import join
 from sys import exit
 
-from src.definitions.common import TMP_MUSIC_DIR
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
 from src.scripts.rename_songs import rename_songs
@@ -102,9 +100,18 @@ class MixingAssistant:
         self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
         print('Track data reloaded.')
 
-    def rename_tracks(self):
-        """ Rename tracks in tmp directories. """
-        rename_songs(self.dm)
+    def rename_tracks(self, upsert):
+        """
+        Rename tracks in tmp directories.
+
+        :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
+        """
+
+        upsert_lower = upsert.lower()
+        if not (upsert_lower == 'true' or upsert_lower == 'false'):
+            upsert_lower = 'false'
+
+        rename_songs(self.dm, bool(upsert_lower[0].capitalize() + upsert[1:]))
         print('\nSongs renamed.')
 
     def shutdown(self):

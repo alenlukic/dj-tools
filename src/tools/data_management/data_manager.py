@@ -1,8 +1,6 @@
 import logging
-import os
 from os.path import basename
 from shutil import copyfile
-import sys
 
 from src.db import database
 from src.db.entities.artist import Artist as ArtistEntity
