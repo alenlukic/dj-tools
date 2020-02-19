@@ -37,5 +37,11 @@ COMMANDS = {
     ),
     LINT: Command(LINT, 'Prints malformed track names to stdout.', 'print_malformed_tracks'),
     RELOAD: Command(RELOAD, 'Reload processed tracks.', 'reload_track_data', RELOAD_ALIASES),
-    RENAME: Command(RENAME, 'Rename tracks in the unprocessed audio directory.', 'rename_tracks')
+    RENAME: Command(
+        RENAME,
+        'Rename tracks in the unprocessed audio directory.',
+        'rename_tracks',
+        {},
+        [CommandArgument('upsert', 'boolean', 'Indicates whether to upsert.', 0, 'False')]
+    )
 }

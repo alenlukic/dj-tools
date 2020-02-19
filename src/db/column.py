@@ -8,8 +8,8 @@ class DBColumn:
         """
         Constructor. Sets column name and type, along with default values for other instantiation params.
 
-        :param name - the column name.
-        :param pg_type - the column's type in Postgres.
+        :param name: The column name.
+        :param pg_type: The column's type in Postgres.
         """
 
         self.name = name
@@ -23,8 +23,8 @@ class DBColumn:
     def create(self, metadata=None, table_name=None):
         """ Creates the column with set class members.
 
-        :param metadata - (optional) sqlalchemy metadata object.
-        :param table_name - (optional) name of the table in which this column will exist.
+        :param metadata: (optional) Sqlalchemy metadata object.
+        :param table_name: (optional) Name of the table in which this column will exist.
         """
 
         args = {'name': self.name, 'type_': self.type_, 'primary_key': self.primary_key,
@@ -44,7 +44,7 @@ class DBColumn:
         """
         Creates column as a foreign key.
 
-        :param foreign_key - string representation of the foreign key.
+        :param foreign_key: String representation of the foreign key.
         """
         self.foreign_key = foreign_key
         return self

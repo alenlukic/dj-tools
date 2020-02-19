@@ -8,9 +8,9 @@ class DBTable:
         """
         Constructor. Sets table name, metadata, and columns as class variables.
 
-        :param name - the table name.
-        :param metadata - sqlalchemy metadata object.
-        :param columns - table columns.
+        :param name: The table name.
+        :param metadata: Sqlalchemy metadata object.
+        :param columns: Table columns.
         """
         self.table = Table(name, metadata)
         for col in columns:

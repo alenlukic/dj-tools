@@ -11,10 +11,10 @@ class TransitionMatch:
         """
         Initialize this track and playing track's metadata.
 
-        :param metadata - this track's metadata.
-        :param cur_track_md - playing track's metadata.
-        :param camelot_priority - priority of the transition.
-        :param collection_md - collection metadata.
+        :param metadata: This track's metadata.
+        :param cur_track_md: Playing track's metadata.
+        :param camelot_priority: Priority of the transition.
+        :param collection_md: Collection metadata.
         """
 
         self.metadata = metadata

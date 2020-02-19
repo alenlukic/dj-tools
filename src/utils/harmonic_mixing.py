@@ -10,7 +10,7 @@ def flip_camelot_letter(camelot_letter):
     """
     Flip Camelot letter, i.e. A -> B and vice-versa.
 
-    :param camelot_letter - the alphabetic portion of the Camelot code to format.
+    :param camelot_letter: The alphabetic portion of the Camelot code to format.
     """
     return 'A' if camelot_letter == 'B' else 'B'
 
@@ -19,7 +19,7 @@ def format_camelot_number(camelot_number):
     """
     Convert 0 to 12, and add leading 0 if needed, to the Camelot code number.
 
-    :param camelot_number - the numerical portion of the Camelot code to format.
+    :param camelot_number: The numerical portion of the Camelot code to format.
     """
     camelot_number = 12 if camelot_number == 0 else camelot_number
     return str(camelot_number) if camelot_number >= 10 else '0' + str(camelot_number)
@@ -29,7 +29,7 @@ def generate_camelot_map(tracks):
     """
     Generate and return map of camelot code -> BPM -> set of tracks, along with collection metadata.
 
-    :param tracks - set of all tracks in the DB.
+    :param tracks: Set of all tracks in the DB.
     """
 
     collection_md = {'Newest Timestamp': -1, 'Oldest Timestamp': float('inf')}
@@ -108,7 +108,7 @@ def get_bpm_bound(bpm, bound):
     """
     Get BPM bound.
 
-    :param bpm - track BPM.
-    :param bound - percentage difference between current BPM and higher/lower BPMs.
+    :param bpm: Track BPM.
+    :param bound: Percentage difference between current BPM and higher/lower BPMs.
     """
     return bpm / (1 + bound)

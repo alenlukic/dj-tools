@@ -20,7 +20,8 @@ columns = [
 
 
 class Track(Base):
-    """ Represents row in track table in the sqlalchemy ORM. Postgres schema:
+    """
+    Represents row in track table in the sqlalchemy ORM. Postgres schema:
 
                                Table "public.track"
         Column    |       Type        | Collation | Nullable | Default

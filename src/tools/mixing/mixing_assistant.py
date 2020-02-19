@@ -1,11 +1,10 @@
 import logging
 from math import ceil, floor
-from os.path import join
 from sys import exit
 
-from src.definitions.common import TMP_MUSIC_DIR
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
+from src.scripts.rename_songs import rename_songs
 from src.tools.data_management.data_manager import DataManager
 from src.tools.mixing.transition_match import TransitionMatch
 from src.utils.harmonic_mixing import *
@@ -61,7 +60,7 @@ class MixingAssistant:
         """
         Prints transition matches for the given track.
 
-        :param track_path - full qualified path to the track.
+        :param track_path: Full qualified path to the track.
         """
 
         try:
@@ -101,10 +100,18 @@ class MixingAssistant:
         self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
         print('Track data reloaded.')
 
-    def rename_tracks(self):
-        """ Rename tracks in tmp directories. """
-        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'mp3'))
-        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'lossless'))
+    def rename_tracks(self, upsert):
+        """
+        Rename tracks in tmp directories.
+
+        :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
+        """
+
+        upsert_lower = upsert.lower()
+        if not (upsert_lower == 'true' or upsert_lower == 'false'):
+            upsert_lower = 'false'
+
+        rename_songs(self.dm, bool(upsert_lower[0].capitalize() + upsert[1:]))
         print('\nSongs renamed.')
 
     def shutdown(self):
@@ -116,7 +123,7 @@ class MixingAssistant:
         """
         Get all the Camelot codes which are harmonic transitions for the given track.
 
-        :param cur_track_md - current track metadata.
+        :param cur_track_md: Current track metadata.
         """
 
         camelot_code = cur_track_md['Camelot Code']
@@ -145,10 +152,10 @@ class MixingAssistant:
         """
         Calculate BPM ranges and find matching tracks.
 
-        :param bpm - track BPM
-        :param camelot_code - full Camelot code
-        :param upper_bound - max percentage difference between current BPM and higher BPMs
-        :param lower_bound - max percentage difference between current BPM and lower BPMs
+        :param bpm: Track BPM
+        :param camelot_code: Full Camelot code
+        :param upper_bound: Max percentage difference between current BPM and higher BPMs
+        :param lower_bound: Max percentage difference between current BPM and lower BPMs
         """
 
         upper_bpm = int(floor(get_bpm_bound(bpm, lower_bound)))
@@ -165,8 +172,8 @@ class MixingAssistant:
         """
         Find matches for the given track.
 
-        :param harmonic_codes - list of harmonic Camelot codes and their respective transition priorities.
-        :param cur_track_md - current track metadata.
+        :param harmonic_codes: List of harmonic Camelot codes and their respective transition priorities.
+        :param cur_track_md: Current track metadata.
         """
 
         bpm = int(cur_track_md['BPM'])
@@ -199,8 +206,8 @@ class MixingAssistant:
         """
         Prints ranked transition results.
 
-        :param result_type - the type of result (same key, higher key, or lower key).
-        :param results - ranked, formatted results.
+        :param result_type: The type of result (same key, higher key, or lower key).
+        :param results: Ranked, formatted results.
         """
 
         dashed_line = ''.join(['-'] * 148)

@@ -2,8 +2,10 @@ from ast import literal_eval
 from collections import defaultdict, ChainMap
 from os import stat
 from time import ctime
+
 from eyed3 import load
 from eyed3.id3 import frames
+import mutagen
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
@@ -20,16 +22,16 @@ class Track:
             """
             Initializes class with all metadata.
 
-            :param title - track title.
-            :param artists - track artists.
-            :param remixers - track remixers.
-            :param genre - track genre.
-            :param label - track record label.
-            :param bpm - track bpm.
-            :param key - track key.
-            :param camelot_code - track camelot code.
-            :param energy  - track Mixed In Key energy level.
-            :param date_added - date track was added ot the collection.
+            :param title: Track title.
+            :param artists: Track artists.
+            :param remixers: Track remixers.
+            :param genre: Track genre.
+            :param label: Track record label.
+            :param bpm: Track bpm.
+            :param key: Track key.
+            :param camelot_code: Track camelot code.
+            :param energy: Track Mixed In Key energy level.
+            :param date_added: Date track was added ot the collection.
             """
 
             self.title = title
@@ -42,6 +44,7 @@ class Track:
             self.camelot_code = camelot_code
             self.energy = energy
             self.date_added = date_added
+            self.comment = None
 
         def get_metadata(self):
             """ Return non-empty metadata in dictionary form. """
@@ -57,11 +60,16 @@ class Track:
                 'Key': title_metadata.get('Key') or self.key,
                 'Camelot Code': title_metadata.get('Camelot Code') or self.camelot_code,
                 'Energy': self.energy,
-                'Date Added': self.date_added
+                'Date Added': self.date_added,
+                'Comment': self.comment
             }.items() if not is_empty(v)}
 
         def get_database_row(self, file_path):
-            """ Returns non-empty metadata in sqlalchemy-ready format. """
+            """
+            Returns non-empty metadata in sqlalchemy-ready format.
+
+            :param file_path - Track's file path on disk.
+            """
 
             track_metadata = self.get_metadata()
             return {col: value for col, value in {
@@ -73,23 +81,37 @@ class Track:
                 'energy': int(track_metadata.get('Energy', '-1')),
                 'genre': track_metadata.get('Genre'),
                 'label': ' '.join([w.capitalize() for w in track_metadata.get('Label', '').split()]),
-                'date_added': track_metadata.get('Date Added')
+                'date_added': track_metadata.get('Date Added'),
+                'comment': track_metadata.get('Comment')
             }.items() if not (is_empty(value) or value == -1)}
 
-        def write_tags(self, track_path, tag_filter=None):
+        def write_tags(self, track_path, id3_data, tag_filter=None):
             """
             Write track's tags and metadata to ID3 fields, if they don't already exist.
 
-            :param track_path - Full qualified path to the track file.
-            :param tag_filter (optional) - Set of tags to write.
+            :param track_path: Full qualified path to the track file.
+            :param id3_data: eyed3 or mutagen representation of ID3 metadata.
+            :param tag_filter: (optional) Set of tags to write.
             """
 
-            md = load(track_path)
+            file_ext = track_path.split('.')[-1]
+            if file_ext == 'mp3':
+                self._write_tags_with_eyed3(id3_data, tag_filter)
+            elif file_ext.startswith('aif'):
+                self._write_tags_with_mutagen(id3_data, tag_filter)
+
+        def _write_tags_with_eyed3(self, md, tag_filter=None):
+            """
+            Use eyed3 library to write metadata for mp3s. TODO: migrate this to mutagen too
+
+            :param md: eyed3 representation of ID3 metadata.
+            :param tag_filter: (optional) Set of tags to write.
+            """
+
             if md is None:
                 return
 
             # Remove tags not supported by eyed3
-            md = md.tag
             self._remove_unsupported_tags(md)
 
             # Update tags to fix any discrepancies
@@ -112,16 +134,49 @@ class Track:
             if comment_frame is None:
                 return
 
+            comment_text = 'Metadata: ' + str(track_metadata)
             comment_frame.text = 'Metadata: ' + str(track_metadata)
+            self.comment = comment_text
+
             md.save()
+
+        def _write_tags_with_mutagen(self, id3_data, tag_filter):
+            """
+            Use mutagen library to write metadata for aiff files.
+
+            :param id3_data: mutagen representation of ID3 metadata.
+            :param tag_filter: (optional) Set of tags to write.
+            """
+
+            if id3_data is None:
+                return
+
+            # Update tags to fix any discrepancies
+            track_frames = set(id3_data.keys())
+            track_metadata = self.get_metadata()
+            for k, v in track_metadata.items():
+                if self._exclude_tag(k, tag_filter):
+                    continue
+
+                if k in track_frames:
+                    id3_data[k].text = [v]
+
+            # Write metadata
+            comment = ID3Tag.COMMENT.value
+            if comment in track_frames:
+                comment_text = 'Metadata: ' + str(track_metadata)
+                id3_data[comment].text = [comment_text]
+                self.comment = comment_text
+
+            id3_data.save()
 
         @staticmethod
         def _get_frame_with_metadata_key(metadata_key, track_frames):
             """
             Uses metadata key to retrieve corresponding ID3 frame, if available.
 
-            :param metadata_key - the metadata key.
-            :param track_frames - track's ID3 frames.
+            :param metadata_key: The metadata key.
+            :param track_frames: Track's ID3 frames.
             """
             tag = READABLE_TO_ID3.get(metadata_key)
             if tag is None:
@@ -153,8 +208,8 @@ class Track:
             """
             Returns whether the given tag's updates should be omitted.
 
-            :param tag - Name of the tag.
-            :param tag_filter - Set of tags whose ID3 frames should be updated.
+            :param tag: Name of the tag.
+            :param tag_filter: Set of tags whose ID3 frames should be updated.
             """
 
             return tag in KEYS_TO_OMIT_FROM_MD_UPDATES or not (tag_filter is None or tag in tag_filter)
@@ -164,7 +219,7 @@ class Track:
             """
             Remove any tags not currently supported by eyed3.
 
-            :param md_tag - Wrapper for a track's ID3 tags.
+            :param md_tag: Wrapper for a track's ID3 tags.
             """
 
             frame_set = md_tag.frame_set
@@ -178,11 +233,11 @@ class Track:
         """
         Constructor. Initializes ID3 data and structures.
 
-        :param track_path - Qualified path to the track.
+        :param track_path: Qualified path to the track.
         """
 
         self.track_path = track_path
-        self.id3_data = self._extract_id3_data()
+        self.tag_dict, self.id3_data = self._extract_id3_data()
         self.formatted = dict(ChainMap(
             {id3_tag.value: None for id3_tag in ID3Tag},
             {custom_tag.value: None for custom_tag in CustomTag}
@@ -336,6 +391,7 @@ class Track:
 
     def generate_metadata_from_id3(self):
         """ Uses ID3 tags to generate track metadata. """
+
         title, featured = self.format_title()
         artists = self.get_tag(ID3Tag.ARTIST)
         artists = ([] if artists is None else artists.split(', ')) + ([] if featured is None else [featured])
@@ -358,27 +414,43 @@ class Track:
         return ctime(stat(self.track_path).st_birthtime)
 
     def get_id3_data(self):
-        """ Returns dictionary mapping ID3 tags to values. """
+        """ Returns eyed3/mutagen representation of ID3 data. """
         return self.id3_data
 
     def get_tag(self, tag):
         """ Returns value of the given ID3 tag."""
-        return self.id3_data.get(tag.value)
+        return self.tag_dict.get(tag.value)
+
+    def get_tag_dict(self):
+        """ Returns dictionary mapping ID3 tags to values. """
+        return self.tag_dict
 
     def get_track_path(self):
         """ Returns path to the track's file."""
         return self.track_path
 
     def _extract_id3_data(self):
-        """ Extracts mp3 metadata using the eyed3 lib. """
+        """ Extracts ID3 metadata. """
+        file_ext = self.track_path.split('.')[-1]
+        return self._extract_id3_data_from_aiff() if file_ext.startswith('aif') else self._extract_id3_data_from_mp3()
+
+    def _extract_id3_data_from_mp3(self):
+        """ Use eyed3 lib to extract ID3 metadata from an mp3 file. """
 
         md = load(self.track_path)
         if md is None:
-            return {}
+            return {}, None
 
         md = md.tag
         frame_types = {frames.TextFrame, frames.CommentFrame, frames.UserTextFrame}
         track_frames = list(md.frameiter())
         id3 = {frame.id.decode('utf-8'): frame.text for frame in filter(lambda t: type(t) in frame_types, track_frames)}
 
-        return defaultdict(str, {k: id3[k] for k in list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))})
+        return defaultdict(str, {k: id3[k] for k in list(filter(lambda k: k in ALL_ID3_TAGS, id3.keys()))}), md
+
+    def _extract_id3_data_from_aiff(self):
+        """ Use mutagen lib to extract ID3 metadata from an aiff file. """
+
+        id3 = mutagen.File(self.track_path)
+        return defaultdict(str, {k: id3[k].text[0] for k in list(filter(
+            lambda k: k in ALL_ID3_TAGS and len(id3[k].text or []) > 0, id3.keys()))}), id3
