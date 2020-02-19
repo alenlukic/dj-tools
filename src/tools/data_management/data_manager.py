@@ -83,14 +83,10 @@ class DataManager:
 
         :param tracks - dictionary mapping track name to its metadata
         """
+        session = self.database.create_session()
 
-        sessions = []
-
-        for track_name, track_metadata in tracks.items():
-            try:
-                session = self.database.create_session()
-                sessions.append(session)
-
+        try:
+            for track_name, track_metadata in tracks.items():
                 # Create row in track table
                 session.add(TrackEntity(**track_metadata.get_database_row(track_name)))
                 session.commit()
@@ -110,13 +106,13 @@ class DataManager:
                     # Create row in artist_track table
                     session.add(ArtistTrackEntity(**{'track_id': track_id, 'artist_id': artist_row.id}))
 
-                session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
 
-            except Exception as e:
-                session.rollback()
-                raise e
-
-        self.database.close_sessions(sessions)
+        finally:
+            session.commit()
+            session.close()
 
     def upsert_tracks(self, tracks):
         """
