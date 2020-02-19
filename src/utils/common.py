@@ -13,7 +13,7 @@ def is_empty(value):
     - empty dictionary
     - dictionary iff this function returns True recursively for all values
 
-    :param value - value to check.
+    :param value: Value to check.
     """
 
     typ = type(value)
@@ -27,6 +27,6 @@ def log2smooth(x):
     """
     Returns value of the log2 function applied to the input with a smoothing adjustment of 1.
 
-    :param x - value on which to apply the log2 function.
+    :param x: Value on which to apply the log2 function.
     """
     return log2(x + 1)

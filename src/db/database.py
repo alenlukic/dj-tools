@@ -99,9 +99,9 @@ class Database:
         """
         Adds column to an existing table, if it does not exist.
 
-        :param table_name - name of the table being updated.
-        :param column_name - name of the column being added.
-        :param column_type - type of the column being added.
+        :param table_name: Name of the table being updated.
+        :param column_name: Name of the column being added.
+        :param column_type: Type of the column being added.
         """
 
         self.engine.execute('ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s' % (table_name, column_name, column_type))

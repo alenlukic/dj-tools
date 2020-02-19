@@ -6,7 +6,13 @@ from src.utils.common import is_empty
 
 
 def handle_error(error, err_message_prefix='', err_log_function=print):
-    """ TODO. """
+    """
+    Handles error and prints debug info/stack trace to stdout.
+
+    :param error: The error to handle.
+    :param err_message_prefix: (optional) Prefix to append to stringified error.
+    :param err_log_function: (optional) Function to use to log error message.
+    """
     _, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 

@@ -25,7 +25,7 @@ class DataManager:
         """
         Initializes class with music directory info.
 
-        :param audio_dir - directory containing processed (e.g. renamed) tracks.
+        :param audio_dir: Directory containing processed (e.g. renamed) tracks.
         """
 
         self.audio_dir = audio_dir
@@ -45,7 +45,7 @@ class DataManager:
         """
         Generate formatted metadata for a track.
 
-        :param track_path - Qualified path to the track.
+        :param track_path: Qualified path to the track.
         """
 
         track = Track(track_path)
@@ -62,7 +62,7 @@ class DataManager:
         """
         Generate formatted metadata for a track and write it to its comment field.
 
-        :param track_path - Qualified path to the track.
+        :param track_path: Qualified path to the track.
         """
 
         try:
@@ -79,7 +79,7 @@ class DataManager:
         """
         Inserts new track rows to the database.
 
-        :param tracks - dictionary mapping track name to its metadata
+        :param tracks: Dictionary mapping track name to its metadata
         """
         session = self.database.create_session()
 
@@ -116,7 +116,7 @@ class DataManager:
         """
         Upserts new metadata to existing track rows.
 
-        :param tracks - dictionary mapping track name to its metadata
+        :param tracks: Dictionary mapping track name to its metadata
         """
 
         session = self.database.create_session()
@@ -147,8 +147,8 @@ class DataManager:
         """
         Updates the database with tracks' info.
 
-        :param tracks - dictionary mapping track name to its metadata
-        :param upsert - indicates whether to update existing tracks
+        :param tracks: Dictionary mapping track name to its metadata
+        :param upsert: Indicates whether to update existing tracks
         """
         self.upsert_tracks(tracks) if upsert else self.insert_tracks(tracks)
 
@@ -156,9 +156,9 @@ class DataManager:
         """
         Standardizes song names and copy them to library.
 
-        :param input_dir - directory containing audio files to rename.
-        :param target_dir - directory where updated audio files should be saved
-        :param upsert - if True, tracks are upserted into the DB and original base names are retained
+        :param input_dir: Directory containing audio files to rename
+        :param target_dir: Directory where updated audio files should be saved
+        :param upsert: If True, tracks are upserted into the DB and original base names are retained
         """
 
         target_dir = target_dir or self.audio_dir
@@ -188,9 +188,9 @@ class DataManager:
 
                 # Copy track to user audio directory
                 copyfile(old_name, new_name)
-                # new_track = load(new_name).tag
-                # new_track.title = formatted_name
-                # new_track.save()
+                new_track = load(new_name).tag
+                new_track.title = formatted_name
+                new_track.save()
 
                 # Create metadata
                 metadata = self.write_track_metadata(new_name)
@@ -245,7 +245,7 @@ class DataManager:
         """
         Use formatted track name to derive subset of track metadata when ID3 tags not available.
 
-        :param track - Track wrapper class instance.
+        :param track: Track wrapper class instance.
         """
 
         base_path = basename(track.get_track_path())

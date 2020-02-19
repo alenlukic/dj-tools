@@ -60,7 +60,7 @@ class MixingAssistant:
         """
         Prints transition matches for the given track.
 
-        :param track_path - full qualified path to the track.
+        :param track_path: Full qualified path to the track.
         """
 
         try:
@@ -123,7 +123,7 @@ class MixingAssistant:
         """
         Get all the Camelot codes which are harmonic transitions for the given track.
 
-        :param cur_track_md - current track metadata.
+        :param cur_track_md: Current track metadata.
         """
 
         camelot_code = cur_track_md['Camelot Code']
@@ -152,10 +152,10 @@ class MixingAssistant:
         """
         Calculate BPM ranges and find matching tracks.
 
-        :param bpm - track BPM
-        :param camelot_code - full Camelot code
-        :param upper_bound - max percentage difference between current BPM and higher BPMs
-        :param lower_bound - max percentage difference between current BPM and lower BPMs
+        :param bpm: Track BPM
+        :param camelot_code: Full Camelot code
+        :param upper_bound: Max percentage difference between current BPM and higher BPMs
+        :param lower_bound: Max percentage difference between current BPM and lower BPMs
         """
 
         upper_bpm = int(floor(get_bpm_bound(bpm, lower_bound)))
@@ -172,8 +172,8 @@ class MixingAssistant:
         """
         Find matches for the given track.
 
-        :param harmonic_codes - list of harmonic Camelot codes and their respective transition priorities.
-        :param cur_track_md - current track metadata.
+        :param harmonic_codes: List of harmonic Camelot codes and their respective transition priorities.
+        :param cur_track_md: Current track metadata.
         """
 
         bpm = int(cur_track_md['BPM'])
@@ -206,8 +206,8 @@ class MixingAssistant:
         """
         Prints ranked transition results.
 
-        :param result_type - the type of result (same key, higher key, or lower key).
-        :param results - ranked, formatted results.
+        :param result_type: The type of result (same key, higher key, or lower key).
+        :param results: Ranked, formatted results.
         """
 
         dashed_line = ''.join(['-'] * 148)
