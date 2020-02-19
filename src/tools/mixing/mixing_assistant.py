@@ -6,6 +6,7 @@ from sys import exit
 from src.definitions.common import TMP_MUSIC_DIR
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
+from src.scripts.rename_songs import rename_songs
 from src.tools.data_management.data_manager import DataManager
 from src.tools.mixing.transition_match import TransitionMatch
 from src.utils.harmonic_mixing import *
@@ -103,9 +104,7 @@ class MixingAssistant:
 
     def rename_tracks(self):
         """ Rename tracks in tmp directories. """
-        # self.dm.rename_songs(join(TMP_MUSIC_DIR, 'mp3'))
-        # self.dm.rename_songs(join(TMP_MUSIC_DIR, 'lossless'))
-        self.dm.rename_songs(join(TMP_MUSIC_DIR, 'test'), True)
+        rename_songs(self.dm)
         print('\nSongs renamed.')
 
     def shutdown(self):

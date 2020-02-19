@@ -20,6 +20,7 @@ def update_wav_file_paths():
 
     if not errors:
         session.commit()
+
     database.close_all_sessions()
 
 

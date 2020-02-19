@@ -1,6 +1,8 @@
 import logging
+import os
 from os.path import basename
 from shutil import copyfile
+import sys
 
 from src.db import database
 from src.db.entities.artist import Artist as ArtistEntity
@@ -49,13 +51,14 @@ class DataManager:
         """
 
         track = Track(track_path)
+        tag_dict = track.get_tag_dict()
         id3_data = track.get_id3_data()
         try:
-            return (self._generate_metadata_heuristically(track) if is_empty(id3_data) else
-                    track.generate_metadata_from_id3())
+            return (self._generate_metadata_heuristically(track) if is_empty(tag_dict) else
+                    track.generate_metadata_from_id3()), id3_data
         except Exception as e:
             print('Error while generating metadata for track %s: %s' % (track_path, e))
-            return None
+            return None, None
 
     def write_track_metadata(self, track_path):
         """
@@ -65,10 +68,10 @@ class DataManager:
         """
 
         try:
-            track_metadata = self.generate_track_metadata(track_path)
+            track_metadata, id3_data = self.generate_track_metadata(track_path)
             if track_metadata is None:
                 return None
-            track_metadata.write_tags(track_path)
+            track_metadata.write_tags(track_path, id3_data)
             return track_metadata
         except Exception as e:
             print('Error while writing metadata for track %s: %s' % (track_path, e))
@@ -122,14 +125,11 @@ class DataManager:
         :param tracks - dictionary mapping track name to its metadata
         """
 
-        sessions = []
+        session = self.database.create_session()
         columns_to_update = list(filter(lambda c: not (c == 'id' or c == 'file_path' or c == 'date_added'), columns))
 
-        for track_name, track_metadata in tracks.items():
-            try:
-                session = self.database.create_session()
-                sessions.append(session)
-
+        try:
+            for track_name, track_metadata in tracks.items():
                 # Get existing row
                 existing_track = session.query(TrackEntity).filter_by(file_path=track_name).first()
                 if existing_track is None:
@@ -141,13 +141,13 @@ class DataManager:
                     if new_val is not None:
                         setattr(existing_track, col, new_val)
 
-                session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
 
-            except Exception as e:
-                session.rollback()
-                raise e
-
-        self.database.close_sessions(sessions)
+        finally:
+            session.commit()
+            session.close()
 
     def update_database(self, tracks, upsert):
         """
@@ -176,7 +176,7 @@ class DataManager:
             old_base_name = basename(old_name)
             file_ext = old_name.split('.')[-1].strip()
             track = Track(old_name)
-            id3_data = track.get_id3_data()
+            id3_data = track.get_tag_dict()
 
             if is_empty(id3_data) or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
                 # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming.

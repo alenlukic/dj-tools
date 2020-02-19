@@ -1,6 +1,7 @@
 from src.definitions.mixing_assistant import COMMANDS
 from src.tools.mixing.command import CommandParsingException
 from src.tools.mixing.mixing_assistant import MixingAssistant
+from src.utils.errors import handle_error
 
 
 def print_error(message):
@@ -27,6 +28,6 @@ def run_assistant():
         try:
             ma.execute(input())
         except CommandParsingException as e:
-            print_error('Failed to parse command: %s' % (str(e)))
+            handle_error(e, 'Failed to parse command:', print_error)
         except Exception as e:
-            print_error('An unexpected exception occurred: %s' % str(e))
+            handle_error(e, 'An unexpected exception occurred:', print_error)
