@@ -36,7 +36,6 @@ class MP3File(AudioFile):
         # Remove tags not supported by eyed3
         self._remove_unsupported_tags(self.id3.tag)
 
-        # Update tags to fix any discrepancies
         track_frames = list(self.id3.tag.frameiter())
         track_metadata = self.get_metadata()
         for k, v in track_metadata.items():
@@ -77,7 +76,7 @@ class MP3File(AudioFile):
 
         frame_set = md_tag.frame_set
         for k, tags in frame_set.items():
-            for unsupported_tag in list(
-                    filter(lambda frame: frame.id.decode('utf-8') in UNSUPPORTED_ID3_TAGS, tags)):
+            for unsupported_tag in list(filter(
+                    lambda frame: frame.id.decode('utf-8') in UNSUPPORTED_ID3_TAGS, tags)):
                 tags.remove(unsupported_tag)
             dict.__setitem__(frame_set, k, tags)

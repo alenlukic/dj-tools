@@ -146,6 +146,7 @@ class AudioFile(ABC):
 
     def parse_energy(self):
         """ Parse track energy (if any) from the comment tag. """
+
         comment = self.tags.get(ID3Tag.COMMENT.value)
         if comment is None:
             return None
