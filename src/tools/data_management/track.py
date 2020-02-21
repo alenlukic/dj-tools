@@ -60,8 +60,7 @@ class Track:
                 'Key': title_metadata.get('Key') or self.key,
                 'Camelot Code': title_metadata.get('Camelot Code') or self.camelot_code,
                 'Energy': self.energy,
-                'Date Added': self.date_added,
-                'Comment': self.comment
+                'Date Added': self.date_added
             }.items() if not is_empty(v)}
 
         def get_database_row(self, file_path):

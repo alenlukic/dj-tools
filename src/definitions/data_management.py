@@ -2,6 +2,13 @@ from enum import Enum
 import re
 
 
+class CustomTag(Enum):
+    FEATURED = 'FEATURED'
+    CAMELOT_CODE = 'CAMELOT_CODE'
+    TRACK_NAME = 'TRACK_NAME'
+    ENERGY = 'ENERGY'
+
+
 class ID3Tag(Enum):
     TITLE = 'TIT2'
     ARTIST = 'TPE1'
@@ -13,13 +20,6 @@ class ID3Tag(Enum):
     LABEL = 'TPUB'
     COMMENT = 'COMM'
     BEATPORT = 'TENC'
-
-
-class CustomTag(Enum):
-    FEATURED = 'FEATURED'
-    CAMELOT_CODE = 'CAMELOT_CODE'
-    TRACK_NAME = 'TRACK_NAME'
-    ENERGY = 'ENERGY'
 
 
 READABLE_TO_ID3 = {

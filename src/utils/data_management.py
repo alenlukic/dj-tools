@@ -22,8 +22,8 @@ def parse_title(title):
                 filtered_segments.append('ft.')
                 i += 1
             else:
-                # If we haven't seen an open parentheses yet, then the featured artist's name is composed of all
-                # words occuring before the parentheses. This heuristic works for MP3 files purchased on Beatport.
+                # If we haven't seen an open parentheses yet, assume the featured artist's name is composed of all
+                # words occuring before the parentheses and after 'ft.'
                 featured = []
                 for j in range(i + 1, n):
                     next_part = segments[j]

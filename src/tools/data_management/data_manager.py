@@ -176,9 +176,6 @@ class DataManager:
                 # Some files won't have requisite ID3 metadata for automatic renaming.
                 # User will need to enter new name manually.
                 print('Can\'t automatically rename this track: %s' % old_base_name)
-                print('Enter the new name here:')
-                new_name = join(target_dir, input())
-                copyfile(old_name, new_name)
             else:
                 # Generate formatted track name
                 formatted_name = ('.'.join([x.strip() for x in old_base_name.split('.')[0:-1]]) if upsert
