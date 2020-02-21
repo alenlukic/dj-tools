@@ -9,7 +9,15 @@ from src.definitions.data_management import *
 
 
 class AudioFile(ABC):
+    """ Encapsulates an audio file and its metadata. """
+
     def __init__(self, full_path):
+        """
+        Constructor. Reads ID3 tags and generates metadata.
+
+        :param full_path: Qualified path to the file on disk.
+        """
+
         self.full_path = full_path
         self.basename = path.basename(full_path)
         self.id3 = self.read_id3()
@@ -18,6 +26,7 @@ class AudioFile(ABC):
 
     def generate_metadata(self):
         """ Generates audio metadata. """
+
         bpm = self.format_bpm()
         key = self.format_key()
         camelot_code = self.format_camelot_code(key)
@@ -35,10 +44,12 @@ class AudioFile(ABC):
             'date_added': ctime(stat(self.full_path).st_birthtime)
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
-        metadata['comment'] = str({k: v for k, v in dict(ChainMap(
+
+        comment = str({k: v for k, v in dict(ChainMap(
             {k: v for k, v in metadata.items() if k != 'file_path'},
             {'artists': self.tags.get(ID3Tag.ARTIST.value), 'remixers': self.tags.get(ID3Tag.REMIXER.value)}
         )).items() if not is_empty(v)})
+        metadata['comment'] = 'Metadata: %s' % comment
 
         return metadata
 
@@ -110,8 +121,8 @@ class AudioFile(ABC):
                     filtered_segments.append('ft.')
                     i += 1
                 else:
-                    # If we haven't seen an open parentheses yet, assume featured artist's
-                    # name is composed of all words occuring before the parentheses and after 'ft.'
+                    # If we haven't seen an open parentheses yet, assume featured artist's name
+                    # is composed of all words occuring before the parentheses and after 'ft.'
                     featured = []
                     for j in range(i + 1, n):
                         next_part = segments[j]

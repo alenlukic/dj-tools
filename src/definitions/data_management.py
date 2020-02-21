@@ -22,6 +22,17 @@ class ID3Tag(Enum):
     BEATPORT = 'TENC'
 
 
+METADATA_KEY_TO_ID3 = {
+    'title': ID3Tag.TITLE.value,
+    'artists': ID3Tag.ARTIST.value,
+    'remixers': ID3Tag.REMIXER.value,
+    'bpm': ID3Tag.BPM.value,
+    'key': ID3Tag.KEY.value,
+    'genre': ID3Tag.GENRE.value,
+    'label': ID3Tag.LABEL.value,
+    'comment': ID3Tag.COMMENT.value
+}
+
 READABLE_TO_ID3 = {
     'Title': ID3Tag.TITLE.value,
     'Artists': ID3Tag.ARTIST.value,
