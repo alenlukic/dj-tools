@@ -173,7 +173,7 @@ class DataManager:
             id3_data = track.get_tag_dict()
 
             if is_empty(id3_data) or not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
-                # All non-mp3 audio files (and some mp3 files) won't have requisite ID3 metadata for automatic renaming.
+                # Some files won't have requisite ID3 metadata for automatic renaming.
                 # User will need to enter new name manually.
                 print('Can\'t automatically rename this track: %s' % old_base_name)
                 print('Enter the new name here:')
@@ -185,12 +185,7 @@ class DataManager:
                                   else track.format_track_name())
                 new_name = (join(target_dir, old_base_name) if upsert
                             else ''.join([join(target_dir, formatted_name).strip(), '.', file_ext]))
-
-                # Copy track to user audio directory
                 copyfile(old_name, new_name)
-                new_track = load(new_name).tag
-                new_track.title = formatted_name
-                new_track.save()
 
                 # Create metadata
                 metadata = self.write_track_metadata(new_name)
