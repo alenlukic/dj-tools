@@ -3,15 +3,10 @@ from math import log2
 
 def is_empty(value):
     """
-    Returns True if the value is "empty," which is defined as:
+    Returns True if the value is "empty," which is defined as one of the following:
 
-    - None
-    - empty string
-    - string containing only whitespace characters
-    - empty list/tuple
-    - list/tuple iff this function returns True recursively for all elements
-    - empty dictionary
-    - dictionary iff this function returns True recursively for all values
+    None, empty string, whitespace-only string, empty list/tuple, list/tuple with all empty elements,
+    empty dictionary, dictionary with all empty elements
 
     :param value: Value to check.
     """

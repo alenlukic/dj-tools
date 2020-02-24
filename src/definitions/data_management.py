@@ -2,6 +2,13 @@ from enum import Enum
 import re
 
 
+class CustomTag(Enum):
+    FEATURED = 'FEATURED'
+    CAMELOT_CODE = 'CAMELOT_CODE'
+    TRACK_NAME = 'TRACK_NAME'
+    ENERGY = 'ENERGY'
+
+
 class ID3Tag(Enum):
     TITLE = 'TIT2'
     ARTIST = 'TPE1'
@@ -9,18 +16,23 @@ class ID3Tag(Enum):
     GENRE = 'TCON'
     BPM = 'TBPM'
     KEY = 'TKEY'
-    USER_COMMENT = 'TXXX'
     LABEL = 'TPUB'
+    USER_COMMENT = 'TXXX'
     COMMENT = 'COMM'
+    COMMENT_ENG = 'COMM::eng'
     BEATPORT = 'TENC'
 
 
-class CustomTag(Enum):
-    FEATURED = 'FEATURED'
-    CAMELOT_CODE = 'CAMELOT_CODE'
-    TRACK_NAME = 'TRACK_NAME'
-    ENERGY = 'ENERGY'
-
+METADATA_KEY_TO_ID3 = {
+    'title': ID3Tag.TITLE.value,
+    'artists': ID3Tag.ARTIST.value,
+    'remixers': ID3Tag.REMIXER.value,
+    'bpm': ID3Tag.BPM.value,
+    'key': ID3Tag.KEY.value,
+    'genre': ID3Tag.GENRE.value,
+    'label': ID3Tag.LABEL.value,
+    'comment': ID3Tag.COMMENT.value
+}
 
 READABLE_TO_ID3 = {
     'Title': ID3Tag.TITLE.value,
@@ -149,4 +161,10 @@ CAMELOT_MAP = {
     'e': '12B'
 }
 
-MD_FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+HYPHEN_REGEX = re.compile(r'.*?\|')
+
+MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{3}\]')
+
+MD_SPLIT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+
+PAREN_REGEX = re.compile(r'\(.*\)')

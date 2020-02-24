@@ -108,10 +108,8 @@ class MixingAssistant:
         """
 
         upsert_lower = upsert.lower()
-        if not (upsert_lower == 'true' or upsert_lower == 'false'):
-            upsert_lower = 'false'
-
-        rename_songs(self.dm, bool(upsert_lower[0].capitalize() + upsert[1:]))
+        upsert_lower = True if upsert_lower == 'true' else False
+        rename_songs(self.dm, upsert_lower)
         print('\nSongs renamed.')
 
     def shutdown(self):

@@ -17,7 +17,7 @@ def standardize_key_tags():
             key_frame = list(filter(lambda frame: frame.id.decode('utf-8') == ID3Tag.KEY.value, md.frameiter()))
 
             if len(key_frame) == 1:
-                track_md = re.findall(MD_FORMAT_REGEX, track)
+                track_md = re.findall(MD_SPLIT_REGEX, track)
                 _, key, _ = track_md[0]
                 key_frame[0].text = key
                 md.save()
