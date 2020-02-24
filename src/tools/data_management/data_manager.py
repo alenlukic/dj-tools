@@ -37,7 +37,7 @@ class DataManager:
 
         session = self.database.create_session()
         tracks = session.query(TrackEntity).all()
-        self.database.close_sessions([session])
+        session.close()
 
         return tracks
 
