@@ -24,13 +24,17 @@ class AIFFFile(AudioFile):
         tag_dict = self.id3.items()
         return defaultdict(str, {k: v.text[0] for k, v in tag_dict if k in ALL_ID3_TAGS and len(v.text or []) > 0})
 
+    def write_tag(self, tag, value, kwargs={}):
+        """ Write specified ID3 to file. """
+        if tag in self.id3:
+            self.id3[tag].text = [value]
+
     def write_tags(self):
-        """ Writes ID3 tags to file. """
+        """ Writes metadata to ID3 tags and saves to file. """
 
         track_metadata = self.get_metadata()
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
-            if mk in self.id3:
-                self.id3[mk].text = [v]
+            self.write_tag(mk, v)
 
         self.id3.save()

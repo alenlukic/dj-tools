@@ -202,7 +202,7 @@ class DataManager:
 
         malformed = []
         for track in self.audio_files:
-            track_md = re.findall(MD_FORMAT_REGEX, track)
+            track_md = re.findall(MD_SPLIT_REGEX, track)
 
             # Metadata missing or malformed
             if len(track_md) != 1 or len(track_md[0]) != 3:
@@ -244,7 +244,7 @@ class DataManager:
         title = '.'.join(base_path.split('.')[0:-1])
 
         # Chop up the filename
-        track_md_matches = re.findall(MD_FORMAT_REGEX, base_path)
+        track_md_matches = re.findall(MD_SPLIT_REGEX, base_path)
 
         if len(track_md_matches) == 1:
             track_md = track_md_matches[0]

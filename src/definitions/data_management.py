@@ -16,9 +16,10 @@ class ID3Tag(Enum):
     GENRE = 'TCON'
     BPM = 'TBPM'
     KEY = 'TKEY'
-    USER_COMMENT = 'TXXX'
     LABEL = 'TPUB'
+    USER_COMMENT = 'TXXX'
     COMMENT = 'COMM'
+    COMMENT_ENG = 'COMM::eng'
     BEATPORT = 'TENC'
 
 
@@ -160,4 +161,10 @@ CAMELOT_MAP = {
     'e': '12B'
 }
 
-MD_FORMAT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+HYPHEN_REGEX = re.compile(r'.*?\|')
+
+MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{3}\]')
+
+MD_SPLIT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+
+PAREN_REGEX = re.compile(r'\(.*\)')

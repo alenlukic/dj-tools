@@ -1,11 +1,16 @@
 from abc import ABC, abstractmethod
 from ast import literal_eval
 from collections import ChainMap
+import logging
 from os import path, stat
 from time import ctime
 
 from src.utils.common import is_empty
 from src.definitions.data_management import *
+
+
+# Suppress annoying eyed3 logs
+logging.getLogger('eyed3').setLevel(logging.ERROR)
 
 
 class AudioFile(ABC):
@@ -30,6 +35,7 @@ class AudioFile(ABC):
         bpm = self.format_bpm()
         key = self.format_key()
         camelot_code = self.format_camelot_code(key)
+        key = key.capitalize()
         title = self.generate_title(camelot_code, key, bpm)
 
         metadata = {
@@ -39,17 +45,17 @@ class AudioFile(ABC):
             'key': key,
             'camelot_code': camelot_code,
             'energy': self.parse_energy(),
-            'genre': self.tags.get(ID3Tag.GENRE.value),
-            'label': self.tags.get(ID3Tag.LABEL.value),
+            'genre': self.get_tag(ID3Tag.GENRE),
+            'label': self.get_tag(ID3Tag.LABEL),
             'date_added': ctime(stat(self.full_path).st_birthtime)
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
 
         comment = str({k: v for k, v in dict(ChainMap(
-            {k: v for k, v in metadata.items() if k != 'file_path'},
-            {'artists': self.tags.get(ID3Tag.ARTIST.value), 'remixers': self.tags.get(ID3Tag.REMIXER.value)}
+            {k: v for k, v in metadata.items()},
+            {'artists': self.get_tag(ID3Tag.ARTIST), 'remixers': self.get_tag(ID3Tag.REMIXER)}
         )).items() if not is_empty(v)})
-        metadata['comment'] = 'Metadata: %s' % comment
+        metadata['comment'] = comment
 
         return metadata
 
@@ -80,7 +86,7 @@ class AudioFile(ABC):
         :param key: Track's key.
         :param bpm: Track's BPM.
         """
-        return ' - '.join(['[' + camelot_code, key.capitalize(), bpm + ']'])
+        return ' - '.join(['[' + camelot_code, key, bpm + ']'])
 
     def format_artist_string(self, featured):
         """
@@ -88,7 +94,7 @@ class AudioFile(ABC):
 
         :param featured: Featured artist on the track (if any).
         """
-        artists = self.tags.get(ID3Tag.ARTIST.value)
+        artists = self.get_tag(ID3Tag.ARTIST, '')
         featured_set = set() if featured is None else set(featured)
         filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
 
@@ -100,9 +106,14 @@ class AudioFile(ABC):
     def parse_title(self):
         """ Parses track title and returns formatted track title and featured artist name, if any. """
 
-        segments = self.tags.get(ID3Tag.TITLE.value).split(' ')
-        n = len(segments)
+        title = self.get_tag(ID3Tag.TITLE, '')
+        track_md = re.findall(MD_COMPOSITE_REGEX, title)
+        if len(track_md) > 0:
+            title = title.split(track_md[0])[-1].strip()
+            title = title.split(' - ')[-1]
 
+        segments = title.split(' ')
+        n = len(segments)
         i = 0
         featured = None
         open_paren_found = False
@@ -147,35 +158,44 @@ class AudioFile(ABC):
     def parse_energy(self):
         """ Parse track energy (if any) from the comment tag. """
 
-        comment = self.tags.get(ID3Tag.COMMENT.value)
-        if comment is None:
-            return None
+        comment_tags = [ID3Tag.COMMENT, ID3Tag.USER_COMMENT, ID3Tag.COMMENT_ENG]
+        for tag in comment_tags:
+            comment = self.get_tag(tag)
+            if comment is None:
+                continue
 
-        if comment.startswith('Energy'):
-            segments = [s.strip() for s in comment.split()]
-            if len(segments) > 1 and segments[1].isnumeric():
-                return int(segments[1])
+            if comment.isnumeric():
+                return int(comment)
 
-        if comment.startswith('Metadata: '):
-            track_metadata = literal_eval(comment.split('Metadata: ')[1])
-            energy = str(track_metadata.get('Energy', ''))
-            return None if not energy.isnumeric() else int(energy)
+            if comment.startswith('Energy'):
+                segments = [s.strip() for s in comment.split()]
+                if len(segments) > 1 and segments[1].isnumeric():
+                    return int(segments[1])
+
+            if comment.startswith('Metadata: ') or comment.startswith('{'):
+                try:
+                    track_metadata = (literal_eval(comment) if comment.startswith('{')
+                                      else literal_eval(comment.split('Metadata: ')[1]))
+                    energy = str(track_metadata.get('Energy', ''))
+                    if energy.isnumeric():
+                        return int(energy)
+                except Exception:
+                    return None
 
         return None
 
     def format_bpm(self):
         """ Format BPM value as padded 3-digit representation. """
-        bpm = self.tags.get(ID3Tag.BPM.value)
+        bpm = self.get_tag(ID3Tag.BPM, '')
         return ''.join([str(0)] * max(3 - len(bpm), 0)) + bpm
 
     def format_key(self):
         """ Formats track key as canonical representation. """
-        key = self.tags.get(ID3Tag.KEY.value)
-        return CANONICAL_KEY_MAP.get(key.lower())
+        return CANONICAL_KEY_MAP.get(self.get_tag(ID3Tag.KEY, '').lower(), '')
 
     def format_camelot_code(self, formatted_key):
         """ Formats Camelot code based on track key. """
-        return CAMELOT_MAP.get(formatted_key)
+        return CAMELOT_MAP.get(formatted_key, '')
 
     # =======
     # Getters
@@ -188,6 +208,16 @@ class AudioFile(ABC):
     def get_metadata(self):
         """ Return track's metadata dict. """
         return self.metadata
+
+    def get_tag(self, tag, default=None):
+        """
+        Return specified tag's value.
+
+        :param tag: Tag whose value to return.
+        :param default:
+        :return:
+        """
+        return self.tags.get(tag.value) or default
 
     # ===================
     # ID3-related methods
@@ -204,6 +234,11 @@ class AudioFile(ABC):
         pass
 
     @abstractmethod
+    def write_tag(self, tag, value, kwargs={}):
+        """ Write specified ID3 to file. """
+        pass
+
+    @abstractmethod
     def write_tags(self):
-        """ Writes ID3 tags to file. """
+        """ Writes metadata to ID3 tags and saves to file. """
         pass

@@ -30,8 +30,14 @@ class MP3File(AudioFile):
 
         return defaultdict(str, {k: v for k, v in tag_dict if k in ALL_ID3_TAGS})
 
+    def write_tag(self, tag, value, kwargs={}):
+        """ Write specified ID3 to file. """
+        frame = self._get_frame_with_metadata_key(tag, kwargs.get('track_frames') or [])
+        if frame is not None:
+            frame.text = value
+
     def write_tags(self):
-        """ Writes ID3 tags to file. """
+        """ Writes metadata to ID3 tags and saves to file. """
 
         # Remove tags not supported by eyed3
         self._remove_unsupported_tags(self.id3.tag)
@@ -39,11 +45,7 @@ class MP3File(AudioFile):
         track_frames = list(self.id3.tag.frameiter())
         track_metadata = self.get_metadata()
         for k, v in track_metadata.items():
-            frame = self._get_frame_with_metadata_key(k, track_frames)
-            if frame is None:
-                continue
-
-            frame.text = v
+            self.write_tag(k, v, {'track_frames': track_frames})
 
         self.id3.save()
 

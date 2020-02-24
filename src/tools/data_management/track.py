@@ -190,7 +190,7 @@ class Track:
         def _get_metadata_from_title(self):
             """ Extracts Camelot Code, key, and BPM from track title."""
 
-            title_md = re.findall(MD_FORMAT_REGEX, self.title)
+            title_md = re.findall(MD_SPLIT_REGEX, self.title)
             if len(title_md) == 1:
                 camelot_code, key, bpm = title_md[0]
 
