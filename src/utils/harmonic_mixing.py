@@ -44,13 +44,13 @@ def generate_camelot_map(tracks):
             comment = {}
 
         # Generate artist and label counts
-        artists = comment.get('Artists', [])
-        remixers = comment.get('Remixers', [])
+        artists = [a.strip().lower() for a in comment.get('artists', '').split(', ')]
+        remixers = [r.strip().lower() for r in comment.get('remixers', '').split(', ')]
         for artist in artists + remixers:
             if not is_empty(artist):
                 artist_counts[artist] += 1
 
-        label = track.label
+        label = (track.label or '').strip().lower()
         if not is_empty(label):
             label_counts[label] += 1
 
