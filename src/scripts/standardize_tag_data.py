@@ -45,6 +45,7 @@ def standardize_tags():
             track_model.save_id3()
 
             progress += 1
+
     except Exception as e:
         handle_error(e)
 

@@ -213,6 +213,10 @@ class AudioFile:
         """
         return self.tags.get(tag.value, default)
 
+    def get_tags(self):
+        """ Gets ID3 tag dict. """
+        return self.tags
+
     # ===================
     # ID3-related methods
     # ===================
@@ -243,11 +247,11 @@ class AudioFile:
         :param value: Tag value.
         :param save: Whether tag value should be saved to file immediately.
         """
+
         if tag in self.id3:
             self.id3[tag].text = [value]
-
-        if save:
-            self.id3.save()
+            if save:
+                self.id3.save()
 
     def write_tags(self):
         """ Writes metadata to ID3 tags and saves to file. """
