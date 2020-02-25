@@ -38,10 +38,5 @@ def test_mutagen():
         database.close_all_sessions()
 
 
-
-
-
-
-
 if __name__ == '__main__':
     test_mutagen()
