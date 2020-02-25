@@ -1,10 +1,7 @@
-from os.path import splitext
-
 from src.db import database
 from src.definitions.data_management import *
 from src.db.entities.track import columns, Track as TrackEntity
-from src.tools.data_management.formats.aiff_file import AIFFFile
-from src.tools.data_management.formats.mp3_file import MP3File
+from src.tools.data_management.formats.audio_file import AudioFile
 from src.utils.errors import handle_error
 
 
@@ -92,10 +89,14 @@ def standardize_data():
         tracks = session.query(TrackEntity).all()
         for track in tracks:
             file_path = track.file_path
-            _, file_ext = splitext(file_path)
-            track_model = MP3File(file_path) if file_ext == '.mp3' else AIFFFile(file_path)
-            gen_metadata = track_model.get_metadata()
+            try:
+                track_model = AudioFile(file_path)
+            except Exception as e:
+                handle_error(e)
+                continue
 
+            gen_metadata = track_model.get_metadata()
+            error = False
             for col in cols:
                 try:
                     col_value = gen_metadata.get(col, getattr(track, col, None))
@@ -116,10 +117,11 @@ def standardize_data():
 
                 except Exception as e:
                     handle_error(e)
-                    session.rollback()
+                    error = True
                     break
 
-            session.commit()
+            if not error:
+                session.commit()
 
     except Exception as e:
         handle_error(e)
