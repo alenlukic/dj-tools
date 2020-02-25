@@ -18,7 +18,7 @@ def standardize_tags():
         progress = 0
         for track in tracks:
             if progress % 100 == 0:
-                print('Processed %d tracks' % progress)
+                print('%d tracks processed' % progress)
 
             # Get metadata values from DB
             file_path = track.file_path
