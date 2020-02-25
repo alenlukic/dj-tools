@@ -14,17 +14,20 @@ def standardize_tags():
     session = database.create_session()
 
     try:
-        count = 0
         tracks = session.query(TrackEntity).all()
+        progress = 0
         for track in tracks:
-            if count % 100 == 0:
-                print(count)
+            if progress % 100 == 0:
+                print('Processed %d tracks' % progress)
+
+            # Get metadata values from DB
             file_path = track.file_path
             comment = literal_eval(track.comment)
             updated_tag_values = {db_col: getattr(track, db_col, comment.get(db_col)) for db_col in METADATA_KEY_TO_ID3}
             updated_tag_values = {k: v for k, v in updated_tag_values.items() if not is_empty(v)}
             updated_tag_values['comment'] = str({k: v for k, v in updated_tag_values.items() if k != 'comment'})
 
+            # Update tags
             _, file_ext = splitext(file_path)
             track_model = MP3File(file_path) if file_ext == '.mp3' else AIFFFile(file_path)
             track_frames = {'track_frames': track_model.get_frames()} if file_ext == '.mp3' else {}
@@ -34,7 +37,8 @@ def standardize_tags():
                 track_model.write_tag(db_col, str(tag_value), track_frames)
 
             track_model.id3.save()
-            count += 1
+
+            progress += 1
     except Exception as e:
         handle_error(e)
 
