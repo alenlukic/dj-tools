@@ -18,13 +18,16 @@ class MP3File(AudioFile):
         if id3 is None:
             raise Exception('Could not load ID3 data for %s' % self.full_path)
 
+        # Remove tags not supported by eyed3
+        self._remove_unsupported_tags(id3)
+
         return id3
 
     def read_tags(self):
         """ Read relevant tags from ID3 data. """
 
         frame_types = {frames.TextFrame, frames.CommentFrame, frames.UserTextFrame}
-        track_frames = list(self.id3.frameiter())
+        track_frames = self.get_frames()
         tag_dict = {frame.id.decode('utf-8'): frame.text for frame in
                     filter(lambda t: type(t) in frame_types, track_frames)}.items()
 
@@ -39,15 +42,16 @@ class MP3File(AudioFile):
     def write_tags(self):
         """ Writes metadata to ID3 tags and saves to file. """
 
-        # Remove tags not supported by eyed3
-        self._remove_unsupported_tags(self.id3.tag)
-
-        track_frames = list(self.id3.tag.frameiter())
+        track_frames = self.get_frames()
         track_metadata = self.get_metadata()
         for k, v in track_metadata.items():
             self.write_tag(k, v, {'track_frames': track_frames})
 
         self.id3.save()
+
+    def get_frames(self):
+        """ Get ID3 tag frames. """
+        return list(self.id3.frameiter())
 
     @staticmethod
     def _get_frame_with_metadata_key(metadata_key, track_frames):
