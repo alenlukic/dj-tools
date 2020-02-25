@@ -2,10 +2,12 @@ import os
 import sys
 import traceback
 
-from src.utils.common import is_empty
+
+def get_banner(message):
+    return '=' * len(message)
 
 
-def handle_error(error, err_message_prefix='', err_log_function=print):
+def handle_error(error, err_message_prefix='Exception occurred', err_log_function=print):
     """
     Handles error and prints debug info/stack trace to stdout.
 
@@ -16,6 +18,9 @@ def handle_error(error, err_message_prefix='', err_log_function=print):
     _, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
-    print('Function: %s\tLine:%d\nTraceback:\n' % (fname, exc_tb.tb_lineno))
+    banner = get_banner(err_message_prefix)
+    prefix = '\n' + '\n'.join([banner, err_message_prefix, banner]) + '\n'
+    err_log_function('\n'.join([prefix, 'Message:', str(error)]))
+    print('\n')
+    print('\n'.join(['Function: %s' % fname, 'Line: %d' % exc_tb.tb_lineno, 'Traceback:']))
     traceback.print_tb(exc_tb)
-    err_log_function(' '.join(list(filter(lambda s: not is_empty(s), [err_message_prefix, str(error)]))))

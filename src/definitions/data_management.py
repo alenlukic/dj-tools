@@ -23,6 +23,20 @@ class ID3Tag(Enum):
     BEATPORT = 'TENC'
 
 
+class TrackDBCols(Enum):
+    ID = 'id'
+    FILE_PATH = 'file_path'
+    TITLE = 'title'
+    BPM = 'bpm'
+    KEY = 'key'
+    CAMELOT_CODE = 'camelot_code'
+    ENERGY = 'energy'
+    GENRE = 'genre'
+    LABEL = 'label'
+    DATE_ADDED = 'date_added'
+    COMMENT = 'comment'
+
+
 METADATA_KEY_TO_ID3 = {
     'title': ID3Tag.TITLE.value,
     'artists': ID3Tag.ARTIST.value,
@@ -45,6 +59,9 @@ READABLE_TO_ID3 = {
     'Label': ID3Tag.LABEL.value,
     'Comment': ID3Tag.COMMENT.value
 }
+
+
+ALL_DB_COLS = set([c.value for c in TrackDBCols])
 
 ALL_ID3_TAGS = set([t.value for t in ID3Tag])
 

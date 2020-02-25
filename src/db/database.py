@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import session as sezzion, sessionmaker
@@ -11,6 +13,7 @@ class Database:
     Base = None
     BoundSessionInstantiator = None
     db = None
+    dry_run = False
 
     class __Database:
         """ Singleton database class. """
@@ -33,11 +36,47 @@ class Database:
 
         if self.db is None:
             self.db = self.__Database()
+            self.dry_run = False
             self.conn = self.db.conn
             self.engine = self.db.engine
             self.metadata = self.db.metadata
             self.Base = declarative_base(metadata=self.metadata)
             self.BoundSessionInstantiator = sessionmaker(bind=self.engine)
+
+    class __Session:
+        """ Session wrapper. Used to enable dry run functionality during testing. """
+
+        def __init__(self, session, dry_run=False):
+            self.session = session
+            self.dry_run = dry_run
+
+        def query(self, query):
+            if self.dry_run:
+                return None
+            return self.session.query(query)
+
+        def add(self, entity):
+            if not self.dry_run:
+                self.session.add(entity)
+
+        def commit(self):
+            if not self.dry_run:
+                self.session.commit()
+
+        def rollback(self):
+            if not self.dry_run:
+                self.session.rollback()
+
+        def close(self):
+            self.session.close()
+
+    def enable_dry_run(self):
+        """ Switches DB session to dry run mode (no queries executed or data persisted. """
+        self.dry_run = True
+
+    def disable_dry_run(self):
+        """ Disables dry run mode. """
+        self.dry_run = False
 
     # ==============
     # Getter methods
@@ -73,7 +112,10 @@ class Database:
 
     def create_session(self):
         """ Creates and returns a new DB session. """
-        return self.BoundSessionInstantiator()
+        if self.dry_run:
+            logging.warning('Creating DB sessio in dry run mode')
+        session = self.BoundSessionInstantiator()
+        return Database.__Session(session, self.dry_run)
 
     @staticmethod
     def close_sessions(sessions):

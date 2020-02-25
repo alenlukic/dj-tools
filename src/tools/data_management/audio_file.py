@@ -1,19 +1,15 @@
-from abc import ABC, abstractmethod
 from ast import literal_eval
-from collections import ChainMap
-import logging
+from collections import ChainMap, defaultdict
 from os import path, stat
 from time import ctime
+
+import mutagen
 
 from src.utils.common import is_empty
 from src.definitions.data_management import *
 
 
-# Suppress annoying eyed3 logs
-logging.getLogger('eyed3').setLevel(logging.ERROR)
-
-
-class AudioFile(ABC):
+class AudioFile:
     """ Encapsulates an audio file and its metadata. """
 
     def __init__(self, full_path):
@@ -160,27 +156,26 @@ class AudioFile(ABC):
 
         comment_tags = [ID3Tag.COMMENT, ID3Tag.USER_COMMENT, ID3Tag.COMMENT_ENG]
         for tag in comment_tags:
-            comment = self.get_tag(tag)
-            if comment is None:
-                continue
+            try:
+                comment = self.get_tag(tag)
 
-            if comment.isnumeric():
-                return int(comment)
+                if comment is None:
+                    continue
 
-            if comment.startswith('Energy'):
-                segments = [s.strip() for s in comment.split()]
-                if len(segments) > 1 and segments[1].isnumeric():
+                if comment.isnumeric():
+                    return int(comment)
+
+                if comment.startswith('Energy'):
+                    segments = [s.strip() for s in comment.split()]
                     return int(segments[1])
 
-            if comment.startswith('Metadata: ') or comment.startswith('{'):
-                try:
+                if comment.startswith('Metadata: ') or comment.startswith('{'):
                     track_metadata = (literal_eval(comment) if comment.startswith('{')
                                       else literal_eval(comment.split('Metadata: ')[1]))
-                    energy = str(track_metadata.get('Energy', ''))
-                    if energy.isnumeric():
-                        return int(energy)
-                except Exception:
-                    return None
+                    return int(track_metadata.get('Energy', ''))
+
+            except Exception:
+                continue
 
         return None
 
@@ -214,31 +209,56 @@ class AudioFile(ABC):
         Return specified tag's value.
 
         :param tag: Tag whose value to return.
-        :param default:
-        :return:
+        :param default: Default value to return if tag value not present.
         """
-        return self.tags.get(tag.value) or default
+        return self.tags.get(tag.value, default)
+
+    def get_tags(self):
+        """ Gets ID3 tag dict. """
+        return self.tags
 
     # ===================
     # ID3-related methods
     # ===================
 
-    @abstractmethod
     def read_id3(self):
         """ Read ID3 data from file. """
-        pass
 
-    @abstractmethod
+        id3 = mutagen.File(self.full_path)
+        if id3 is None:
+            raise Exception('Could not load ID3 data for %s' % self.full_path)
+
+        return id3
+
+    def save_id3(self):
+        """ Save ID3 tag values to file. """
+        self.id3.save()
+
     def read_tags(self):
         """ Read relevant tags from ID3 data. """
-        pass
+        tag_dict = self.id3.items()
+        return defaultdict(str, {k: v.text[0] for k, v in tag_dict if k in ALL_ID3_TAGS and len(v.text or []) > 0})
 
-    @abstractmethod
-    def write_tag(self, tag, value, kwargs={}):
-        """ Write specified ID3 to file. """
-        pass
+    def write_tag(self, tag, value, save=True):
+        """
+        Write value to specified ID3 tag.
 
-    @abstractmethod
+        :param tag: Tag to write to.
+        :param value: Tag value.
+        :param save: Whether tag value should be saved to file immediately.
+        """
+
+        if tag in self.id3:
+            self.id3[tag].text = [value]
+            if save:
+                self.id3.save()
+
     def write_tags(self):
         """ Writes metadata to ID3 tags and saves to file. """
-        pass
+
+        track_metadata = self.get_metadata()
+        for k, v in track_metadata.items():
+            mk = METADATA_KEY_TO_ID3.get(k)
+            self.write_tag(mk, v)
+
+        self.id3.save()

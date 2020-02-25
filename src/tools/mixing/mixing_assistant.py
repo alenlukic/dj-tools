@@ -1,4 +1,3 @@
-import logging
 from math import ceil, floor
 from sys import exit
 
@@ -9,10 +8,6 @@ from src.tools.data_management.data_manager import DataManager
 from src.tools.mixing.transition_match import TransitionMatch
 from src.utils.harmonic_mixing import *
 from src.utils.mixing_assistant import *
-
-
-# Suppress annoying eyed3 logs
-logging.getLogger('eyed3').setLevel(logging.ERROR)
 
 
 class MixingAssistant:
