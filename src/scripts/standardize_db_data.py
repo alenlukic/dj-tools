@@ -1,7 +1,7 @@
 from src.db import database
 from src.definitions.data_management import *
 from src.db.entities.track import columns, Track as TrackEntity
-from src.tools.data_management.formats.audio_file import AudioFile
+from src.tools.data_management.audio_file import AudioFile
 from src.utils.errors import handle_error
 
 

@@ -1,4 +1,3 @@
-import logging
 from os.path import basename, splitext
 from shutil import copyfile
 
@@ -8,13 +7,9 @@ from src.db.entities.artist_track import ArtistTrack
 from src.db.entities.track import Track
 from src.definitions.common import *
 from src.definitions.data_management import *
-from src.tools.data_management.formats.audio_file import AudioFile
+from src.tools.data_management.audio_file import AudioFile
 from src.utils.errors import handle_error
 from src.utils.file_operations import *
-
-
-# Suppress annoying eyed3 logs
-logging.getLogger('eyed3').setLevel(logging.ERROR)
 
 
 class DataManager:

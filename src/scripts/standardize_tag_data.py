@@ -3,7 +3,7 @@ from ast import literal_eval
 from src.db import database
 from src.db.entities.track import Track as TrackEntity
 from src.definitions.data_management import METADATA_KEY_TO_ID3
-from src.tools.data_management.formats.audio_file import AudioFile
+from src.tools.data_management.audio_file import AudioFile
 from src.utils.common import is_empty
 from src.utils.errors import handle_error
 
