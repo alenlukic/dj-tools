@@ -49,6 +49,7 @@ class DataManager:
                 # Create row in track table
                 track_metadata = track.get_metadata()
                 db_row = {k: v for k, v in track_metadata.items() if k in ALL_TRACK_DB_COLS}
+                db_row[TrackDBCols.FILE_PATH.value] = new_track_path
 
                 try:
                     session.add(Track(**db_row))
@@ -159,7 +160,7 @@ class DataManager:
             if not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
                 # Some files won't have requisite ID3 metadata for automatic renaming.
                 # User will need to enter new name manually.
-                print('Can\'t automatically rename %s' % old_path)
+                print('Can\'t automatically rename %s due to missing requisite ID3 tags' % old_path)
                 continue
 
             # Generate track name
