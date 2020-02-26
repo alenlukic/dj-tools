@@ -198,7 +198,7 @@ class MixingAssistant:
 
         # Rank and format results
         same_key = [t.format() for t in sorted(same_key, reverse=True) if
-                    t.metadata.get(TrackDBCols.TITLE) != t.get(TrackDBCols.TITLE)]
+                    t.metadata.get(TrackDBCols.TITLE) != cur_track_md.get(TrackDBCols.TITLE)]
         higher_key = [t.format() for t in sorted(higher_key, reverse=True)]
         lower_key = [t.format() for t in sorted(lower_key, reverse=True)]
 

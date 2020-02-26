@@ -5,10 +5,11 @@ from src.utils.errors import handle_error
 
 def get_with_fallbacks(sources, targets, default=None):
     """
-    TODO.
-    :param sources:
-    :param targets:
-    :param default:
+    Go through the paired sources/targets lists and return the first result found (or default if not found).
+
+    :param sources: List of source object
+    :param targets: Corresponding list of path
+    :param default: Default value to return
     """
 
     for i, source in enumerate(sources):
