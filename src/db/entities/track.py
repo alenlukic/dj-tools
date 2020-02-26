@@ -4,21 +4,6 @@ from src.db import metadata
 from src.db import Base
 
 
-columns = [
-    'id',
-    'file_path',
-    'title',
-    'bpm',
-    'key',
-    'camelot_code',
-    'energy',
-    'genre',
-    'label',
-    'date_added',
-    'comment'
-]
-
-
 class Track(Base):
     """
     Represents row in track table in the sqlalchemy ORM. Postgres schema:

@@ -35,23 +35,26 @@ class AudioFile:
         title = self.generate_title(camelot_code, key, bpm)
 
         metadata = {
-            'file_path': self.full_path,
-            'title': title,
-            'bpm': int(bpm),
-            'key': key,
-            'camelot_code': camelot_code,
-            'energy': self.parse_energy(),
-            'genre': self.get_tag(ID3Tag.GENRE),
-            'label': self.get_tag(ID3Tag.LABEL),
-            'date_added': ctime(stat(self.full_path).st_birthtime)
+            TrackDBCols.FILE_PATH.value: self.full_path,
+            TrackDBCols.TITLE.value: title,
+            TrackDBCols.BPM.value: int(bpm),
+            TrackDBCols.KEY.value: key,
+            TrackDBCols.CAMELOT_CODE.value: camelot_code,
+            TrackDBCols.ENERGY.value: self.parse_energy(),
+            TrackDBCols.GENRE.value: self.get_tag(ID3Tag.GENRE),
+            TrackDBCols.LABEL.value: self.get_tag(ID3Tag.LABEL),
+            TrackDBCols.DATE_ADDED.value: ctime(stat(self.full_path).st_birthtime)
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
 
         comment = str({k: v for k, v in dict(ChainMap(
             {k: v for k, v in metadata.items()},
-            {'artists': self.get_tag(ID3Tag.ARTIST), 'remixers': self.get_tag(ID3Tag.REMIXER)}
+            {
+                ArtistFields.ARTISTS.value: self.get_tag(ID3Tag.ARTIST),
+                ArtistFields.REMIXERS.value: self.get_tag(ID3Tag.REMIXER)
+            }
         )).items() if not is_empty(v)})
-        metadata['comment'] = comment
+        metadata[TrackDBCols.COMMENT.value] = comment
 
         return metadata
 

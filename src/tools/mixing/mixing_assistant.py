@@ -1,6 +1,8 @@
 from math import ceil, floor
 from sys import exit
 
+from src.db import database
+from src.db.entities.track import Track
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
 from src.scripts.rename_songs import rename_songs
@@ -17,7 +19,7 @@ class MixingAssistant:
         """ Initializes data manager. """
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
-        self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
+        self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
 
     def execute(self, user_input):
         """
@@ -60,17 +62,24 @@ class MixingAssistant:
 
         try:
             # Validate metadata exists
-            cur_track_md = self.track_md_index.get(track_path)
-            if cur_track_md is None:
-                raise MixingException('%s not found in tracks.' % track_path)
+            session = database.create_session()
+            db_row = session.query(Track).filter_by(file_path=track_path).first()
+            if db_row is None:
+                raise MixingException('%s not found in database.' % track_path)
 
             # Validate BPM and Camelot code exist and are well-formatted
-            bpm = cur_track_md.get('BPM')
-            camelot_code = cur_track_md.get('Camelot Code')
+            bpm = db_row.bpm
+            camelot_code = db_row.camelot_code
             if bpm is None:
                 raise MixingException('Did not find a BPM for %s.' % track_path)
             if camelot_code is None:
                 raise MixingException('Did not find a Camelot code for %s.' % track_path)
+
+            camelot_map_entry = self.camelot_map[camelot_code][bpm]
+            cur_track_md = [md for md in camelot_map_entry if md.get(TrackDBCols.FILE_PATH) == track_path]
+            if len(cur_track_md) == 0:
+                raise MixingException('%s metadata not found in Camelot map.' % track_path)
+            cur_track_md = cur_track_md[0]
 
             # Generate and rank matches
             harmonic_codes = self._get_all_harmonic_codes(cur_track_md)
@@ -81,7 +90,7 @@ class MixingAssistant:
             self._print_transition_ranks('Lower key (step up)', lower_key)
             self._print_transition_ranks('Same key', same_key)
         except Exception as e:
-            raise MixingException(str(e))
+            handle_error(e)
 
     def print_malformed_tracks(self):
         """ Prints malformed track names to stdout to facilitate corrections. """
@@ -92,7 +101,7 @@ class MixingAssistant:
 
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
-        self.camelot_map, self.track_md_index, self.collection_md = generate_camelot_map(self.tracks)
+        self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
         print('Track data reloaded.')
 
     def rename_tracks(self, upsert):
@@ -119,7 +128,7 @@ class MixingAssistant:
         :param cur_track_md: Current track metadata.
         """
 
-        camelot_code = cur_track_md['Camelot Code']
+        camelot_code = cur_track_md[TrackDBCols.CAMELOT_CODE]
         code_number = int(camelot_code[0:2])
         code_letter = camelot_code[-1].upper()
 
@@ -169,7 +178,7 @@ class MixingAssistant:
         :param cur_track_md: Current track metadata.
         """
 
-        bpm = int(cur_track_md['BPM'])
+        bpm = cur_track_md[TrackDBCols.BPM:]
         same_key = []
         higher_key = []
         lower_key = []
@@ -188,8 +197,8 @@ class MixingAssistant:
                              self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
 
         # Rank and format results
-        same_key = [t.format() for t in sorted(list(filter(
-            lambda match: match.metadata.get('Title') != cur_track_md.get('Title'), same_key)), reverse=True)]
+        same_key = [t.format() for t in sorted(same_key, reverse=True) if
+                    t.metadata.get(TrackDBCols.TITLE) != t.get(TrackDBCols.TITLE)]
         higher_key = [t.format() for t in sorted(higher_key, reverse=True)]
         lower_key = [t.format() for t in sorted(lower_key, reverse=True)]
 
