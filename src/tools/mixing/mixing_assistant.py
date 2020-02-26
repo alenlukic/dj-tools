@@ -178,7 +178,7 @@ class MixingAssistant:
         :param cur_track_md: Current track metadata.
         """
 
-        bpm = cur_track_md[TrackDBCols.BPM:]
+        bpm = cur_track_md[TrackDBCols.BPM]
         same_key = []
         higher_key = []
         lower_key = []
