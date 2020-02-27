@@ -31,6 +31,10 @@ class MixingAssistant:
         :param user_input: Raw user input.
         """
 
+        # Do nothing for empty input
+        if is_empty(user_input):
+            return
+
         # Validate command
         segments = user_input.split()
         cmd_alias = segments[0].lower()
@@ -215,12 +219,13 @@ class MixingAssistant:
         :param results: Ranked, formatted results.
         """
 
-        dashed_line = ''.join(['-'] * 148)
-
         print('\n\n\n%s results:\n\n\n' % result_type)
-        print(dashed_line)
-        print('\t\t\t'.join(['Score', 'Track']))
-        print(dashed_line)
+        print(DASHED_LINE)
+        print()
+        print(DASHED_LINE)
+
+        if len(results) == 0:
+            return
 
         for result in results[start_index:]:
             print(result.format())

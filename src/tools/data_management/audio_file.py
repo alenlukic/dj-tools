@@ -94,7 +94,7 @@ class AudioFile:
         :param featured: Featured artist on the track (if any).
         """
         artists = self.get_tag(ID3Tag.ARTIST, '')
-        featured_set = set() if featured is None else set(featured)
+        featured_set = set() if featured is None else {featured}
         filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
 
         # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.

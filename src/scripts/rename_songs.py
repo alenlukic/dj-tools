@@ -1,5 +1,6 @@
 from os.path import join
 
+from src.db import database
 from src.definitions.common import TMP_MUSIC_DIR
 from src.tools.data_management.data_manager import DataManager
 
@@ -12,12 +13,16 @@ def rename_songs(dm, upsert=False):
     :param upsert: (optional) When True, will attempt to update existing DB rows rather than creating new ones.
     """
 
-    kwargs = {
-        'target_dir': None,
-        'upsert': upsert
-    }
-    dm.rename_songs(join(TMP_MUSIC_DIR, 'mp3'), **kwargs)
-    dm.rename_songs(join(TMP_MUSIC_DIR, 'lossless'), **kwargs)
+    database.enable_dry_run()
+    try:
+        kwargs = {
+            'target_dir': None,
+            'upsert': upsert
+        }
+        dm.rename_songs(join(TMP_MUSIC_DIR, 'mp3'), **kwargs)
+        dm.rename_songs(join(TMP_MUSIC_DIR, 'lossless'), **kwargs)
+    finally:
+        database.disable_dry_run()
 
 
 if __name__ == '__main__':
