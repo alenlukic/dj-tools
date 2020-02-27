@@ -45,3 +45,7 @@ COMMANDS = {
         [CommandArgument('upsert', 'boolean', 'Indicates whether to upsert.', 0, 'False')]
     )
 }
+
+DASHED_LINE = ''.join(['-'] * 148)
+
+RESULT_COLUMN_HEADER = '\t\t\t'.join(['Score', 'Track'])

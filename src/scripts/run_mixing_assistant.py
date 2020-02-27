@@ -1,3 +1,6 @@
+# noinspection PyUnresolvedReferences
+import readline
+
 from src.tools.mixing.command import CommandParsingException
 from src.tools.mixing.mixing_assistant import MixingAssistant
 from src.utils.errors import handle_error
