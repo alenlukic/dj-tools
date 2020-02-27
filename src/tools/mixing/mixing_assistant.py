@@ -66,6 +66,7 @@ class MixingAssistant:
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
         self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
+        TransitionMatch.collection_md = self.collection_md
         print('Track data reloaded.')
 
     def rename_tracks(self, upsert):
