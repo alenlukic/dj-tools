@@ -2,13 +2,6 @@ from enum import Enum
 import re
 
 
-class CustomTag(Enum):
-    FEATURED = 'FEATURED'
-    CAMELOT_CODE = 'CAMELOT_CODE'
-    TRACK_NAME = 'TRACK_NAME'
-    ENERGY = 'ENERGY'
-
-
 class ID3Tag(Enum):
     TITLE = 'TIT2'
     ARTIST = 'TPE1'
@@ -37,39 +30,28 @@ class TrackDBCols(Enum):
     COMMENT = 'comment'
 
 
+class ArtistFields(Enum):
+    ARTISTS = 'artists'
+    REMIXERS = 'remixers'
+
+
 METADATA_KEY_TO_ID3 = {
-    'title': ID3Tag.TITLE.value,
-    'artists': ID3Tag.ARTIST.value,
-    'remixers': ID3Tag.REMIXER.value,
-    'bpm': ID3Tag.BPM.value,
-    'key': ID3Tag.KEY.value,
-    'genre': ID3Tag.GENRE.value,
-    'label': ID3Tag.LABEL.value,
-    'comment': ID3Tag.COMMENT.value
-}
-
-READABLE_TO_ID3 = {
-    'Title': ID3Tag.TITLE.value,
-    'Artists': ID3Tag.ARTIST.value,
-    'Remixers': ID3Tag.REMIXER.value,
-    'Genre': ID3Tag.GENRE.value,
-    'BPM': ID3Tag.BPM.value,
-    'Key': ID3Tag.KEY.value,
-    'User Comment': ID3Tag.USER_COMMENT.value,
-    'Label': ID3Tag.LABEL.value,
-    'Comment': ID3Tag.COMMENT.value
+    TrackDBCols.TITLE.value: ID3Tag.TITLE.value,
+    TrackDBCols.BPM.value: ID3Tag.BPM.value,
+    TrackDBCols.KEY.value: ID3Tag.KEY.value,
+    TrackDBCols.GENRE.value: ID3Tag.GENRE.value,
+    TrackDBCols.LABEL: ID3Tag.LABEL.value,
+    TrackDBCols.COMMENT.value: ID3Tag.COMMENT.value,
+    ArtistFields.ARTISTS.value: ID3Tag.ARTIST.value,
+    ArtistFields.REMIXERS.value: ID3Tag.REMIXER.value
 }
 
 
-ALL_DB_COLS = set([c.value for c in TrackDBCols])
+ALL_TRACK_DB_COLS = set([c.value for c in TrackDBCols])
 
 ALL_ID3_TAGS = set([t.value for t in ID3Tag])
 
 REQUIRED_ID3_TAGS = {ID3Tag.TITLE.value, ID3Tag.ARTIST.value, ID3Tag.BPM.value, ID3Tag.KEY.value}
-
-UNSUPPORTED_ID3_TAGS = {'GRP1'}
-
-KEYS_TO_OMIT_FROM_MD_UPDATES = {'Artists', 'Remixers'}
 
 CANONICAL_KEY_MAP = {
     k.lower(): v.lower() for k, v in {

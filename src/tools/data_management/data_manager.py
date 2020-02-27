@@ -48,7 +48,8 @@ class DataManager:
             for new_track_path, track in tracks.items():
                 # Create row in track table
                 track_metadata = track.get_metadata()
-                db_row = {k: v for k, v in track_metadata.items() if k in ALL_DB_COLS}
+                db_row = {k: v for k, v in track_metadata.items() if k in ALL_TRACK_DB_COLS}
+                db_row[TrackDBCols.FILE_PATH.value] = new_track_path
 
                 try:
                     session.add(Track(**db_row))
@@ -59,8 +60,9 @@ class DataManager:
 
                 # Update artists' data
                 track_id = session.query(Track).filter_by(file_path=new_track_path).first().id
-                artists = track.get_tag('artists', []) + track.get_tag('remixers', [])
-                for artist in artists:
+                artists = [x.strip() for x in track_metadata.get(ArtistFields.ARTISTS.value, '').split(',')]
+                remixers = [x.strip() for x in track_metadata.get(ArtistFields.REMIXERS.value, '').split(',')]
+                for artist in artists + remixers:
                     artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
                     if artist_row is None:
                         try:
@@ -97,7 +99,7 @@ class DataManager:
         """
 
         session = self.database.create_session()
-        columns_to_update = [c for c in ALL_DB_COLS if not (c == 'id' or c == 'file_path' or c == 'date_added')]
+        columns_to_update = [c for c in ALL_TRACK_DB_COLS if not (c == 'id' or c == 'file_path' or c == 'date_added')]
 
         try:
             for track_name, track in tracks.items():
@@ -158,7 +160,7 @@ class DataManager:
             if not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
                 # Some files won't have requisite ID3 metadata for automatic renaming.
                 # User will need to enter new name manually.
-                print('Can\'t automatically rename %s' % old_path)
+                print('Can\'t automatically rename %s due to missing requisite ID3 tags' % old_path)
                 continue
 
             # Generate track name

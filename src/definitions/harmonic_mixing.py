@@ -1,6 +1,14 @@
 from enum import Enum
 
 
+class CollectionStat(Enum):
+    OLDEST = 'Oldest Timestamp'
+    NEWEST = 'Newest Timestamp'
+    TIME_RANGE = 'Time Range'
+    LABEL_COUNTS = 'Label Counts'
+    ARTIST_COUNTS = 'Artist Counts'
+
+
 # How harmonic a particular key transition is (higher = more harmonic)
 class CamelotPriority(Enum):
     TWO_OCTAVE_JUMP = 0

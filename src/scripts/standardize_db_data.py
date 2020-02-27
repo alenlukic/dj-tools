@@ -1,6 +1,6 @@
 from src.db import database
 from src.definitions.data_management import *
-from src.db.entities.track import columns, Track as TrackEntity
+from src.db.entities.track import Track as TrackEntity
 from src.tools.data_management.audio_file import AudioFile
 from src.utils.errors import handle_error
 
@@ -83,7 +83,7 @@ def transform_genre(genre):
 
 def standardize_data():
     session = database.create_session()
-    cols = [c for c in columns if c not in {'file_path', 'date_added'}]
+    cols = [c for c in ALL_TRACK_DB_COLS if c not in {'file_path', 'date_added'}]
 
     try:
         tracks = session.query(TrackEntity).all()
