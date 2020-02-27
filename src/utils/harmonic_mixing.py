@@ -38,11 +38,12 @@ def generate_camelot_map(tracks):
     label_counts = defaultdict(int)
     artist_counts = defaultdict(int)
 
-    track_md_index = {}
+    track_mds = []
     for track in tracks:
         file_path = track.file_path
         track_comment = track.comment
 
+        # A failsafe - if comment not in DB, try to generate it
         if track_comment is None:
             try:
                 track_model = AudioFile(file_path)
@@ -90,16 +91,15 @@ def generate_camelot_map(tracks):
             TrackDBCols.DATE_ADDED: (None if date_added is None else
                                      datetime.strptime(date_added, TIMESTAMP_FORMAT).timestamp())
         }.items() if not is_empty(v)}
-        track_md_index[file_path] = track_md
+
+        track_mds.append(track_md)
 
     # Add sum of counts to collection metadata counter
     collection_md[CollectionStat.LABEL_COUNTS] = sum(label_counts.values())
     collection_md[CollectionStat.ARTIST_COUNTS] = sum(artist_counts.values())
 
     camelot_map = defaultdict(lambda: defaultdict(list))
-    for track in tracks:
-        track_md = track_md_index[track.file_path]
-
+    for track_md in track_mds:
         # Update artist, remixer, and label counts for track
         if ArtistFields.ARTISTS in track_md:
             track_md[ArtistFields.ARTISTS] = {a: artist_counts[a] for a in track_md[ArtistFields.ARTISTS]}

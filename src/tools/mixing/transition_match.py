@@ -7,21 +7,20 @@ from src.utils.common import log2smooth
 
 class TransitionMatch:
     """ Wrapper for a track with a harmonic transition from the current track. """
+    collection_md = None
 
-    def __init__(self, metadata, cur_track_md, camelot_priority, collection_md):
+    def __init__(self, metadata, cur_track_md, camelot_priority):
         """
         Initialize this track and playing track's metadata.
 
         :param metadata: This track's metadata.
         :param cur_track_md: Playing track's metadata.
         :param camelot_priority: Priority of the transition.
-        :param collection_md: Collection metadata.
         """
 
         self.metadata = metadata
         self.cur_track_md = cur_track_md
         self.camelot_priority = camelot_priority
-        self.collection_md = collection_md
         self.score = None
 
     def get_score(self):
@@ -29,13 +28,13 @@ class TransitionMatch:
 
         if self.score is None:
             score_weights = [
-                (self.get_artist_score(), 0.12),
-                (self.get_bpm_score(), 0.22),
-                (self.get_camelot_priority_score(), 0.24),
+                (self.get_artist_score(), 0.08),
+                (self.get_bpm_score(), 0.23),
+                (self.get_camelot_priority_score(), 0.23),
                 (self.get_energy_score(), 0.05),
-                (self.get_freshness_score(), 0.08),
-                (self.get_genre_score(), 0.12),
-                (self.get_label_score(), 0.16),
+                (self.get_freshness_score(), 0.11),
+                (self.get_genre_score(), 0.13),
+                (self.get_label_score(), 0.17),
             ]
             self.score = 100 * sum([score * weight for score, weight in score_weights])
 
@@ -88,7 +87,7 @@ class TransitionMatch:
             if relative_diff <= SAME_UPPER_BOUND:
                 return float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
             if relative_diff <= UP_KEY_UPPER_BOUND:
-                # Not sure how to evaluate step up / down, so arbitrarily pick middle of the range
+                # Not sure how to evaluate step up / down - arbitrarily pick middle of the range
                 midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
                 return float(midpoint - abs(midpoint - relative_diff)) / midpoint
             return 0.0
@@ -111,7 +110,7 @@ class TransitionMatch:
         if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
             return 0.1
         if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
-            return 0.2
+            return 0.25
         if self.camelot_priority == CamelotPriority.MAJOR_MINOR_JUMP:
             return 0.9
 
@@ -129,8 +128,11 @@ class TransitionMatch:
 
     def get_freshness_score(self):
         """ Calculates the freshness component of the score. """
-        youth_factor = (self.metadata[TrackDBCols.DATE_ADDED] - self.collection_md[CollectionStat.OLDEST])
-        return youth_factor / self.collection_md[CollectionStat.TIME_RANGE]
+        date_added = self.metadata.get(TrackDBCols.DATE_ADDED)
+        if date_added is None:
+            return 0.5
+
+        return (date_added - self.collection_md[CollectionStat.OLDEST]) / self.collection_md[CollectionStat.TIME_RANGE]
 
     def get_genre_score(self):
         """ Returns 1 if genres match and 0 otherwise. """
@@ -147,9 +149,6 @@ class TransitionMatch:
         cur_label, cur_label_count = self.cur_track_md.get(TrackDBCols.LABEL, (None, None))
         if label is None or cur_label is None or label != cur_label:
             return 0.0
-
-        # print(str(self.metadata))
-        # print(str(self.collection_md[CollectionStat.LABEL_COUNTS]))
 
         return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md[CollectionStat.LABEL_COUNTS]))
 

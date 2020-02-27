@@ -22,6 +22,7 @@ class MixingAssistant:
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
         self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
+        TransitionMatch.collection_md = self.collection_md
 
     def execute(self, user_input):
         """
@@ -54,6 +55,35 @@ class MixingAssistant:
         cmd_function = command.get_function()
         cmd_args = {expected_args[i].get_name(): args[i] for i in range(num_args)}
         return getattr(self, cmd_function)(**cmd_args)
+
+    def print_malformed_tracks(self):
+        """ Prints malformed track names to stdout to facilitate corrections. """
+        self.dm.show_malformed_tracks()
+
+    def reload_track_data(self):
+        """ Reloads tracks from the audio directory and regenerates Camelot map and metadata. """
+
+        self.dm = DataManager()
+        self.tracks = self.dm.load_tracks()
+        self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
+        print('Track data reloaded.')
+
+    def rename_tracks(self, upsert):
+        """
+        Rename tracks in tmp directories.
+
+        :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
+        """
+
+        upsert_lower = upsert.lower()
+        upsert_lower = True if upsert_lower == 'true' else False
+        rename_songs(self.dm, upsert_lower)
+        print('\nSongs renamed.')
+
+    def shutdown(self):
+        """ Exits the CLI. """
+        print('Goodbye.')
+        exit()
 
     def get_transition_matches(self, track_path):
         """
@@ -88,40 +118,12 @@ class MixingAssistant:
             same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md)
 
             # Print matches
-            self._print_transition_ranks('Higher key (step down)', higher_key)
-            self._print_transition_ranks('Lower key (step up)', lower_key)
-            self._print_transition_ranks('Same key', same_key)
+            cur_track_title = cur_track_md.get(TrackDBCols.TITLE)
+            self._print_transition_ranks('Higher key (step down)', higher_key, cur_track_title)
+            self._print_transition_ranks('Lower key (step up)', lower_key, cur_track_title)
+            self._print_transition_ranks('Same key', same_key, cur_track_title)
         except Exception as e:
             handle_error(e)
-
-    def print_malformed_tracks(self):
-        """ Prints malformed track names to stdout to facilitate corrections. """
-        self.dm.show_malformed_tracks()
-
-    def reload_track_data(self):
-        """ Reloads tracks from the audio directory and regenerates Camelot map and metadata. """
-
-        self.dm = DataManager()
-        self.tracks = self.dm.load_tracks()
-        self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
-        print('Track data reloaded.')
-
-    def rename_tracks(self, upsert):
-        """
-        Rename tracks in tmp directories.
-
-        :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
-        """
-
-        upsert_lower = upsert.lower()
-        upsert_lower = True if upsert_lower == 'true' else False
-        rename_songs(self.dm, upsert_lower)
-        print('\nSongs renamed.')
-
-    def shutdown(self):
-        """ Exits the CLI. """
-        print('Goodbye.')
-        exit()
 
     def _get_all_harmonic_codes(self, cur_track_md):
         """
@@ -191,22 +193,21 @@ class MixingAssistant:
             hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
             lk_code = format_camelot_number((code_number - 7) % 12) + code_letter
 
-            same_key.extend(TransitionMatch(md, cur_track_md, priority, self.collection_md) for md in
+            same_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
                             self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND))
-            higher_key.extend(TransitionMatch(md, cur_track_md, priority,  self.collection_md) for md in
+            higher_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
                               self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND))
-            lower_key.extend(TransitionMatch(md, cur_track_md, priority, self.collection_md) for md in
+            lower_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
                              self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
 
         # Rank and format results
-        same_key = [t.format() for t in sorted(same_key, reverse=True) if
-                    t.metadata.get(TrackDBCols.TITLE) != cur_track_md.get(TrackDBCols.TITLE)]
-        higher_key = [t.format() for t in sorted(higher_key, reverse=True)]
-        lower_key = [t.format() for t in sorted(lower_key, reverse=True)]
+        same_key = sorted(same_key, reverse=True)
+        higher_key = sorted(higher_key, reverse=True)
+        lower_key = sorted(lower_key, reverse=True)
 
         return same_key, higher_key, lower_key
 
-    def _print_transition_ranks(self, result_type, results):
+    def _print_transition_ranks(self, result_type, results, cur_track_title):
         """
         Prints ranked transition results.
 
@@ -222,7 +223,9 @@ class MixingAssistant:
         print(dashed_line)
 
         for result in results:
-            print(result)
+            if result.metadata.get(TrackDBCols.TITLE) == cur_track_title and cur_track_title is not None:
+                continue
+            print(result.format())
 
 
 class MixingException(Exception):
