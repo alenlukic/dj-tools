@@ -221,7 +221,7 @@ class MixingAssistant:
 
         print('\n\n\n%s results:\n\n\n' % result_type)
         print(DASHED_LINE)
-        print()
+        print(RESULT_COLUMN_HEADER)
         print(DASHED_LINE)
 
         if len(results) == 0:

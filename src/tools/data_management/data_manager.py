@@ -131,7 +131,7 @@ class DataManager:
         :param tracks: Dictionary mapping track name to internal model
         :param upsert: Indicates whether to update existing tracks
         """
-        # self.upsert_tracks(tracks) if upsert else self.insert_tracks(tracks)
+        self.upsert_tracks(tracks) if upsert else self.insert_tracks(tracks)
 
     def rename_songs(self, input_dir=TMP_MUSIC_DIR, target_dir=None, upsert=False):
         """
@@ -174,7 +174,7 @@ class DataManager:
             new_path = join(target_dir, old_base_name if upsert else track_title + file_ext)
 
             # Save updated tags and copy to target directory
-            # track.write_tags()
+            track.write_tags()
             new_base_name = basename(new_path)
             try:
                 print('\nRenaming:\t%s\nto:\t\t%s' % (old_base_name, new_base_name))
@@ -184,8 +184,6 @@ class DataManager:
                 continue
 
             tracks_to_save[new_path] = track
-
-            print(str(track.get_metadata()))
 
         # Update database
         self.update_database(tracks_to_save, upsert)
