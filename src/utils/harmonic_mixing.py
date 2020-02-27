@@ -5,7 +5,7 @@ from datetime import datetime
 from src.definitions.data_management import *
 from src.definitions.harmonic_mixing import CollectionStat, TIMESTAMP_FORMAT
 from src.tools.data_management.audio_file import AudioFile
-from src.utils.common import get_with_fallbacks, is_empty
+from src.utils.common import is_empty
 
 
 def flip_camelot_letter(camelot_letter):
@@ -41,42 +41,36 @@ def generate_camelot_map(tracks):
     track_md_index = {}
     for track in tracks:
         file_path = track.file_path
-        track_model = AudioFile(file_path)
-        track_metadata = track_model.get_metadata()
-        track_tags = track_model.get_tags()
-        try:
-            track_comment = literal_eval(track_metadata.get(TrackDBCols.COMMENT.value, '{}'))
-        except Exception:
-            track_comment = {}
+        track_comment = track.comment
 
-        # Load artists/remixers
-        artist_data_sources = [track_comment, track_tags]
-        artist_str = get_with_fallbacks(artist_data_sources, [ID3Tag.ARTIST] * len(artist_data_sources), '')
-        remixer_str = get_with_fallbacks(artist_data_sources, [ID3Tag.REMIXER] * len(artist_data_sources), '')
+        if track_comment is None:
+            try:
+                track_model = AudioFile(file_path)
+                track_metadata = track_model.get_metadata()
+                track_comment = track_metadata.get(TrackDBCols.COMMENT.value, '{}')
+            except Exception:
+                track_comment = '{}'
+
+        track_comment = literal_eval(track_comment)
+
+        # Increment artist/remixer counts
+        artist_str = track_comment.get(ArtistFields.ARTISTS.value, '')
+        remixer_str = track_comment.get(ArtistFields.REMIXERS.value, '')
         artists = [a.strip() for a in artist_str.split(',')]
         remixers = [r.strip() for r in remixer_str.split(',')]
-
-        # Increment artist counts
         for artist in artists + remixers:
             if not is_empty(artist):
                 artist_counts[artist] += 1
 
-        def get_track_col_value(track_db_col, typ=str):
-            value = get_with_fallbacks([track_metadata, track, track_comment], [track_db_col.value] * 3)
-            if value is not None:
-                return type(typ)(value)
-
-            return None
-
         # Create track metadata dict and add to index
-        title = get_track_col_value(TrackDBCols.TITLE)
-        bpm = get_track_col_value(TrackDBCols.BPM, int)
-        key = get_track_col_value(TrackDBCols.KEY)
-        camelot_code = get_track_col_value(TrackDBCols.CAMELOT_CODE)
-        label = get_track_col_value(TrackDBCols.LABEL)
-        genre = get_track_col_value(TrackDBCols.GENRE)
-        energy = get_track_col_value(TrackDBCols.ENERGY, int)
-        date_added = get_track_col_value(TrackDBCols.DATE_ADDED)
+        title = track_comment.get(TrackDBCols.TITLE.value)
+        bpm = track_comment.get(TrackDBCols.BPM.value)
+        key = track_comment.get(TrackDBCols.KEY.value)
+        camelot_code = track_comment.get(TrackDBCols.CAMELOT_CODE.value)
+        label = track_comment.get(TrackDBCols.LABEL.value)
+        genre = track_comment.get(TrackDBCols.GENRE.value)
+        energy = track_comment.get(TrackDBCols.ENERGY.value)
+        date_added = track_comment.get(TrackDBCols.DATE_ADDED.value)
 
         # Increment label count
         if not is_empty(label):
@@ -87,13 +81,14 @@ def generate_camelot_map(tracks):
             TrackDBCols.TITLE: title,
             ArtistFields.ARTISTS: {artist: 0 for artist in artists},
             ArtistFields.REMIXERS: {remixer: 0 for remixer in remixers},
-            TrackDBCols.BPM: bpm,
+            TrackDBCols.BPM: None if bpm is None else int(bpm),
             TrackDBCols.KEY: key,
             TrackDBCols.CAMELOT_CODE: camelot_code,
-            TrackDBCols.LABEL: (label, None),
+            TrackDBCols.LABEL: (label, 0),
             TrackDBCols.GENRE: genre,
-            TrackDBCols.ENERGY: energy,
-            TrackDBCols.DATE_ADDED: datetime.strptime(date_added, TIMESTAMP_FORMAT).timestamp(),
+            TrackDBCols.ENERGY: None if energy is None else int(energy),
+            TrackDBCols.DATE_ADDED: (None if date_added is None else
+                                     datetime.strptime(date_added, TIMESTAMP_FORMAT).timestamp())
         }.items() if not is_empty(v)}
         track_md_index[file_path] = track_md
 
@@ -115,11 +110,13 @@ def generate_camelot_map(tracks):
             track_md[TrackDBCols.LABEL] = (label, label_counts[label])
 
         # Update global timestamp extrema
-        date_added = track_md[TrackDBCols.DATE_ADDED]
-        if date_added > collection_md[CollectionStat.NEWEST]:
-            collection_md[CollectionStat.NEWEST] = date_added
-        if date_added < collection_md[CollectionStat.OLDEST]:
-            collection_md[CollectionStat.OLDEST] = date_added
+
+        if TrackDBCols.DATE_ADDED in track_md:
+            date_added = track_md[TrackDBCols.DATE_ADDED]
+            if date_added > collection_md[CollectionStat.NEWEST]:
+                collection_md[CollectionStat.NEWEST] = date_added
+            if date_added < collection_md[CollectionStat.OLDEST]:
+                collection_md[CollectionStat.OLDEST] = date_added
 
         # Add track metadata to Camelot map
         camelot_code = track_md[TrackDBCols.CAMELOT_CODE]

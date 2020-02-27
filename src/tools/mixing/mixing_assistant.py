@@ -7,7 +7,9 @@ from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
 from src.scripts.rename_songs import rename_songs
 from src.tools.data_management.data_manager import DataManager
+from src.tools.mixing.command import CommandParsingException
 from src.tools.mixing.transition_match import TransitionMatch
+from src.utils.errors import handle_error
 from src.utils.harmonic_mixing import *
 from src.utils.mixing_assistant import *
 
@@ -225,7 +227,3 @@ class MixingAssistant:
 
 class MixingException(Exception):
     pass
-
-
-if __name__ == '__main__':
-    run_assistant()

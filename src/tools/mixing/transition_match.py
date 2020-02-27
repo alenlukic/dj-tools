@@ -148,6 +148,9 @@ class TransitionMatch:
         if label is None or cur_label is None or label != cur_label:
             return 0.0
 
+        # print(str(self.metadata))
+        # print(str(self.collection_md[CollectionStat.LABEL_COUNTS]))
+
         return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md[CollectionStat.LABEL_COUNTS]))
 
     def format(self):

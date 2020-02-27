@@ -1,32 +1,5 @@
 from math import log2
 
-from src.utils.errors import handle_error
-
-
-def get_with_fallbacks(sources, targets, default=None):
-    """
-    Go through the paired sources/targets lists and return the first result found (or default if not found).
-
-    :param sources: List of source object
-    :param targets: Corresponding list of path
-    :param default: Default value to return
-    """
-
-    for i, source in enumerate(sources):
-        try:
-            target = targets[i]
-            if type(source) == dict and source.get(target) is not None:
-                return source[target]
-            else:
-                value = getattr(source, target, None)
-                if value is not None:
-                    return value
-        except Exception as e:
-            handle_error(e)
-            continue
-
-    return default
-
 
 def is_empty(value):
     """
