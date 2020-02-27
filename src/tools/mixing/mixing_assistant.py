@@ -118,10 +118,9 @@ class MixingAssistant:
             same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md)
 
             # Print matches
-            cur_track_title = cur_track_md.get(TrackDBCols.TITLE)
-            self._print_transition_ranks('Higher key (step down)', higher_key, cur_track_title)
-            self._print_transition_ranks('Lower key (step up)', lower_key, cur_track_title)
-            self._print_transition_ranks('Same key', same_key, cur_track_title)
+            self._print_transition_ranks('Higher key (step down)', higher_key)
+            self._print_transition_ranks('Lower key (step up)', lower_key)
+            self._print_transition_ranks('Same key', same_key, 1)
         except Exception as e:
             handle_error(e)
 
@@ -207,7 +206,7 @@ class MixingAssistant:
 
         return same_key, higher_key, lower_key
 
-    def _print_transition_ranks(self, result_type, results, cur_track_title):
+    def _print_transition_ranks(self, result_type, results, start_index=0):
         """
         Prints ranked transition results.
 
@@ -222,9 +221,7 @@ class MixingAssistant:
         print('\t\t\t'.join(['Score', 'Track']))
         print(dashed_line)
 
-        for result in results:
-            if result.metadata.get(TrackDBCols.TITLE) == cur_track_title and cur_track_title is not None:
-                continue
+        for result in results[start_index:]:
             print(result.format())
 
 
