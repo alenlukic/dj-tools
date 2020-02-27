@@ -32,9 +32,9 @@ class TransitionMatch:
                 (self.get_bpm_score(), 0.23),
                 (self.get_camelot_priority_score(), 0.23),
                 (self.get_energy_score(), 0.05),
-                (self.get_freshness_score(), 0.11),
+                (self.get_freshness_score(), 0.12),
                 (self.get_genre_score(), 0.13),
-                (self.get_label_score(), 0.17),
+                (self.get_label_score(), 0.16),
             ]
             self.score = 100 * sum([score * weight for score, weight in score_weights])
 
