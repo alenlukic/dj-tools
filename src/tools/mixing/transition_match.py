@@ -7,6 +7,7 @@ from src.utils.common import log2smooth
 
 class TransitionMatch:
     """ Wrapper for a track with a harmonic transition from the current track. """
+
     collection_md = None
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
@@ -147,7 +148,7 @@ class TransitionMatch:
 
         label, label_count = self.metadata.get(TrackDBCols.LABEL, (None, None))
         cur_label, cur_label_count = self.cur_track_md.get(TrackDBCols.LABEL, (None, None))
-        if label is None or cur_label is None or label != cur_label:
+        if label != cur_label or label == 'CDR' or cur_label == 'CDR' or label is None or cur_label is None:
             return 0.0
 
         return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md[CollectionStat.LABEL_COUNTS]))
