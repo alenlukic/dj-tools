@@ -19,10 +19,9 @@ LABEL_CANON = {
     'vii': 'VII',
     'rfr': 'RFR',
     'cdr': 'CDR',
-    'l.i.e.s.': 'L.I.E.S.',
-    'fsoe': 'Future Sound Of Egypt',
     'knm': 'KNM',
-    'umc': 'UMC'
+    'umc': 'UMC',
+    'l.i.e.s.': 'L.I.E.S.'
 }
 
 
