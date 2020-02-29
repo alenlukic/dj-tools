@@ -7,7 +7,7 @@ import mutagen
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
-from src.utils.data_management import split_artist_string
+from src.utils.data_management import *
 
 
 class AudioFile:
@@ -95,8 +95,8 @@ class AudioFile:
         :param featured: Featured artist on the track (if any).
         """
         artists = self.get_tag(ID3Tag.ARTIST)
-        featured_set = set() if featured is None else {featured}
-        filtered_artists = [artist for artist in split_artist_string(artists) if artist not in featured_set]
+        featured_set = set() if featured is None else {transform_artist(featured)}
+        filtered_artists = [transform_artist(a) for a in split_artist_string(artists) if a not in featured_set]
 
         # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
         # TODO: handle artist aliases
@@ -107,14 +107,10 @@ class AudioFile:
         """ Parses track title and returns formatted track title and featured artist name, if any. """
 
         title = self.get_tag(ID3Tag.TITLE, '')
-        track_md = re.findall(MD_COMPOSITE_REGEX, title)
-        if len(track_md) > 0:
-            title = title.split(track_md[0])[-1].strip()
-            title = title.split(' - ')[-1]
+        segments = [seg.strip() for seg in title.split(' ') if not is_empty(seg.strip())]
 
-        segments = [seg.strip() for seg in title.split(' ') if not is_empty(seg)]
-        n = len(segments)
         i = 0
+        n = len(segments)
         featured = None
         in_parens = False
         filtered_segments = []
@@ -150,7 +146,7 @@ class AudioFile:
                     i = j
 
             else:
-                filtered_segments.append(segment.strip())
+                filtered_segments.append(segment)
                 i += 1
 
             if ')' in segment:

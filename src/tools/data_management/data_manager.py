@@ -1,3 +1,4 @@
+from ast import literal_eval
 from os.path import basename, splitext
 from shutil import copyfile
 
@@ -47,6 +48,11 @@ class DataManager:
         session = self.database.create_session()
         try:
             for new_track_path, track in tracks.items():
+                existing_row = session.query(Track).filter_by(file_path=new_track_path).first()
+                if existing_row is not None:
+                    print('Warning: a track with path %s already exists in the database! Skipping')
+                    continue
+
                 # Create row in track table
                 track_metadata = track.get_metadata()
                 db_row = {k: v for k, v in track_metadata.items() if k in ALL_TRACK_DB_COLS}
@@ -59,11 +65,17 @@ class DataManager:
                     handle_error(e)
                     continue
 
+                # Get artist and remixers names
+                try:
+                    comment = literal_eval(track_metadata.get(TrackDBCols.COMMENT.value, '{}'))
+                except Exception:
+                    comment = {}
+
+                artists = comment.get(ArtistFields.ARTISTS.value)
+                remixers = comment.get(ArtistFields.REMIXERS.value)
+
                 # Update artists' data
                 track_id = session.query(Track).filter_by(file_path=new_track_path).first().id
-                artists = track_metadata.get(ArtistFields.ARTISTS.value)
-                remixers = track_metadata.get(ArtistFields.REMIXERS.value)
-
                 all_artists = split_artist_string(artists) + split_artist_string(remixers)
                 for a in all_artists:
                     artist_row = session.query(ArtistEntity).filter_by(name=a).first()
@@ -105,16 +117,16 @@ class DataManager:
         columns_to_update = [c for c in ALL_TRACK_DB_COLS if not (c == 'id' or c == 'file_path' or c == 'date_added')]
 
         try:
-            for track_name, track in tracks.items():
+            for track_path, track in tracks.items():
                 track_metadata = track.get_metadata()
                 # Get existing row
-                existing_track = session.query(Track).filter_by(file_path=track_name).first()
+                existing_track = session.query(Track).filter_by(file_path=track_path).first()
                 if existing_track is None:
-                    raise Exception('Could not find track associated with file path %s in DB' % track_name)
+                    raise Exception('Could not find track associated with file path %s in DB' % track_path)
 
                 # Update row with new metadata values
                 for col in columns_to_update:
-                    new_val = getattr(track_metadata, col)
+                    new_val = track_metadata.get(col)
                     if new_val is not None:
                         setattr(existing_track, col, new_val)
 
@@ -169,12 +181,13 @@ class DataManager:
             # Generate track name
             metadata = track.get_metadata()
             track_title = metadata.get(TrackDBCols.TITLE.value)
+
             if track_title is None and not upsert:
                 print('Failed to generate title for %s' % old_path)
                 continue
 
             _, file_ext = splitext(old_path)
-            new_path = join(target_dir, old_base_name if upsert else track_title + file_ext)
+            new_path = join(target_dir, old_base_name if upsert else track_title.strip() + file_ext.strip())
 
             # Save updated tags and copy to target directory
             track.write_tags()
