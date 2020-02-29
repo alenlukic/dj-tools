@@ -112,23 +112,26 @@ class AudioFile:
             title = title.split(track_md[0])[-1].strip()
             title = title.split(' - ')[-1]
 
-        segments = title.split(' ')
+        segments = [seg.strip() for seg in title.split(' ') if not is_empty(seg)]
         n = len(segments)
         i = 0
         featured = None
-        open_paren_found = False
+        in_parens = False
         filtered_segments = []
         while i < n:
             segment = segments[i]
 
             if '(' in segment:
-                open_paren_found = True
+                in_parens = True
+
+            if ')' in segment and '(' not in segment:
+                in_parens = False
 
             # Replace all instances of 'feat.' with 'ft.' inside the parenthetical phrase indicating mix type.
             # Ex: "(Hydroid feat. Santiago Nino Mix)" becomes "(Hydroid ft. Santiago Nino Mix)."
             segment_lowercase = segment.lower()
             if segment_lowercase == 'feat.' or segment_lowercase == 'ft.':
-                if open_paren_found:
+                if in_parens:
                     filtered_segments.append('ft.')
                     i += 1
                 else:
@@ -141,10 +144,17 @@ class AudioFile:
                             break
                         featured.append(next_part)
                     featured = ' '.join(featured)
+
+                    if j == n - 1:
+                        break
                     i = j
+
             else:
                 filtered_segments.append(segment.strip())
                 i += 1
+
+            if ')' in segment:
+                in_parens = False
 
         # Get rid of the "(Original Mix)" and "(Extended Mix)" redundant suffixes.
         formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')

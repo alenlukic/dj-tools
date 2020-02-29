@@ -50,9 +50,6 @@ class Database:
             self.session = session
             self.dry_run = dry_run
 
-        def get_session(self):
-            return self.session
-
         def query(self, query):
             if self.dry_run:
                 return None

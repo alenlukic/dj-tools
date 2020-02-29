@@ -168,7 +168,7 @@ class DataManager:
 
             # Generate track name
             metadata = track.get_metadata()
-            track_title = metadata.get('title')
+            track_title = metadata.get(TrackDBCols.TITLE.value)
             if track_title is None and not upsert:
                 print('Failed to generate title for %s' % old_path)
                 continue
