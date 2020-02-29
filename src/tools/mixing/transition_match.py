@@ -157,9 +157,11 @@ class TransitionMatch:
         """ Format result with score and track's base file name. """
 
         score = '{:.2f}'.format(self.get_score())
-        title = '.'.join(basename(self.metadata[TrackDBCols.FILE_PATH]).split('.')[:-1])
+        # title = '.'.join(basename(self.metadata[TrackDBCols.FILE_PATH]).split('.')[:-1])
 
-        return '\t\t\t'.join([score, title if len(title) < 120 else title[:120] + '...'])
+        # return '\t\t\t'.join([score, title if len(title) < 120 else title[:120] + '...'])
+
+        return '(%s) %s' % (score, self.metadata[TrackDBCols.FILE_PATH])
 
     def __lt__(self, other):
         return (self.get_score(), self.get_freshness_score()) < (other.get_score(), other.get_freshness_score())
