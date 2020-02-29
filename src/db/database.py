@@ -55,9 +55,6 @@ class Database:
                 return None
             return self.session.query(query)
 
-        def execute(self, query, params=None):
-            return self.session.execute(query, params)
-
         def add(self, entity):
             if not self.dry_run:
                 self.session.add(entity)
