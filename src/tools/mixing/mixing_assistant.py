@@ -1,5 +1,4 @@
 from math import ceil, floor
-from os.path import join
 from sys import exit
 
 from src.db import database
