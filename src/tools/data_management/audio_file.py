@@ -5,8 +5,9 @@ from time import ctime
 
 import mutagen
 
-from src.utils.common import is_empty
 from src.definitions.data_management import *
+from src.utils.common import is_empty
+from src.utils.data_management import split_artist_string
 
 
 class AudioFile:
@@ -93,9 +94,9 @@ class AudioFile:
 
         :param featured: Featured artist on the track (if any).
         """
-        artists = self.get_tag(ID3Tag.ARTIST, '')
+        artists = self.get_tag(ID3Tag.ARTIST)
         featured_set = set() if featured is None else {featured}
-        filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
+        filtered_artists = [artist for artist in split_artist_string(artists) if artist not in featured_set]
 
         # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
         # TODO: handle artist aliases

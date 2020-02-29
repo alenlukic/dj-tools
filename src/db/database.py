@@ -50,10 +50,16 @@ class Database:
             self.session = session
             self.dry_run = dry_run
 
+        def get_session(self):
+            return self.session
+
         def query(self, query):
             if self.dry_run:
                 return None
             return self.session.query(query)
+
+        def execute(self, query, params=None):
+            return self.session.execute(query, params)
 
         def add(self, entity):
             if not self.dry_run:
@@ -67,7 +73,11 @@ class Database:
             if not self.dry_run:
                 self.session.rollback()
 
-        def close(self):
+        def close(self, rollback_on_error=False, error=False):
+            if rollback_on_error and error:
+                self.rollback()
+            else:
+                self.commit()
             self.session.close()
 
     def enable_dry_run(self):
