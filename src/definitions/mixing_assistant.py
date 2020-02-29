@@ -1,5 +1,7 @@
 from collections import ChainMap
+import re
 
+from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.tools.mixing.command import Command
 from src.tools.mixing.command_argument import CommandArgument
 
@@ -31,8 +33,8 @@ COMMANDS = {
         'Find harmonic mixing matches for the given BPM and Camelot code.', 'get_transition_matches',
         MATCH_ALIASES,
         [
-            CommandArgument('track_path', 'string', 'Qualified path of the current track.', 0,
-                            '/Users/user/Music/[05A - Cm - 140] Leftfield - Song Of Life (John Askew Remix).mp3')
+            CommandArgument('track_title', 'string', 'Current track title.', 0,
+                            '[05A - Cm - 140] Leftfield - Song Of Life (John Askew Remix)')
         ]
     ),
     LINT: Command(LINT, 'Prints malformed track names to stdout.', 'print_malformed_tracks'),
@@ -48,4 +50,6 @@ COMMANDS = {
 
 DASHED_LINE = ''.join(['-'] * 148)
 
-RESULT_COLUMN_HEADER = '\t\t\t'.join(['Score', 'Track'])
+QUALIFIED_PATH_REGEX = re.compile(r'%s.*' % PROCESSED_MUSIC_DIR)
+
+RESULT_COLUMN_HEADER = '    '.join(['Score', 'Track'])

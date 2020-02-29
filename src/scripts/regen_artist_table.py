@@ -28,6 +28,9 @@ def delete_artist_track_entries():
                 continue
     finally:
         session.close(True, errors)
+        if not errors:
+            session.commit()
+
         return errors
 
 
@@ -48,6 +51,9 @@ def delete_artist_entries():
                 continue
     finally:
         session.close(True, errors)
+        if not errors:
+            session.commit()
+
         return errors
 
 
@@ -93,6 +99,9 @@ def regen_artist_table():
 
     finally:
         session.close(True, errors)
+        if not errors:
+            session.commit()
+
         return errors
 
 
@@ -134,6 +143,9 @@ def regen_artist_track_table():
 
     finally:
         session.close(True, errors)
+        if not errors:
+            session.commit()
+
         return errors
 
 

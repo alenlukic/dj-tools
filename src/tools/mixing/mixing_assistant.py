@@ -1,4 +1,5 @@
 from math import ceil, floor
+from os.path import join
 from sys import exit
 
 from src.db import database
@@ -57,7 +58,7 @@ class MixingAssistant:
 
         # Execute command
         cmd_function = command.get_function()
-        cmd_args = {expected_args[i].get_name(): args[i] for i in range(num_args)}
+        cmd_args = {expected_args[i].get_name(): args[i].strip() for i in range(num_args)}
         return getattr(self, cmd_function)(**cmd_args)
 
     def print_malformed_tracks(self):
@@ -90,32 +91,32 @@ class MixingAssistant:
         print('Goodbye.')
         exit()
 
-    def get_transition_matches(self, track_path):
+    def get_transition_matches(self, track_title):
         """
         Prints transition matches for the given track.
 
-        :param track_path: Full qualified path to the track.
+        :param track_title - Formatted track title (with metadata)
         """
 
         try:
             # Validate metadata exists
             session = database.create_session()
-            db_row = session.query(Track).filter_by(file_path=track_path).first()
+            db_row = session.query(Track).filter_by(title=track_title).first()
             if db_row is None:
-                raise MixingException('%s not found in database.' % track_path)
+                raise MixingException('%s not found in database.' % track_title)
 
             # Validate BPM and Camelot code exist and are well-formatted
             bpm = db_row.bpm
             camelot_code = db_row.camelot_code
             if bpm is None:
-                raise MixingException('Did not find a BPM for %s.' % track_path)
+                raise MixingException('Did not find a BPM for %s.' % track_title)
             if camelot_code is None:
-                raise MixingException('Did not find a Camelot code for %s.' % track_path)
+                raise MixingException('Did not find a Camelot code for %s.' % track_title)
 
             camelot_map_entry = self.camelot_map[camelot_code][bpm]
-            cur_track_md = [md for md in camelot_map_entry if md.get(TrackDBCols.FILE_PATH) == track_path]
+            cur_track_md = [md for md in camelot_map_entry if md.get(TrackDBCols.TITLE) == track_title]
             if len(cur_track_md) == 0:
-                raise MixingException('%s metadata not found in Camelot map.' % track_path)
+                raise MixingException('%s metadata not found in Camelot map.' % track_title)
             cur_track_md = cur_track_md[0]
 
             # Generate and rank matches
