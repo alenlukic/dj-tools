@@ -5,8 +5,9 @@ from time import ctime
 
 import mutagen
 
-from src.utils.common import is_empty
 from src.definitions.data_management import *
+from src.utils.common import is_empty
+from src.utils.data_management import split_artist_string
 
 
 class AudioFile:
@@ -93,9 +94,9 @@ class AudioFile:
 
         :param featured: Featured artist on the track (if any).
         """
-        artists = self.get_tag(ID3Tag.ARTIST, '')
+        artists = self.get_tag(ID3Tag.ARTIST)
         featured_set = set() if featured is None else {featured}
-        filtered_artists = list(filter(lambda artist: artist not in featured_set, artists.split(', ')))
+        filtered_artists = [artist for artist in split_artist_string(artists) if artist not in featured_set]
 
         # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
         # TODO: handle artist aliases
@@ -111,23 +112,26 @@ class AudioFile:
             title = title.split(track_md[0])[-1].strip()
             title = title.split(' - ')[-1]
 
-        segments = title.split(' ')
+        segments = [seg.strip() for seg in title.split(' ') if not is_empty(seg)]
         n = len(segments)
         i = 0
         featured = None
-        open_paren_found = False
+        in_parens = False
         filtered_segments = []
         while i < n:
             segment = segments[i]
 
             if '(' in segment:
-                open_paren_found = True
+                in_parens = True
+
+            if ')' in segment and '(' not in segment:
+                in_parens = False
 
             # Replace all instances of 'feat.' with 'ft.' inside the parenthetical phrase indicating mix type.
             # Ex: "(Hydroid feat. Santiago Nino Mix)" becomes "(Hydroid ft. Santiago Nino Mix)."
             segment_lowercase = segment.lower()
             if segment_lowercase == 'feat.' or segment_lowercase == 'ft.':
-                if open_paren_found:
+                if in_parens:
                     filtered_segments.append('ft.')
                     i += 1
                 else:
@@ -140,10 +144,17 @@ class AudioFile:
                             break
                         featured.append(next_part)
                     featured = ' '.join(featured)
+
+                    if j == n - 1:
+                        break
                     i = j
+
             else:
                 filtered_segments.append(segment.strip())
                 i += 1
+
+            if ')' in segment:
+                in_parens = False
 
         # Get rid of the "(Original Mix)" and "(Extended Mix)" redundant suffixes.
         formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')

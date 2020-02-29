@@ -67,7 +67,9 @@ class Database:
             if not self.dry_run:
                 self.session.rollback()
 
-        def close(self):
+        def close(self, rollback_on_error=False, error=False):
+            if rollback_on_error and error:
+                self.rollback()
             self.session.close()
 
     def enable_dry_run(self):

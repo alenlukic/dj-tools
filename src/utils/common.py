@@ -25,3 +25,16 @@ def log2smooth(x):
     :param x: Value on which to apply the log2 function.
     """
     return log2(x + 1)
+
+
+def print_progress(batch_name, cur_iteration, batch_size, frequency=100):
+    """
+    Prints iteration progress for some batched task.
+
+    :param batch_name: Descriptive name of batch task
+    :param cur_iteration: The current iteration
+    :param batch_size: Total batch size
+    :param frequency: How frequently to output progress
+    """
+    if cur_iteration % frequency == 0:
+        print('Processed %d of %d %s' % (cur_iteration, batch_size, batch_name))

@@ -1,5 +1,3 @@
-from os.path import basename
-
 from src.definitions.data_management import *
 from src.definitions.harmonic_mixing import *
 from src.utils.common import log2smooth
@@ -7,6 +5,7 @@ from src.utils.common import log2smooth
 
 class TransitionMatch:
     """ Wrapper for a track with a harmonic transition from the current track. """
+
     collection_md = None
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
@@ -27,16 +26,19 @@ class TransitionMatch:
         """ Calculate the transition score using multiple weighed subscores. """
 
         if self.score is None:
-            score_weights = [
-                (self.get_artist_score(), 0.08),
-                (self.get_bpm_score(), 0.23),
-                (self.get_camelot_priority_score(), 0.23),
-                (self.get_energy_score(), 0.05),
-                (self.get_freshness_score(), 0.12),
-                (self.get_genre_score(), 0.13),
-                (self.get_label_score(), 0.16),
-            ]
-            self.score = 100 * sum([score * weight for score, weight in score_weights])
+            if self.cur_track_md[TrackDBCols.TITLE] == self.metadata[TrackDBCols.TITLE]:
+                self.score = 100
+            else:
+                score_weights = [
+                    (self.get_artist_score(), 0.08),
+                    (self.get_bpm_score(), 0.23),
+                    (self.get_camelot_priority_score(), 0.23),
+                    (self.get_energy_score(), 0.05),
+                    (self.get_freshness_score(), 0.12),
+                    (self.get_genre_score(), 0.13),
+                    (self.get_label_score(), 0.16),
+                ]
+                self.score = 100 * sum([score * weight for score, weight in score_weights])
 
         return self.score
 
@@ -147,18 +149,15 @@ class TransitionMatch:
 
         label, label_count = self.metadata.get(TrackDBCols.LABEL, (None, None))
         cur_label, cur_label_count = self.cur_track_md.get(TrackDBCols.LABEL, (None, None))
-        if label is None or cur_label is None or label != cur_label:
+        if label != cur_label or label == 'CDR' or cur_label == 'CDR' or label is None or cur_label is None:
             return 0.0
 
         return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md[CollectionStat.LABEL_COUNTS]))
 
     def format(self):
         """ Format result with score and track's base file name. """
-
         score = '{:.2f}'.format(self.get_score())
-        title = '.'.join(basename(self.metadata[TrackDBCols.FILE_PATH]).split('.')[:-1])
-
-        return '\t\t\t'.join([score, title if len(title) < 120 else title[:120] + '...'])
+        return '    '.join([score, self.metadata[TrackDBCols.TITLE]])
 
     def __lt__(self, other):
         return (self.get_score(), self.get_freshness_score()) < (other.get_score(), other.get_freshness_score())

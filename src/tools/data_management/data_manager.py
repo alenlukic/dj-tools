@@ -8,6 +8,7 @@ from src.db.entities.track import Track
 from src.definitions.common import *
 from src.definitions.data_management import *
 from src.tools.data_management.audio_file import AudioFile
+from src.utils.data_management import split_artist_string
 from src.utils.errors import handle_error
 from src.utils.file_operations import *
 
@@ -60,19 +61,21 @@ class DataManager:
 
                 # Update artists' data
                 track_id = session.query(Track).filter_by(file_path=new_track_path).first().id
-                artists = [x.strip() for x in track_metadata.get(ArtistFields.ARTISTS.value, '').split(',')]
-                remixers = [x.strip() for x in track_metadata.get(ArtistFields.REMIXERS.value, '').split(',')]
-                for artist in artists + remixers:
-                    artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
+                artists = track_metadata.get(ArtistFields.ARTISTS.value)
+                remixers = track_metadata.get(ArtistFields.REMIXERS.value)
+
+                all_artists = split_artist_string(artists) + split_artist_string(remixers)
+                for a in all_artists:
+                    artist_row = session.query(ArtistEntity).filter_by(name=a).first()
                     if artist_row is None:
                         try:
-                            session.add(ArtistEntity(**{'name': artist, 'track_count': 1}))
+                            session.add(ArtistEntity(**{'name': a, 'track_count': 1}))
                             session.commit()
                         except Exception as e:
                             handle_error(e)
                             continue
 
-                        artist_row = session.query(ArtistEntity).filter_by(name=artist).first()
+                        artist_row = session.query(ArtistEntity).filter_by(name=a).first()
                     else:
                         artist_row.track_count += 1
 
@@ -165,7 +168,7 @@ class DataManager:
 
             # Generate track name
             metadata = track.get_metadata()
-            track_title = metadata.get('title')
+            track_title = metadata.get(TrackDBCols.TITLE.value)
             if track_title is None and not upsert:
                 print('Failed to generate title for %s' % old_path)
                 continue
