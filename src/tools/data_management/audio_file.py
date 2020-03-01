@@ -6,7 +6,6 @@ from time import ctime
 import mutagen
 
 from src.definitions.data_management import *
-from src.utils.common import is_empty
 from src.utils.data_management import *
 
 
@@ -42,8 +41,8 @@ class AudioFile:
             TrackDBCols.KEY.value: key,
             TrackDBCols.CAMELOT_CODE.value: camelot_code,
             TrackDBCols.ENERGY.value: self.parse_energy(),
-            TrackDBCols.GENRE.value: self.get_tag(ID3Tag.GENRE),
-            TrackDBCols.LABEL.value: self.get_tag(ID3Tag.LABEL),
+            TrackDBCols.GENRE.value: transform_genre(self.get_tag(ID3Tag.GENRE, '')),
+            TrackDBCols.LABEL.value: transform_label(self.get_tag(ID3Tag.LABEL, '')),
             TrackDBCols.DATE_ADDED.value: ctime(stat(self.full_path).st_birthtime)
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
