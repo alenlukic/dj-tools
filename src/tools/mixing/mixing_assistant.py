@@ -97,25 +97,32 @@ class MixingAssistant:
         :param track_title - Formatted track title (with metadata)
         """
 
+        session = database.create_session()
         try:
             # Validate metadata exists
-            session = database.create_session()
+            title_mismatch_message = ''
             db_row = session.query(Track).filter_by(title=track_title).first()
+            if db_row is None:
+                db_row = session.query(Track).filter(Track.file_path.like('%{}%'.format(track_title))).first()
+                if db_row is not None:
+                    path = db_row.file_path
+                    title_mismatch_message = '\n\nWarning: found %s in path %s (but not title)' % (track_title, path)
             if db_row is None:
                 raise MixingException('%s not found in database.' % track_title)
 
             # Validate BPM and Camelot code exist and are well-formatted
+            title = db_row.title
             bpm = db_row.bpm
             camelot_code = db_row.camelot_code
             if bpm is None:
-                raise MixingException('Did not find a BPM for %s.' % track_title)
+                raise MixingException('Did not find a BPM for %s.' % title)
             if camelot_code is None:
-                raise MixingException('Did not find a Camelot code for %s.' % track_title)
+                raise MixingException('Did not find a Camelot code for %s.' % title)
 
             camelot_map_entry = self.camelot_map[camelot_code][bpm]
-            cur_track_md = [md for md in camelot_map_entry if md.get(TrackDBCols.TITLE) == track_title]
+            cur_track_md = [md for md in camelot_map_entry if md.get(TrackDBCols.TITLE) == title]
             if len(cur_track_md) == 0:
-                raise MixingException('%s metadata not found in Camelot map.' % track_title)
+                raise MixingException('%s metadata not found in Camelot map.' % title)
             cur_track_md = cur_track_md[0]
 
             # Generate and rank matches
@@ -126,8 +133,14 @@ class MixingAssistant:
             self._print_transition_ranks('Higher key (step down)', higher_key)
             self._print_transition_ranks('Lower key (step up)', lower_key)
             self._print_transition_ranks('Same key', same_key, 1)
+
+            print(title_mismatch_message)
+
         except Exception as e:
             handle_error(e)
+
+        finally:
+            session.close()
 
     def _get_all_harmonic_codes(self, cur_track_md):
         """
