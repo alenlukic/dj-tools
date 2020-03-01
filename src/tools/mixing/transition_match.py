@@ -157,7 +157,7 @@ class TransitionMatch:
     def format(self):
         """ Format result with score and track's base file name. """
         score = '{:.2f}'.format(self.get_score())
-        spaces = ' ' * (4 + (5 - len(score)))
+        spaces = ' ' * (9 - len(score))
         return spaces.join([score, self.metadata[TrackDBCols.TITLE]])
 
     def __lt__(self, other):
