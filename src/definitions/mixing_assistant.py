@@ -8,15 +8,14 @@ from src.tools.mixing.command_argument import CommandArgument
 
 EXIT = 'exit'
 MATCH = 'match'
-LINT = 'lint'
 RELOAD = 'reload'
-RENAME = 'rename'
+INGEST = 'ingest'
 
 EXIT_ALIASES = {'done', 'bye', 'kill'}
 MATCH_ALIASES = {'find'}
 RELOAD_ALIASES = {'refresh'}
 
-ALL_ALIASES = {EXIT, MATCH, LINT, RELOAD, RENAME}.union(EXIT_ALIASES).union(MATCH_ALIASES).union(RELOAD_ALIASES)
+ALL_ALIASES = {EXIT, MATCH, RELOAD, INGEST}.union(EXIT_ALIASES).union(MATCH_ALIASES).union(RELOAD_ALIASES)
 
 ALIAS_MAPPING = dict(
     ChainMap(
@@ -37,12 +36,11 @@ COMMANDS = {
                             '[05A - Cm - 140] Leftfield - Song Of Life (John Askew Remix)')
         ]
     ),
-    LINT: Command(LINT, 'Prints malformed track names to stdout.', 'print_malformed_tracks'),
     RELOAD: Command(RELOAD, 'Reload processed tracks.', 'reload_track_data', RELOAD_ALIASES),
-    RENAME: Command(
-        RENAME,
-        'Rename tracks in the unprocessed audio directory.',
-        'rename_tracks',
+    INGEST: Command(
+        INGEST,
+        'Ingest tracks in the unprocessed audio directory.',
+        'ingest_tracks',
         {},
         [CommandArgument('upsert', 'boolean', 'Indicates whether to upsert.', 0, 'False')]
     )

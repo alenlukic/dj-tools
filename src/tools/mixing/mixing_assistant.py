@@ -5,7 +5,7 @@ from src.db import database
 from src.db.entities.track import Track
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
-from src.scripts.rename_songs import rename_songs
+from src.scripts.ingest_tracks import ingest_tracks
 from src.tools.data_management.data_manager import DataManager
 from src.tools.mixing.command import CommandParsingException
 from src.tools.mixing.transition_match import TransitionMatch
@@ -60,10 +60,6 @@ class MixingAssistant:
         cmd_args = {expected_args[i].get_name(): args[i].strip() for i in range(num_args)}
         return getattr(self, cmd_function)(**cmd_args)
 
-    def print_malformed_tracks(self):
-        """ Prints malformed track names to stdout to facilitate corrections. """
-        self.dm.show_malformed_tracks()
-
     def reload_track_data(self):
         """ Reloads tracks from the audio directory and regenerates Camelot map and metadata. """
 
@@ -71,18 +67,20 @@ class MixingAssistant:
         self.tracks = self.dm.load_tracks()
         self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
         TransitionMatch.collection_md = self.collection_md
+
         print('Track data reloaded.')
 
-    def rename_tracks(self, upsert):
+    def ingest_tracks(self, upsert):
         """
-        Rename tracks in tmp directories.
+        Ingest tracks in tmp directories.
 
         :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
         """
 
         upsert_lower = upsert.lower()
-        upsert_lower = True if upsert_lower == 'true' else False
-        rename_songs(self.dm, upsert_lower)
+        upsert_tracks = True if upsert_lower == 'true' else False
+        ingest_tracks(self.dm, upsert_tracks)
+
         print('\nSongs renamed.')
 
     def shutdown(self):
@@ -102,11 +100,14 @@ class MixingAssistant:
             # Validate metadata exists
             title_mismatch_message = ''
             db_row = session.query(Track).filter_by(title=track_title).first()
+
             if db_row is None:
                 db_row = session.query(Track).filter(Track.file_path.like('%{}%'.format(track_title))).first()
+
                 if db_row is not None:
                     path = db_row.file_path
                     title_mismatch_message = '\n\nWarning: found %s in path %s (but not title)' % (track_title, path)
+
             if db_row is None:
                 raise MixingException('%s not found in database.' % track_title)
 
@@ -114,6 +115,7 @@ class MixingAssistant:
             title = db_row.title
             bpm = db_row.bpm
             camelot_code = db_row.camelot_code
+
             if bpm is None:
                 raise MixingException('Did not find a BPM for %s.' % title)
             if camelot_code is None:
@@ -123,6 +125,7 @@ class MixingAssistant:
             cur_track_md = [md for md in camelot_map_entry if md.get(TrackDBCols.TITLE) == title]
             if len(cur_track_md) == 0:
                 raise MixingException('%s metadata not found in Camelot map.' % title)
+
             cur_track_md = cur_track_md[0]
 
             # Generate and rank matches

@@ -32,7 +32,7 @@ class AudioFile:
         key = self.format_key()
         camelot_code = self.format_camelot_code(key)
         key = key.capitalize()
-        title = self.generate_title(camelot_code, key, bpm)
+        title = self.generate_title(camelot_code, key, bpm).strip()
 
         metadata = {
             TrackDBCols.FILE_PATH.value: self.full_path,
@@ -47,14 +47,14 @@ class AudioFile:
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
 
-        comment = str({k: v for k, v in dict(ChainMap(
+        comment = {k: v for k, v in dict(ChainMap(
             {k: v for k, v in metadata.items()},
             {
                 ArtistFields.ARTISTS.value: self.get_tag(ID3Tag.ARTIST),
                 ArtistFields.REMIXERS.value: self.get_tag(ID3Tag.REMIXER)
             }
-        )).items() if not is_empty(v)})
-        metadata[TrackDBCols.COMMENT.value] = comment
+        )).items() if not is_empty(v)}
+        metadata[TrackDBCols.COMMENT.value] = str(comment)
 
         return metadata
 

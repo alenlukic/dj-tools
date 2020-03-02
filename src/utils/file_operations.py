@@ -1,8 +1,9 @@
 from os import chmod, listdir
-from os.path import isfile, join
+from os.path import isfile, join, splitext
 import stat
 
 from src.definitions.common import PROCESSED_MUSIC_DIR
+from src.definitions.file_operations import AUDIO_TYPES
 
 
 def get_audio_files(input_dir=PROCESSED_MUSIC_DIR):
@@ -11,9 +12,7 @@ def get_audio_files(input_dir=PROCESSED_MUSIC_DIR):
 
     :param input_dir: Directory to inspect for audio files.
     """
-    audio_types = {'mp3', 'wav', 'flac', 'ogg', 'aif', 'aiff', 'm3u'}
-    files = list(filter(lambda f: isfile(join(input_dir, f)), listdir(input_dir)))
-    return list(filter(lambda f: f.split('.')[-1].lower() in audio_types, files))
+    return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() in AUDIO_TYPES]
 
 
 def set_audio_file_permissions(audio_dir=PROCESSED_MUSIC_DIR):
