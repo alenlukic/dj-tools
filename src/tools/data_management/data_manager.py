@@ -1,19 +1,19 @@
 from ast import literal_eval
 from collections import defaultdict
 import json
-from os.path import basename, splitext
+from os.path import basename, join, splitext
 from shutil import copyfile
 
 from src.db import database
 from src.db.entities.artist import Artist
 from src.db.entities.artist_track import ArtistTrack
 from src.db.entities.track import Track
-from src.definitions.common import *
+from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import *
 from src.tools.data_management.audio_file import AudioFile
 from src.utils.data_management import split_artist_string
 from src.utils.errors import handle_error
-from src.utils.file_operations import *
+from src.utils.file_operations import get_audio_files
 
 
 class DataManager:
