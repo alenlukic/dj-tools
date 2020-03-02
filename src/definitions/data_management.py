@@ -2,6 +2,13 @@ from enum import Enum
 import re
 
 
+class DBUpdateType(Enum):
+    INSERT = 'Insert'
+    UPDATE = 'Update'
+    DELETE = 'Delete'
+    FAILURE = 'Failure'
+
+
 class ID3Tag(Enum):
     TITLE = 'TIT2'
     ARTIST = 'TPE1'

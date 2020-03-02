@@ -59,6 +59,10 @@ class Database:
             if not self.dry_run:
                 self.session.add(entity)
 
+        def delete(self, entity):
+            if not self.dry_run:
+                self.session.delete(entity)
+
         def commit(self):
             if not self.dry_run:
                 self.session.commit()
