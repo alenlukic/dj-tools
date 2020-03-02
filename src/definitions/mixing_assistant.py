@@ -50,4 +50,4 @@ DASHED_LINE = ''.join(['-'] * 148)
 
 QUALIFIED_PATH_REGEX = re.compile(r'%s.*' % PROCESSED_MUSIC_DIR)
 
-RESULT_COLUMN_HEADER = '    '.join(['Score', 'Track'])
+RESULT_COLUMN_HEADER = '    '.join(['Score', 'Energy', 'Track'])
