@@ -244,9 +244,9 @@ class DataManager:
 
     def delete_tracks(self, track_ids):
         """
+        Safely delete tracks.
 
-        :param track_ids:
-        :return:
+        :param track_ids: IDs of tracks to delete
         """
 
         session = database.create_session()
@@ -283,10 +283,10 @@ class DataManager:
 
     def delete_artist_tracks(self, session, track_ids):
         """
+        Delete artist track entries associated with set of track IDs to be deleted.
 
-        :param session:
-        :param track_ids:
-        :return:
+        :param session: Current database session
+        :param track_ids: IDs of tracks to delete
         """
 
         deletion_statuses = {}
@@ -312,10 +312,10 @@ class DataManager:
 
     def update_artist_counts(self, session, artist_ids_to_update):
         """
+        Update artist counts to reflect deleted tracks.
 
-        :param session:
-        :param artist_ids_to_update:
-        :return:
+        :param session: Current database session
+        :param artist_ids_to_update: IDs of artists whose counts should be updated
         """
 
         update_statuses = {}
@@ -340,9 +340,9 @@ class DataManager:
 
     def _print_database_operation_statuses(self, prefix, updates):
         """
+        Print status of attempted database operations.
 
-        :param prefix:
-        :param updates:
-        :return:
+        :param prefix: Message to print before update statuses
+        :param updates: Mapping of unique identifier (primary key-like) to status of associated DB op
         """
         print('%s:\n%s' % (prefix, json.dumps({k: v.value for k, v in updates.items()}, indent=1)))
