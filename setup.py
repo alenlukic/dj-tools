@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='dj-tools',
-    version='0.0.1',
+    version='2.2.3',
     description='Tools for DJs: generate informative file/track titles (Camelot code, key, BPM) using ID3 metadata; '
                 'display candidate transition matches using playing track Camelot code and BPM.',
     url='https://github.com/alenlukic/dj-tools',
@@ -18,6 +18,5 @@ setup(
     keywords='dj harmonic mixing camelot code audio id3 beatport',
     install_requires=requirements,
     packages=find_packages(),
-    scripts=[],  # TODO: fill these in
     python_requires='>=3, <4'
 )

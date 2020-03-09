@@ -7,6 +7,7 @@ class DBUpdateType(Enum):
     UPDATE = 'Update'
     DELETE = 'Delete'
     FAILURE = 'Failure'
+    NOOP = 'No-Op'
 
 
 class ID3Tag(Enum):
@@ -40,6 +41,9 @@ class TrackDBCols(Enum):
 class ArtistFields(Enum):
     ARTISTS = 'artists'
     REMIXERS = 'remixers'
+
+
+COMMENT_FIELDS = set([c.value for c in TrackDBCols if not (c == TrackDBCols.ID or c == TrackDBCols.COMMENT)])
 
 
 METADATA_KEY_TO_ID3 = {

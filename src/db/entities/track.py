@@ -42,3 +42,7 @@ class Track(Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, Sequence('track_seq', metadata=metadata), primary_key=True, index=True, unique=True)
+
+    def get_primary_key(self):
+        """ TODO. """
+        return '%d %s' % (self.id, self.title)
