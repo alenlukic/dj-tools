@@ -4,7 +4,7 @@ import traceback
 
 
 def get_banner(message):
-    return '=' * len(message)
+    return '=' * min(120, len(message))
 
 
 def handle_error(error, err_message_prefix='Exception occurred', err_log_function=print):

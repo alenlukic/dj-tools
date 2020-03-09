@@ -12,7 +12,7 @@ from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import *
 from src.tools.data_management.audio_file import AudioFile
 from src.utils.data_management import split_artist_string
-from src.utils.errors import handle_error
+from src.utils.errors import *
 from src.utils.file_operations import get_audio_files
 
 
@@ -133,14 +133,14 @@ class DataManager:
 
                 # Update artists
                 artist_updates = self.update_artists(session, comment)
-                self._print_database_operation_statuses('Artist update statuses for %s' % title, artist_updates)
+                DataManager.print_database_operation_statuses('Artist update statuses for %s' % title, artist_updates)
 
                 # Add artist tracks
                 track_id = session.query(Track).filter_by(file_path=new_track_path).first().id
                 successful_artist_ids = [a for a, s in artist_updates.items() if s != DBUpdateType.FAILURE]
                 artist_track_updates = self.insert_artist_tracks(session, track_id, successful_artist_ids)
-                self._print_database_operation_statuses('Artist track updates statuses for %s' % title,
-                                                        artist_track_updates)
+                DataManager.print_database_operation_statuses('Artist track updates statuses for %s' % title,
+                                                              artist_track_updates)
 
         except Exception as e:
             handle_error(e)
@@ -253,10 +253,10 @@ class DataManager:
 
         try:
             deletion_statuses, artist_ids_to_update = self.delete_artist_tracks(session, track_ids)
-            self._print_database_operation_statuses('Artist track deletion statuses', deletion_statuses)
+            DataManager.print_database_operation_statuses('Artist track deletion statuses', deletion_statuses)
 
             update_statuses = self.update_artist_counts(session, artist_ids_to_update)
-            self._print_database_operation_statuses('Artist track count update statuses', update_statuses)
+            DataManager.print_database_operation_statuses('Artist track count update statuses', update_statuses)
 
             track_deletion_statuses = {}
             for track_id in track_ids:
@@ -269,7 +269,7 @@ class DataManager:
                     track_deletion_statuses[track_id] = DBUpdateType.FAILURE
                     continue
 
-            self._print_database_operation_statuses('Track deletion statuses', track_deletion_statuses)
+            DataManager.print_database_operation_statuses('Track deletion statuses', track_deletion_statuses)
 
             print('Committing session')
             session.commit()
@@ -338,11 +338,72 @@ class DataManager:
 
         return update_statuses
 
-    def _print_database_operation_statuses(self, prefix, updates):
+    def sync_track_fields(self, tracks):
+        """
+        Sync track field values in DB and comments. Prefer DB values when available.
+
+        :param tracks: Set of tracks for which to sync fields.
+        """
+
+        sync_statuses = {}
+        update_msg = 'Updating %s field \'%s\' using %s value: %s -> %s'
+
+        for track in tracks:
+            track_pk = track.get_primary_key()
+            log_buffer = []
+
+            try:
+                try:
+                    comment = literal_eval(track.comment)
+                except Exception:
+                    log_buffer.append('Could not load comment')
+                    comment = {}
+
+                for field in COMMENT_FIELDS:
+                    col_value = getattr(track, field, None)
+                    comment_value = comment.get(field, None)
+
+                    if col_value is None and comment_value is None:
+                        log_buffer.append('%s is null in DB and comment')
+                        continue
+
+                    if col_value == comment_value:
+                        continue
+
+                    if col_value is not None:
+                        log_buffer.append(update_msg % ('comment', field, 'column', str(comment_value), str(col_value)))
+                        comment[field] = col_value
+
+                    elif col_value is None and comment_value is not None:
+                        log_buffer.append(update_msg % ('column', field, 'comment', str(None), str(comment_value)))
+                        setattr(track, field, comment_value)
+
+                if len(log_buffer) > 0:
+                    progress_msg = 'Sync log for %s' % track_pk
+                    banner = get_banner(progress_msg)
+                    print('\n%s' % banner)
+                    print(progress_msg)
+                    print('%s' % banner)
+                    print('\n'.join(log_buffer))
+
+                    track.comment = str(comment)
+                    sync_statuses[track.id] = DBUpdateType.UPDATE
+                else:
+                    sync_statuses[track.id] = DBUpdateType.NOOP
+
+            except Exception as e:
+                handle_error(e, 'Unexpected exception syncing fields for %s' % track_pk)
+                sync_statuses[track.id] = DBUpdateType.FAILURE
+                continue
+
+        return sync_statuses
+
+    @staticmethod
+    def print_database_operation_statuses(prefix, updates):
         """
         Print status of attempted database operations.
 
         :param prefix: Message to print before update statuses
         :param updates: Mapping of unique identifier (primary key-like) to status of associated DB op
         """
-        print('%s:\n%s' % (prefix, json.dumps({k: v.value for k, v in updates.items()}, indent=1)))
+        print('%s:\n%s\n' % (prefix, json.dumps({k: v.value for k, v in updates.items()}, indent=1)))

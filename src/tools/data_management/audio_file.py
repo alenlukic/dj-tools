@@ -23,7 +23,7 @@ class AudioFile:
         self.basename = path.basename(full_path)
         self.id3 = self.read_id3()
         self.tags = self.read_tags()
-        self.metadata = self.generate_metadata()
+        self.metadata = None
 
     def generate_metadata(self):
         """ Generates audio metadata. """
@@ -211,6 +211,8 @@ class AudioFile:
 
     def get_metadata(self):
         """ Return track's metadata dict. """
+        if self.metadata is None:
+            self.metadata = self.generate_metadata()
         return self.metadata
 
     def get_tag(self, tag, default=None):
