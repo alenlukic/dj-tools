@@ -168,7 +168,6 @@ class DataManager:
         columns_to_update = [c for c in ALL_TRACK_DB_COLS if not (c == 'id' or c == 'file_path' or c == 'date_added')]
 
         try:
-
             for track_path, track in tracks.items():
                 # Update ID3 tags
                 track.write_tags()
