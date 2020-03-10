@@ -12,7 +12,8 @@ from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import *
 from src.tools.data_management.audio_file import AudioFile
 from src.utils.data_management import split_artist_string
-from src.utils.errors import *
+from src.utils.common import get_banner
+from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
 
 
@@ -108,10 +109,10 @@ class DataManager:
 
         session = self.database.create_session()
         try:
-            for new_track_path, track in tracks.items():
-                # Update ID3 tags
-                track.write_tags()
+            artist_updates = {}
+            artist_track_updates = {}
 
+            for new_track_path, track in tracks.items():
                 # Create row in track table
                 track_metadata = track.get_metadata()
                 db_row = {k: v for k, v in track_metadata.items() if k in ALL_TRACK_DB_COLS}
@@ -120,8 +121,13 @@ class DataManager:
                 try:
                     session.add(Track(**db_row))
                     session.commit()
+
+                    # Update ID3 tags only after saving to DB
+                    track.write_tags()
+
                 except Exception as e:
                     handle_error(e)
+                    session.rollback()
                     continue
 
                 try:
@@ -132,18 +138,20 @@ class DataManager:
                 title = comment.get(TrackDBCols.TITLE.value)
 
                 # Update artists
-                artist_updates = self.update_artists(session, comment)
-                DataManager.print_database_operation_statuses('Artist update statuses for %s' % title, artist_updates)
+                artist_updates_result = self.update_artists(session, comment)
+                artist_updates[title] = artist_updates_result
 
                 # Add artist tracks
                 track_id = session.query(Track).filter_by(file_path=new_track_path).first().id
-                successful_artist_ids = [a for a, s in artist_updates.items() if s != DBUpdateType.FAILURE]
-                artist_track_updates = self.insert_artist_tracks(session, track_id, successful_artist_ids)
-                DataManager.print_database_operation_statuses('Artist track updates statuses for %s' % title,
-                                                              artist_track_updates)
+                successful_artist_ids = [a for a, s in artist_updates_result.items() if s != DBUpdateType.FAILURE.value]
+                artist_track_updates[title] = self.insert_artist_tracks(session, track_id, successful_artist_ids)
+
+            DataManager.print_database_operation_statuses('Artist updates', artist_updates)
+            DataManager.print_database_operation_statuses('Artist track updates', artist_track_updates)
 
         except Exception as e:
             handle_error(e)
+            session.rollback()
             raise e
 
         finally:
@@ -160,6 +168,7 @@ class DataManager:
         columns_to_update = [c for c in ALL_TRACK_DB_COLS if not (c == 'id' or c == 'file_path' or c == 'date_added')]
 
         try:
+
             for track_path, track in tracks.items():
                 # Update ID3 tags
                 track.write_tags()
@@ -207,14 +216,14 @@ class DataManager:
                     session.commit()
 
                     artist_row = session.query(Artist).filter_by(name=a).first()
-                    artist_updates[artist_row.id] = DBUpdateType.INSERT
+                    artist_updates[artist_row.id] = DBUpdateType.INSERT.value
                 except Exception as e:
                     handle_error(e)
-                    artist_updates[a] = DBUpdateType.FAILURE
+                    artist_updates[a] = DBUpdateType.FAILURE.value
                     continue
             else:
                 artist_row.track_count += 1
-                artist_updates[artist_row.id] = DBUpdateType.UPDATE
+                artist_updates[artist_row.id] = DBUpdateType.UPDATE.value
 
         return artist_updates
 
@@ -234,10 +243,10 @@ class DataManager:
                 session.commit()
 
                 artist_track_row = session.query(ArtistTrack).filter_by(artist_id=artist_id).first()
-                artist_track_updates[artist_track_row.id] = DBUpdateType.INSERT
+                artist_track_updates[artist_track_row.id] = DBUpdateType.INSERT.value
             except Exception as e:
                 handle_error(e)
-                artist_track_updates[artist_id] = DBUpdateType.FAILURE
+                artist_track_updates[artist_id] = DBUpdateType.FAILURE.value
                 continue
 
         return artist_track_updates
@@ -263,10 +272,10 @@ class DataManager:
                 try:
                     track = session.query(Track).filter_by(id=track_id).first()
                     session.delete(track)
-                    track_deletion_statuses[track_id] = DBUpdateType.DELETE
+                    track_deletion_statuses[track_id] = DBUpdateType.DELETE.value
                 except Exception as e:
                     handle_error(e)
-                    track_deletion_statuses[track_id] = DBUpdateType.FAILURE
+                    track_deletion_statuses[track_id] = DBUpdateType.FAILURE.value
                     continue
 
             DataManager.print_database_operation_statuses('Track deletion statuses', track_deletion_statuses)
@@ -301,11 +310,11 @@ class DataManager:
                 try:
                     session.delete(at)
                     artist_ids_to_update[artist_id] += 1
-                    deletion_statuses[(track_id, artist_id)] = DBUpdateType.DELETE
+                    deletion_statuses[(track_id, artist_id)] = DBUpdateType.DELETE.value
 
                 except Exception as e:
                     handle_error(e)
-                    deletion_statuses[(track_id, artist_id)] = DBUpdateType.FAILURE
+                    deletion_statuses[(track_id, artist_id)] = DBUpdateType.FAILURE.value
                     continue
 
         return deletion_statuses, artist_ids_to_update
@@ -327,13 +336,13 @@ class DataManager:
 
                 if artist.track_count == 0:
                     session.delete(artist)
-                    update_statuses[aid] = DBUpdateType.DELETE
+                    update_statuses[aid] = DBUpdateType.DELETE.value
                 else:
-                    update_statuses[aid] = DBUpdateType.UPDATE
+                    update_statuses[aid] = DBUpdateType.UPDATE.value
 
             except Exception as e:
                 handle_error(e)
-                update_statuses[aid] = DBUpdateType.FAILURE
+                update_statuses[aid] = DBUpdateType.FAILURE.value
                 continue
 
         return update_statuses
@@ -349,7 +358,7 @@ class DataManager:
         update_msg = 'Updating %s field \'%s\' using %s value: %s -> %s'
 
         for track in tracks:
-            track_pk = track.get_primary_key()
+            track_pk = track.get_id_title_identifier()
             log_buffer = []
 
             try:
@@ -387,13 +396,13 @@ class DataManager:
                     print('\n'.join(log_buffer))
 
                     track.comment = str(comment)
-                    sync_statuses[track.id] = DBUpdateType.UPDATE
+                    sync_statuses[track.id] = DBUpdateType.UPDATE.value
                 else:
-                    sync_statuses[track.id] = DBUpdateType.NOOP
+                    sync_statuses[track.id] = DBUpdateType.NOOP.value
 
             except Exception as e:
                 handle_error(e, 'Unexpected exception syncing fields for %s' % track_pk)
-                sync_statuses[track.id] = DBUpdateType.FAILURE
+                sync_statuses[track.id] = DBUpdateType.FAILURE.value
                 continue
 
         return sync_statuses
@@ -406,4 +415,9 @@ class DataManager:
         :param prefix: Message to print before update statuses
         :param updates: Mapping of unique identifier (primary key-like) to status of associated DB op
         """
-        print('%s:\n%s\n' % (prefix, json.dumps({k: v.value for k, v in updates.items()}, indent=1)))
+
+        banner = get_banner(prefix)
+        print('\n%s' % banner)
+        print(prefix)
+        print(banner)
+        print('%s' % json.dumps(updates, indent=1))

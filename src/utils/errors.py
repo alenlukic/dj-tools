@@ -2,9 +2,7 @@ import os
 import sys
 import traceback
 
-
-def get_banner(message):
-    return '=' * min(120, len(message))
+from src.utils.common import get_banner
 
 
 def handle_error(error, err_message_prefix='Exception occurred', err_log_function=print):

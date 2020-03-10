@@ -1,8 +1,11 @@
 from os.path import join
 import sys
 
+from src.db import database
+from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR, TMP_MUSIC_DIR
 from src.tools.data_management.data_manager import DataManager
+from src.utils.errors import handle_error
 
 
 def ingest_tracks(dm, upsert=False):
@@ -13,12 +16,32 @@ def ingest_tracks(dm, upsert=False):
     :param upsert: (optional) When True, will attempt to update existing DB rows rather than creating new ones.
     """
 
-    kwargs = {
-        'target_dir': PROCESSED_MUSIC_DIR,
-        'upsert': upsert
-    }
-    dm.ingest_tracks(join(TMP_MUSIC_DIR, 'mp3'), **kwargs)
-    dm.ingest_tracks(join(TMP_MUSIC_DIR, 'lossless'), **kwargs)
+    try:
+        kwargs = {
+            'target_dir': PROCESSED_MUSIC_DIR,
+            'upsert': upsert
+        }
+        dm.ingest_tracks(join(TMP_MUSIC_DIR, 'mp3'), **kwargs)
+        dm.ingest_tracks(join(TMP_MUSIC_DIR, 'lossless'), **kwargs)
+
+        if not upsert:
+            session = database.create_session()
+
+            try:
+                tracks = session.query(Track).all()
+                dm.sync_track_fields(tracks)
+                session.commit()
+
+            except Exception as e:
+                handle_error(e, 'Exception occurred trying to sync tracks post-ingest')
+                session.rollback()
+
+            finally:
+                session.close()
+
+    except Exception as e:
+        handle_error(e, 'Exception occurred trying to ingest tracks')
+        return
 
 
 if __name__ == '__main__':

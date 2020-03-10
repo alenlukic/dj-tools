@@ -1,6 +1,14 @@
 from math import log2
 
 
+def get_banner(message):
+    """
+    Returns a 'banner' of repeated '=' characters of length equivalent to given message or 120 - whichever is smaller.
+    :param message: Message on whch to base banner length
+    """
+    return '=' * min(120, len(message))
+
+
 def is_empty(value):
     """
     Returns True if the value is "empty," which is defined as one of the following:

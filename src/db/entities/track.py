@@ -43,6 +43,6 @@ class Track(Base):
 
     id = Column(Integer, Sequence('track_seq', metadata=metadata), primary_key=True, index=True, unique=True)
 
-    def get_primary_key(self):
-        """ TODO. """
+    def get_id_title_identifier(self):
+        """ Returns identifier for this track in [id] [title] format. """
         return '%d %s' % (self.id, self.title)
