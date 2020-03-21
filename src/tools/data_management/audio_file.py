@@ -264,10 +264,14 @@ class AudioFile:
             if save:
                 self.id3.save()
 
-    def write_tags(self):
-        """ Writes metadata to ID3 tags and saves to file. """
+    def write_tags(self, tags_to_write=None):
+        """
+        Writes metadata to ID3 tags and saves to file.
 
-        track_metadata = self.get_metadata()
+        :param tags_to_write: (optional) Dictionary mapping tag to value which should be written.
+        """
+
+        track_metadata = tags_to_write or self.get_metadata()
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
             self.write_tag(mk, v)

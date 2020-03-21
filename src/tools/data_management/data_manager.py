@@ -357,6 +357,7 @@ class DataManager:
         update_msg = 'Updating %s field \'%s\' using %s value: %s -> %s'
 
         for track in tracks:
+            af = AudioFile(track.file_path)
             track_pk = track.get_id_title_identifier()
             log_buffer = []
 
@@ -367,24 +368,30 @@ class DataManager:
                     log_buffer.append('Could not load comment')
                     comment = {}
 
+                tags_to_update = {}
                 for field in COMMENT_FIELDS:
                     col_value = getattr(track, field, None)
                     comment_value = comment.get(field, None)
 
                     if col_value is None and comment_value is None:
-                        log_buffer.append('%s is null in DB and comment')
+                        log_buffer.append('%s is null in DB and comment' % field)
                         continue
 
                     if col_value == comment_value:
+                        tags_to_update[field] = col_value
                         continue
 
                     if col_value is not None:
                         log_buffer.append(update_msg % ('comment', field, 'column', str(comment_value), str(col_value)))
                         comment[field] = col_value
+                        tags_to_update[field] = col_value
 
                     elif col_value is None and comment_value is not None:
                         log_buffer.append(update_msg % ('column', field, 'comment', str(None), str(comment_value)))
                         setattr(track, field, comment_value)
+                        tags_to_update[field] = comment_value
+
+                af.write_tags(tags_to_update)
 
                 if len(log_buffer) > 0:
                     progress_msg = 'Sync log for %s' % track_pk
