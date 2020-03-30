@@ -62,9 +62,9 @@ def run_backup():
     for source_name, source_path in source_map.items():
         try:
             if source_name not in backup_map:
-                upsert_map[source_map[source_name]] = join(BACKUP_MUSIC_DIR, source_name)
-            elif should_backup_file(source_map[source_name], backup_map[source_name]):
-                upsert_map[source_map[source_name]] = backup_map[source_name]
+                upsert_map[source_path] = join(BACKUP_MUSIC_DIR, source_name)
+            elif should_backup_file(source_path, backup_map[source_name]):
+                upsert_map[source_path] = backup_map[source_name]
         except Exception as e:
             handle_error(e, 'Error occurred during upsert phase of audio files backup', logging.error)
             continue
