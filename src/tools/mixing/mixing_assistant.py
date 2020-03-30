@@ -93,7 +93,7 @@ class MixingAssistant:
         Prints transition matches for the given track.
 
         :param track_title - Formatted track title (with metadata)
-         """
+        """
 
         session = database.create_session()
         try:

@@ -52,6 +52,7 @@ class DataManager:
                 old_path = join(input_dir, f)
                 old_base_name = basename(old_path)
 
+                # Load track and read ID3 tags
                 try:
                     track = AudioFile(old_path)
                 except Exception as e:
@@ -74,8 +75,9 @@ class DataManager:
                 file_ext = splitext(old_path)[-1].strip()
                 new_path = join(target_dir, old_base_name if upsert else track_title + file_ext)
 
+                # Ensure we're not adding a duplicate track
                 existing_track_check = session.query(Track).filter_by(file_path=new_path).first()
-                if existing_track_check is not None:
+                if existing_track_check is not None and not upsert:
                     print('Existing track (id: %d) in DB with path %s - skipping' % (existing_track_check.id, new_path))
                     continue
 
@@ -113,12 +115,13 @@ class DataManager:
             artist_track_updates = {}
 
             for new_track_path, track in tracks.items():
-                # Create row in track table
+                # Create new row
                 track_metadata = track.get_metadata()
                 db_row = {k: v for k, v in track_metadata.items() if k in ALL_TRACK_DB_COLS}
                 db_row[TrackDBCols.FILE_PATH.value] = new_track_path
 
                 try:
+                    # Persist row to DB
                     session.add(Track(**db_row))
                     session.commit()
 
@@ -260,12 +263,15 @@ class DataManager:
         session = database.create_session()
 
         try:
+            # Delete entries from artist_track tables first
             deletion_statuses, artist_ids_to_update = self.delete_artist_tracks(session, track_ids)
             DataManager.print_database_operation_statuses('Artist track deletion statuses', deletion_statuses)
 
+            # Then update artist track count colun
             update_statuses = self.update_artist_counts(session, artist_ids_to_update)
             DataManager.print_database_operation_statuses('Artist track count update statuses', update_statuses)
 
+            # Finally, delete hte tracks themselves
             track_deletion_statuses = {}
             for track_id in track_ids:
                 try:
@@ -305,15 +311,14 @@ class DataManager:
 
             for at in artist_tracks:
                 artist_id = at.artist_id
-
                 try:
                     session.delete(at)
                     artist_ids_to_update[artist_id] += 1
-                    deletion_statuses[(track_id, artist_id)] = DBUpdateType.DELETE.value
+                    deletion_statuses[str((track_id, artist_id))] = DBUpdateType.DELETE.value
 
                 except Exception as e:
                     handle_error(e)
-                    deletion_statuses[(track_id, artist_id)] = DBUpdateType.FAILURE.value
+                    deletion_statuses[str((track_id, artist_id))] = DBUpdateType.FAILURE.value
                     continue
 
         return deletion_statuses, artist_ids_to_update
@@ -369,18 +374,20 @@ class DataManager:
                     comment = {}
 
                 tags_to_update = {}
+
                 for field in COMMENT_FIELDS:
                     col_value = getattr(track, field, None)
                     comment_value = comment.get(field, None)
 
+                    # Skip any fields without values in either DB or comment
                     if col_value is None and comment_value is None:
                         log_buffer.append('%s is null in DB and comment' % field)
                         continue
 
                     if col_value == comment_value:
-                        tags_to_update[field] = col_value
                         continue
 
+                    # Prefer column value over comment value
                     if col_value is not None:
                         log_buffer.append(update_msg % ('comment', field, 'column', str(comment_value), str(col_value)))
                         comment[field] = col_value
@@ -391,8 +398,6 @@ class DataManager:
                         setattr(track, field, comment_value)
                         tags_to_update[field] = comment_value
 
-                af.write_tags(tags_to_update)
-
                 if len(log_buffer) > 0:
                     progress_msg = 'Sync log for %s' % track_pk
                     banner = get_banner(progress_msg)
@@ -401,6 +406,7 @@ class DataManager:
                     print('%s' % banner)
                     print('\n'.join(log_buffer))
 
+                    af.write_tags(tags_to_update)
                     track.comment = str(comment)
                     sync_statuses[track.id] = DBUpdateType.UPDATE.value
                 else:
