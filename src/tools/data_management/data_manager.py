@@ -271,7 +271,7 @@ class DataManager:
             update_statuses = self.update_artist_counts(session, artist_ids_to_update)
             DataManager.print_database_operation_statuses('Artist track count update statuses', update_statuses)
 
-            # Finally, delete hte tracks themselves
+            # Finally, delete the tracks themselves
             track_deletion_statuses = {}
             for track_id in track_ids:
                 try:
