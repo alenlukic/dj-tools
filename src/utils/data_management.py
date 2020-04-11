@@ -1,6 +1,6 @@
 import re
 
-from src.definitions.data_management import BAR_REGEX, PAREN_REGEX
+from src.definitions.data_management import BAR_REGEX, MD_COMPOSITE_REGEX, PAREN_REGEX
 from src.utils.common import is_empty
 
 
@@ -36,7 +36,8 @@ LABEL_CANON = {
 
 
 def get_canonical_form(segment, canon):
-    return canon.get(segment, segment.capitalize() if re.match(PAREN_REGEX, segment) is None else segment)
+    return (canon.get(segment, ' '.join([ss.capitalize() for ss in segment.split()])
+            if re.match(PAREN_REGEX, segment) is None else segment))
 
 
 def transform_segments(segments, canon):
@@ -47,6 +48,19 @@ def transform_parens(segment, canon):
     phrase = segment[1:-1]
     return segment.upper() if len(phrase) == 2 else '(' + ' '.join(transform_segments(phrase.split(), canon)) + ')'
 
+
+def dedupe_title(title):
+    """ TODO. """
+
+    if title is None:
+        return title
+
+    md_matches = re.findall(MD_COMPOSITE_REGEX, title)
+    if len(md_matches) > 0:
+        md_match = md_matches[0]
+        return md_match + title.split(md_match)[-1]
+
+    return title
 
 def split_artist_string(artists):
     """
@@ -93,6 +107,10 @@ def transform_genre(genre):
 
         return parent_genre
 
+    paren_matches = re.findall(PAREN_REGEX, genre)
+    if len(paren_matches) > 0:
+        return genre.split(paren_matches[0])[0]
+
     return get_canonical_form(genre, GENRE_CANON)
 
 
@@ -124,7 +142,7 @@ def transform_label(label):
         paren_end = paren_begin + len(paren_match)
 
         pre_segments = transform_segments([lp.strip() for lp in label_lower[0:paren_begin].split()], LABEL_CANON)
-        parens = [transform_parens(label_lower[paren_begin:paren_end]), LABEL_CANON]
+        parens = [transform_parens(label_lower[paren_begin:paren_end], LABEL_CANON)]
         post_segments = ([] if paren_end == len(label_lower) - 1 else
                          [lp.strip() for lp in label_lower[paren_end:].split()])
         post_segments = transform_segments(post_segments, LABEL_CANON)
