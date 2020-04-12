@@ -50,7 +50,7 @@ class MixingAssistant:
 
         expected_args = command.get_arguments()
         num_args = len(args)
-        num_expected_args = len(expected_args)
+        num_expected_args = len([arg for arg in expected_args if arg.required])
         if num_args != num_expected_args:
             formatted_args = '' if num_args == 0 else ' - got: %s' % ' '.join(args)
             raise CommandParsingException('%s expects %d arguments%s.' % (cmd_name, num_expected_args, formatted_args))
@@ -70,14 +70,14 @@ class MixingAssistant:
 
         print('Track data reloaded.')
 
-    def ingest_tracks(self, upsert):
+    def ingest_tracks(self, upsert=None):
         """
         Ingest tracks in tmp directories.
 
         :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
         """
 
-        upsert_lower = upsert.lower()
+        upsert_lower = (upsert or '').lower()
         upsert_tracks = True if upsert_lower == 'true' else False
         ingest_tracks(self.dm, upsert_tracks)
 

@@ -42,7 +42,7 @@ COMMANDS = {
         'Ingest tracks in the unprocessed audio directory.',
         'ingest_tracks',
         {},
-        [CommandArgument('upsert', 'boolean', 'Indicates whether to upsert.', 0, 'False')]
+        [CommandArgument('upsert', 'boolean', 'Indicates whether to upsert.', 0, 'False', False)]
     )
 }
 

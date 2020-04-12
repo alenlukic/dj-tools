@@ -32,7 +32,7 @@ class AudioFile:
         key = self.format_key()
         camelot_code = self.format_camelot_code(key)
         key = key.capitalize()
-        title = self.generate_title(camelot_code, key, bpm).strip()
+        title = dedupe_title(self.generate_title(camelot_code, key, bpm).strip())
 
         metadata = {
             TrackDBCols.FILE_PATH.value: self.full_path,

@@ -11,7 +11,7 @@ from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import *
 from src.tools.data_management.audio_file import AudioFile
-from src.utils.data_management import split_artist_string
+from src.utils.data_management import dedupe_title, split_artist_string
 from src.utils.common import get_banner
 from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
@@ -383,6 +383,20 @@ class DataManager:
                     if col_value is None and comment_value is None:
                         log_buffer.append('%s is null in DB and comment' % field)
                         continue
+
+                    # Dedupe titles
+                    if field == TrackDBCols.TITLE:
+                        updated_col_title = dedupe_title(col_value)
+                        updated_comment_title = dedupe_title(comment_value)
+                        title = updated_col_title or updated_comment_title
+                        if title != col_value or title != comment_value:
+                            log_buffer.append(
+                                update_msg % ('comment', field, 'deduped', str(comment_value), str(title)))
+                            log_buffer.append(update_msg % ('column', field, 'deduped', str(col_value), str(title)))
+                            comment[field] = title
+                            setattr(track, field, title)
+                            tags_to_update[field] = title
+                            continue
 
                     if col_value == comment_value:
                         continue
