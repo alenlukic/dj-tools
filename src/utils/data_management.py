@@ -50,7 +50,11 @@ def transform_parens(segment, canon):
 
 
 def dedupe_title(title):
-    """ TODO. """
+    """
+    Remove repetitions from the given title.
+
+    :param title: Title to dedupe
+    """
 
     if title is None:
         return title
@@ -61,6 +65,7 @@ def dedupe_title(title):
         return md_match + title.split(md_match)[-1]
 
     return title
+
 
 def split_artist_string(artists):
     """
