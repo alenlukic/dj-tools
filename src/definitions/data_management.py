@@ -20,6 +20,7 @@ class ID3Tag(Enum):
     LABEL = 'TPUB'
     USER_COMMENT = 'TXXX'
     COMMENT = 'COMM'
+    COMMENT_XXX = 'COMM::XXX'
     COMMENT_ENG = 'COMM::eng'
     BEATPORT = 'TENC'
 
@@ -45,18 +46,23 @@ class ArtistFields(Enum):
 
 COMMENT_FIELDS = set([c.value for c in TrackDBCols if not (c == TrackDBCols.ID or c == TrackDBCols.COMMENT)])
 
+ID3_COMMENT_FIELDS = set([c.value for c in [TrackDBCols.TITLE, TrackDBCols.BPM, TrackDBCols.KEY, TrackDBCols.GENRE,
+                                            TrackDBCols.LABEL, TrackDBCols.COMMENT]])
 
 METADATA_KEY_TO_ID3 = {
     TrackDBCols.TITLE.value: ID3Tag.TITLE.value,
     TrackDBCols.BPM.value: ID3Tag.BPM.value,
     TrackDBCols.KEY.value: ID3Tag.KEY.value,
     TrackDBCols.GENRE.value: ID3Tag.GENRE.value,
-    TrackDBCols.LABEL: ID3Tag.LABEL.value,
+    TrackDBCols.LABEL.value: ID3Tag.LABEL.value,
     TrackDBCols.COMMENT.value: ID3Tag.COMMENT.value,
     ArtistFields.ARTISTS.value: ID3Tag.ARTIST.value,
     ArtistFields.REMIXERS.value: ID3Tag.REMIXER.value
 }
 
+ID3_SYNONYMS = {
+    ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value]
+}
 
 ALL_TRACK_DB_COLS = set([c.value for c in TrackDBCols])
 
