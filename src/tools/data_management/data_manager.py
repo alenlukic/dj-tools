@@ -420,6 +420,7 @@ class DataManager:
                     print('%s' % banner)
                     print('\n'.join(log_buffer))
 
+                    tags_to_update = {k: v for k, v in tags_to_update.items() if k in ID3_COMMENT_FIELDS}
                     af.write_tags(tags_to_update)
                     track.comment = str(comment)
                     sync_statuses[track.id] = DBUpdateType.UPDATE.value
@@ -432,6 +433,51 @@ class DataManager:
                 continue
 
         return sync_statuses
+
+    def sync_track_tags(self, tracks):
+        """
+        Sync track field values in DB/comments to ID3 tags.
+
+        :param tracks: Set of tracks for which to sync fields.
+        """
+
+        for track in tracks:
+            af = AudioFile(track.file_path)
+            track_pk = track.get_id_title_identifier()
+
+            try:
+                try:
+                    comment = literal_eval(track.comment)
+                except Exception:
+                    print('Could not load comment for %s' % track_pk)
+                    comment = {}
+
+                tags_to_update = {}
+
+                for field in ID3_COMMENT_FIELDS:
+                    id3_tag = METADATA_KEY_TO_ID3.get(field)
+
+                    col_value = getattr(track, field, None)
+                    comment_value = comment.get(field, None)
+                    old_value = af.get_tag(id3_tag)
+                    new_value = col_value or comment_value
+
+                    if str(new_value) != str(old_value):
+                        tags_to_update[field] = new_value
+
+                if len(tags_to_update) > 0:
+                    af.write_tags(tags_to_update)
+
+                    progress_msg = 'Tags saved for %s' % track_pk
+                    banner = get_banner(progress_msg)
+                    print('\n%s' % banner)
+                    print(progress_msg)
+                    print('%s' % banner)
+                    print('\n'.join(['%s: %s' % (k, v) for k, v in tags_to_update.items()]))
+
+            except Exception as e:
+                handle_error(e, 'Unexpected exception syncing tags for %s' % track_pk)
+                continue
 
     @staticmethod
     def print_database_operation_statuses(prefix, updates):

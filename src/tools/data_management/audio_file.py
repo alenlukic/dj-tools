@@ -2,8 +2,10 @@ from ast import literal_eval
 from collections import ChainMap, defaultdict
 from os import path, stat
 from time import ctime
+from unicodedata import normalize
 
 import mutagen
+from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
 from src.definitions.data_management import *
 from src.utils.data_management import *
@@ -222,7 +224,29 @@ class AudioFile:
         :param tag: Tag whose value to return.
         :param default: Default value to return if tag value not present.
         """
-        return self.tags.get(tag.value, default)
+
+        try:
+            tag_val = tag.value
+        except Exception:
+            tag_val = tag
+
+        if tag_val not in self.tags:
+            tag_val = self.get_synonym_with_value(tag_val)
+
+        return self.tags.get(tag_val, default)
+
+    def get_synonym_with_value(self, tag):
+        """
+        If given tag not present in tag set, try to find a synonymous tag's value.
+
+        :param tag: Missing tag.
+        """
+
+        syns = [syn for syn in ID3_SYNONYMS.get(tag, [tag]) if syn in self.tags]
+        if len(syns) == 0:
+            return None
+
+        return syns[0]
 
     def get_tags(self):
         """ Gets ID3 tag dict. """
@@ -241,14 +265,11 @@ class AudioFile:
 
         return id3
 
-    def save_id3(self):
-        """ Save ID3 tag values to file. """
-        self.id3.save()
-
     def read_tags(self):
         """ Read relevant tags from ID3 data. """
-        tag_dict = self.id3.items()
-        return defaultdict(str, {k: v.text[0] for k, v in tag_dict if k in ALL_ID3_TAGS and len(v.text or []) > 0})
+        tag_dict = {k: v for k, v in self.id3.items() if getattr(v, 'text', None) is not None}.items()
+        return defaultdict(str, {k: ''.join([str(t) for t in v.text]) if len(v.text) > 1 else v.text[0]
+                                 for k, v in tag_dict})
 
     def write_tag(self, tag, value, save=True):
         """
@@ -259,10 +280,33 @@ class AudioFile:
         :param save: Whether tag value should be saved to file immediately.
         """
 
-        if tag in self.id3:
-            self.id3[tag].text = [value]
-            if save:
-                self.id3.save()
+        text = [normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii') if type(value) == str else value]
+
+        if tag in self.tags:
+            if tag in ID3_SYNONYMS[ID3Tag.COMMENT.value]:
+                comm_tags_to_delete = [et for et in self.id3.keys() if et.startswith('COMM')]
+                for ct in comm_tags_to_delete:
+                    del self.id3[ct]
+                self.id3[ID3Tag.COMMENT.value] = COMM(text=text)
+            else:
+                self.id3[tag].text = text
+
+        elif tag in ALL_ID3_TAGS:
+            if tag == ID3Tag.TITLE.value:
+                self.id3[tag] = TIT2(text=text)
+            elif tag == ID3Tag.GENRE.value:
+                self.id3[tag] = TCON(text=text)
+            elif tag == ID3Tag.BPM.value:
+                self.id3[tag] = TBPM(text=text)
+            elif tag == ID3Tag.KEY.value:
+                self.id3[tag] = TKEY(text=text)
+            elif tag == ID3Tag.LABEL.value:
+                self.id3[tag] = TPUB(text=text)
+            elif tag == ID3Tag.COMMENT.value or tag == ID3Tag.COMMENT_ENG.value:
+                self.id3[ID3Tag.COMMENT.value] = COMM(text=text)
+
+        if save:
+            self.id3.save()
 
     def write_tags(self, tags_to_write=None):
         """
@@ -274,6 +318,12 @@ class AudioFile:
         track_metadata = tags_to_write or self.get_metadata()
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
-            self.write_tag(mk, v)
+            syn = self.get_synonym_with_value(mk)
+            if syn is not None:
+                self.write_tag(syn, v, False)
 
+        self.id3.save()
+
+    def save_tags(self):
+        """ Save ID3 tag values to file. """
         self.id3.save()
