@@ -18,8 +18,6 @@ from src.utils.logging import *
 class GDResource:
     def __init__(self, gd_resource):
         self.gd_resource = gd_resource
-        # self.gid = file_result['id']
-        # self.name = file_result['name']
 
     def get(self, attr):
         if self.gd_resource is None:
@@ -40,11 +38,12 @@ class GDResource:
         if obj is None:
             return 'null'
 
+        if type(obj) == datetime:
+            return obj.timestamp()
+
         try:
             return obj.__dict__
         except Exception:
-            if type(obj) == datetime:
-                return obj.timestamp()
             return str(obj)
 
 

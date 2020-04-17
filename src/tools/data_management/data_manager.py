@@ -389,13 +389,16 @@ class DataManager:
                         updated_col_title = dedupe_title(col_value)
                         updated_comment_title = dedupe_title(comment_value)
                         title = updated_col_title or updated_comment_title
+
                         if title != col_value or title != comment_value:
                             log_buffer.append(
                                 update_msg % ('comment', field, 'deduped', str(comment_value), str(title)))
                             log_buffer.append(update_msg % ('column', field, 'deduped', str(col_value), str(title)))
+
                             comment[field] = title
                             setattr(track, field, title)
                             tags_to_update[field] = title
+
                             continue
 
                     if col_value == comment_value:
@@ -423,6 +426,7 @@ class DataManager:
                     tags_to_update = {k: v for k, v in tags_to_update.items() if k in ID3_COMMENT_FIELDS}
                     af.write_tags(tags_to_update)
                     track.comment = str(comment)
+
                     sync_statuses[track.id] = DBUpdateType.UPDATE.value
                 else:
                     sync_statuses[track.id] = DBUpdateType.NOOP.value
@@ -430,6 +434,7 @@ class DataManager:
             except Exception as e:
                 handle_error(e, 'Unexpected exception syncing fields for %s' % track_pk)
                 sync_statuses[track.id] = DBUpdateType.FAILURE.value
+
                 continue
 
         return sync_statuses
