@@ -1,16 +1,15 @@
 from collections import ChainMap
 from datetime import datetime
-import io
 import json
 import pickle
 import os.path
 
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 from src.definitions.common import CONFIG
+from src.definitions.data_management import GD_TIMESTAMP_FORMAT as TS_FORMAT
 from src.utils.errors import handle_error
 from src.utils.logging import *
 
@@ -75,12 +74,7 @@ class GoogleDrive:
 
         return creds
 
-    def get_backup_files(self):
-        query_args = {
-            'q': '\'%s\' in parents' % self.backup_dir_id,
-            'fields': 'nextPageToken, files(id, name)',
-            'pageSize': 1000
-        }
+    def get_files(self, query_args):
         request = self.drive.files().list(**query_args)
         results = request.execute()
 
@@ -115,12 +109,18 @@ class GoogleDrive:
 
         return files
 
-    def get_target_revisions(self, files, query_args, latest_date):
-        for file in files:
-            args = dict(ChainMap(query_args, {'fileId': file.get('id')}))
-            revisions = self.drive.revisions().list(**args).execute().get('revisions', [])
-            revs = [{'id': r['id'], 'modifiedTime': datetime.strptime(
-                r['modifiedTime'], '%Y-%m-%dT%H:%M:%S.%fZ')} for r in revisions]
-            rev = sorted([r for r in revs if r['modifiedTime'] <= latest_date], key=lambda v: v['modifiedTime'])[-1]
+    def get_target_revisions(self, gd_resources, query_args, latest_date):
+        for gd_resource in gd_resources:
+            try:
+                args = dict(ChainMap(query_args, {'fileId': gd_resource.get('id')}))
+                results = self.drive.revisions().list(**args).execute().get('revisions', [])
 
-            file.set('revision', GDResource(rev))
+                revs = [{'id': r['id'], 'modifiedTime': datetime.strptime(
+                    r['modifiedTime'], TS_FORMAT)} for r in results]
+                revs = sorted([r for r in revs if r['modifiedTime'] <= latest_date], key=lambda x: x['modifiedTime'])
+                gd_resource.set('revision', GDResource(revs[-1]))
+
+            except Exception as e:
+                msg = 'Error occurred getting revision for %s' % gd_resource.get('name')
+                handle_error(e, msg, print_and_log)
+                continue
