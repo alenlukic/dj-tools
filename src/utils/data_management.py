@@ -5,7 +5,7 @@ from src.utils.common import is_empty
 
 
 GENRE_CANON = {
-    'Psy-Trance': 'Psytrance',
+    'Psy-Trance': 'Psytrance'
 }
 
 LABEL_CANON = {
