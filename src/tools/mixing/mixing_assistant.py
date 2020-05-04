@@ -194,12 +194,13 @@ class MixingAssistant:
 
         return results
 
-    def _get_matches_for_code(self, harmonic_codes, cur_track_md):
+    def _get_matches_for_code(self, harmonic_codes, cur_track_md, score_thresh=50):
         """
         Find matches for the given track.
 
         :param harmonic_codes: List of harmonic Camelot codes and their respective transition priorities.
         :param cur_track_md: Current track metadata.
+        :param score_thresh: Minimum transition score needed to include a match in results.
         """
 
         bpm = cur_track_md[TrackDBCols.BPM]
@@ -213,12 +214,20 @@ class MixingAssistant:
             hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
             lk_code = format_camelot_number((code_number - 7) % 12) + code_letter
 
-            same_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
-                            self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND))
-            higher_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
-                              self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND))
-            lower_key.extend(TransitionMatch(md, cur_track_md, priority) for md in
-                             self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND))
+            for md in self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND):
+                match = TransitionMatch(md, cur_track_md, priority)
+                if match.get_score() >= score_thresh:
+                    same_key.append(match)
+
+            for md in self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND):
+                match = TransitionMatch(md, cur_track_md, priority)
+                if match.get_score() >= score_thresh:
+                    higher_key.append(match)
+
+            for md in self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND):
+                match = TransitionMatch(md, cur_track_md, priority)
+                if match.get_score() >= score_thresh:
+                    lower_key.append(match)
 
         # Rank and format results
         same_key = sorted(same_key, reverse=True)
