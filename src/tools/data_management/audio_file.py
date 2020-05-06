@@ -1,5 +1,5 @@
 from ast import literal_eval
-from collections import ChainMap, defaultdict
+from collections import ChainMap
 from os import path, stat
 from time import ctime
 from unicodedata import normalize
@@ -230,7 +230,7 @@ class AudioFile:
         except Exception:
             tag_val = tag
 
-        if tag_val not in self.tags:
+        if self.tags.get(tag_val, '') == '':
             tag_val = self.get_synonym_with_value(tag_val)
 
         return self.tags.get(tag_val, default)
@@ -242,9 +242,9 @@ class AudioFile:
         :param tag: Missing tag.
         """
 
-        syns = [syn for syn in ID3_SYNONYMS.get(tag, [tag]) if syn in self.tags]
+        syns = [syn for syn in ID3_SYNONYMS.get(tag, []) if self.tags.get(syn, '') != '']
         if len(syns) == 0:
-            return None
+            return tag
 
         return syns[0]
 
@@ -267,9 +267,12 @@ class AudioFile:
 
     def read_tags(self):
         """ Read relevant tags from ID3 data. """
-        tag_dict = {k: v for k, v in self.id3.items() if getattr(v, 'text', None) is not None}.items()
-        return defaultdict(str, {k: ''.join([str(t) for t in v.text]) if len(v.text) > 1 else v.text[0]
-                                 for k, v in tag_dict})
+        id3_tags = self.id3.items()
+        td = {k: v for k, v in id3_tags if getattr(v, 'text', None) is not None}.items()
+        return ChainMap(
+            {k: ''.join([str(t) for t in v.text]) if len(v.text) > 1 else v.text[0] for k, v in td},
+            {k: getattr(id3_tags[k], 'text', [''])[0] if k in id3_tags else '' for k in ALL_ID3_TAGS}
+        )
 
     def write_tag(self, tag, value, save=True):
         """
@@ -282,7 +285,7 @@ class AudioFile:
 
         text = [normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii') if type(value) == str else value]
 
-        if tag in self.tags:
+        if tag in self.id3.keys():
             if tag in ID3_SYNONYMS[ID3Tag.COMMENT.value]:
                 comm_tags_to_delete = [et for et in self.id3.keys() if et.startswith('COMM')]
                 for ct in comm_tags_to_delete:
