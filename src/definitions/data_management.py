@@ -60,13 +60,13 @@ METADATA_KEY_TO_ID3 = {
     ArtistFields.REMIXERS.value: ID3Tag.REMIXER.value
 }
 
-ID3_SYNONYMS = {
+ID3_TAG_SYNONYMS = {
     ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value]
 }
 
 ALL_TRACK_DB_COLS = set([c.value for c in TrackDBCols])
 
-ALL_ID3_TAGS = set([t.value for t in ID3Tag])
+TRACK_MD_ID3_TAGS = set([t.value for t in ID3Tag])
 
 REQUIRED_ID3_TAGS = {ID3Tag.TITLE.value, ID3Tag.ARTIST.value, ID3Tag.BPM.value, ID3Tag.KEY.value}
 
