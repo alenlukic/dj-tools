@@ -225,15 +225,19 @@ class AudioFile:
         :param default: Default value to return if tag value not present.
         """
 
-        try:
-            tag_val = tag.value
-        except Exception:
-            tag_val = tag
+        id3_tag = getattr(tag, 'value', tag)
+        tag_values = self.tags.get(id3_tag, [])
 
-        if len(self.tags.get(tag_val, [])) == 0:
-            tag_val = self.get_synonym_values(tag_val)
+        if len(tag_values) > 0:
+            # TODO: possible special handling for specific tags
+            return tag_values[0]
 
-        return self.tags.get(tag_val, default)
+        synonym_values = list(self.get_synonym_values(id3_tag).values())
+        if len(synonym_values) > 0:
+            # TODO: possible special handling for specific tags
+            return synonym_values[0][0]
+
+        return default
 
     def get_tag_synonyms(self, tag):
         return ID3_TAG_SYNONYMS.get(tag, [tag])
@@ -244,9 +248,9 @@ class AudioFile:
 
         :param tag: Missing tag.
         """
-
-        syn_vals = {syn: self.tags.get(syn, []) for syn in self.get_tag_synonyms(tag)}
-        return {syn: syn_val for syn, syn_val in syn_vals.items() if len(syn_val) > 0}
+        return {k: v for k, v in {
+            syn: self.tags.get(syn, []) for syn in self.get_tag_synonyms(tag)
+        }.items() if len(v) > 0}
 
     def get_tags(self):
         """ Gets ID3 tag dict. """
@@ -258,7 +262,6 @@ class AudioFile:
 
     def read_id3(self):
         """ Read ID3 data from file. """
-
         id3 = mutagen.File(self.full_path)
         if id3 is None:
             raise Exception('Could not load ID3 data for %s' % self.full_path)
@@ -282,13 +285,7 @@ class AudioFile:
         text = [normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii') if type(value) == str else value]
 
         if tag in self.id3.keys():
-            if tag in ID3_TAG_SYNONYMS[ID3Tag.COMMENT.value]:
-                comm_tags_to_delete = [et for et in self.id3.keys() if et.startswith('COMM')]
-                for ct in comm_tags_to_delete:
-                    del self.id3[ct]
-                self.id3[ID3Tag.COMMENT.value] = COMM(text=text)
-            else:
-                self.id3[tag].text = text
+            self.id3[tag].text = text
 
         elif tag in TRACK_MD_ID3_TAGS:
             if tag == ID3Tag.TITLE.value:
@@ -317,9 +314,10 @@ class AudioFile:
         track_metadata = tags_to_write or self.get_metadata()
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
-            syn = self.get_synonym_values(mk)
-            if syn is not None:
-                self.write_tag(syn, v, False)
+            synonym_values = self.get_synonym_values(mk)
+            for syn, syn_values in synonym_values.items():
+                for syn_val in syn_values:
+                    self.write_tag(syn, syn_val, False)
 
         self.id3.save()
 
