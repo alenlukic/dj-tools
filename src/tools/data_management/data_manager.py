@@ -11,7 +11,7 @@ from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import *
 from src.tools.data_management.audio_file import AudioFile
-from src.utils.data_management import dedupe_title, split_artist_string
+from src.utils.data_management import dedupe_title, normalize_tag_text, split_artist_string
 from src.utils.common import get_banner
 from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
@@ -376,8 +376,8 @@ class DataManager:
                 tags_to_update = {}
 
                 for field in COMMENT_FIELDS:
-                    col_value = getattr(track, field, None)
-                    comment_value = comment.get(field, None)
+                    col_value = normalize_tag_text(getattr(track, field, None))
+                    comment_value = normalize_tag_text(comment.get(field, None))
 
                     # Skip any fields without values in either DB or comment
                     if col_value is None and comment_value is None:
@@ -462,8 +462,8 @@ class DataManager:
                 for field in ID3_COMMENT_FIELDS:
                     id3_tag = METADATA_KEY_TO_ID3.get(field)
 
-                    col_value = getattr(track, field, None)
-                    comment_value = comment.get(field, None)
+                    col_value = normalize_tag_text(getattr(track, field, None))
+                    comment_value = normalize_tag_text(comment.get(field, None))
                     old_value = af.get_tag(id3_tag)
                     new_value = col_value or comment_value
 

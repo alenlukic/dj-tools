@@ -1,4 +1,5 @@
 import re
+from unicodedata import normalize
 
 from src.definitions.data_management import BAR_REGEX, MD_COMPOSITE_REGEX, PAREN_REGEX
 from src.utils.common import is_empty
@@ -155,3 +156,8 @@ def transform_label(label):
         transformed_segments = pre_segments + parens + post_segments
 
     return ' '.join([seg.strip() for seg in transformed_segments])
+
+
+def normalize_tag_text(value):
+    """ TODO. """
+    return normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii') if type(value) == str else value

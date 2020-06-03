@@ -2,7 +2,6 @@ from ast import literal_eval
 from collections import ChainMap
 from os import path, stat
 from time import ctime
-from unicodedata import normalize
 
 import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
@@ -159,6 +158,7 @@ class AudioFile:
         return formatted_title, featured
 
     # =======================
+    # =======================
     # Feature-related methods
     # =======================
 
@@ -281,7 +281,7 @@ class AudioFile:
         :param save: Whether tag value should be saved to file immediately.
         """
 
-        text = [normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii') if type(value) == str else value]
+        text = [normalize_tag_text(value)]
 
         if tag in self.id3.keys():
             self.id3[tag].text = text
@@ -297,7 +297,7 @@ class AudioFile:
                 self.id3[tag] = TKEY(text=text)
             elif tag == ID3Tag.LABEL.value:
                 self.id3[tag] = TPUB(text=text)
-            elif tag == ID3Tag.COMMENT.value or tag == ID3Tag.COMMENT_ENG.value:
+            elif tag == ID3Tag.COMMENT.value or tag == ID3Tag.COMMENT_ENG.value or tag == ID3Tag.COMMENT_XXX.value:
                 self.id3[ID3Tag.COMMENT.value] = COMM(text=text)
 
         if save:
@@ -313,10 +313,9 @@ class AudioFile:
         track_metadata = tags_to_write or self.get_metadata()
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
-            synonym_values = self.get_synonym_values(mk)
-            for syn, syn_values in synonym_values.items():
-                for syn_val in syn_values:
-                    self.write_tag(syn, syn_val, False)
+            synonyms = list(self.get_synonym_values(mk).keys())
+            for syn in synonyms:
+                self.write_tag(syn, v, False)
 
         self.id3.save()
 

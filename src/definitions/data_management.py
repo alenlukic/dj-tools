@@ -61,7 +61,9 @@ METADATA_KEY_TO_ID3 = {
 }
 
 ID3_TAG_SYNONYMS = {
-    ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value]
+    ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value],
+    ID3Tag.COMMENT_ENG.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value],
+    ID3Tag.COMMENT_XXX.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value]
 }
 
 ALL_TRACK_DB_COLS = set([c.value for c in TrackDBCols])
