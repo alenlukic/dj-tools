@@ -270,8 +270,7 @@ class AudioFile:
 
     def read_tags(self):
         """ Read relevant tags from ID3 data. """
-        id3_tags = self.id3.items()
-        return {k: getattr(id3_tags[k], 'text', []) for k in TRACK_MD_ID3_TAGS}
+        return {k: getattr(self.id3.get(k, {}), 'text', []) for k in TRACK_MD_ID3_TAGS}
 
     def write_tag(self, tag, value, save=True):
         """
