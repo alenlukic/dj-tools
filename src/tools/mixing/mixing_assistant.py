@@ -38,6 +38,12 @@ class MixingAssistant:
         # Validate command
         segments = user_input.split()
         cmd_alias = segments[0].lower()
+
+        # TODO: fix this hack
+        if user_input[0] == '[':
+            cmd_alias = MATCH
+            segments = [MATCH] + segments
+
         if cmd_alias not in ALL_ALIASES:
             raise CommandParsingException('%s is not a valid command.' % cmd_alias)
 
