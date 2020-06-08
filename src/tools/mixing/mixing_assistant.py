@@ -14,6 +14,33 @@ from src.utils.harmonic_mixing import *
 from src.utils.mixing_assistant import *
 
 
+def parse_user_input(user_input):
+    """
+    Parses user input and returns command name and arguments to execute.
+
+    :param user_input: Raw text input.
+    """
+
+    stripped_input = user_input.strip()
+    if is_empty(stripped_input):
+        return
+
+    segments = [seg.strip() for seg in stripped_input.split()]
+    if stripped_input[0] == '[':
+        cmd_alias = MATCH
+        segments = [MATCH] + segments
+    else:
+        cmd_alias = segments[0].lower()
+
+    if cmd_alias not in ALL_ALIASES:
+        raise CommandParsingException('%s is not a valid command.' % cmd_alias)
+
+    cmd_name = ALIAS_MAPPING.get(cmd_alias, cmd_alias)
+    args = [' '.join(segments[1:])] if cmd_name == MATCH else segments[1:]
+
+    return cmd_name, args
+
+
 class MixingAssistant:
     """" CLI mixing assistant functions."""
 
@@ -31,37 +58,16 @@ class MixingAssistant:
         :param user_input: Raw user input.
         """
 
-        # Do nothing for empty input
-        if is_empty(user_input):
-            return
-
-        # Validate command
-        segments = user_input.split()
-        cmd_alias = segments[0].lower()
-
-        # TODO: fix this hack
-        if user_input[0] == '[':
-            cmd_alias = MATCH
-            segments = [MATCH] + segments
-
-        if cmd_alias not in ALL_ALIASES:
-            raise CommandParsingException('%s is not a valid command.' % cmd_alias)
-
-        # Validate arguments
-        cmd_name = ALIAS_MAPPING.get(cmd_alias, cmd_alias)
+        cmd_name, args = parse_user_input(user_input)
         command = COMMANDS[cmd_name]
-
-        # TODO: fix this hack
-        args = [' '.join(segments[1:])] if cmd_name == MATCH else segments[1:]
-
-        expected_args = command.get_arguments()
         num_args = len(args)
+        expected_args = command.get_arguments()
         num_expected_args = len([arg for arg in expected_args if arg.required])
+
         if num_args != num_expected_args:
             formatted_args = '' if num_args == 0 else ' - got: %s' % ' '.join(args)
             raise CommandParsingException('%s expects %d arguments%s.' % (cmd_name, num_expected_args, formatted_args))
 
-        # Execute command
         cmd_function = command.get_function()
         cmd_args = {expected_args[i].get_name(): args[i].strip() for i in range(num_args)}
         return getattr(self, cmd_function)(**cmd_args)
