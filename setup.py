@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='dj-tools',
-    version='2.4.4',
+    version='2.5.4',
     description='Tools for DJs: generate informative file/track titles (Camelot code, key, BPM) using ID3 metadata; '
                 'display candidate transition matches using playing track Camelot code and BPM.',
     url='https://github.com/alenlukic/dj-tools',
