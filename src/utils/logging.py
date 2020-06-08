@@ -31,3 +31,8 @@ def error(message):
     :param message: Message to log.
     """
     logging.log(logging.ERROR, message)
+
+
+def print_and_log(message, method):
+    print(message)
+    method(message)

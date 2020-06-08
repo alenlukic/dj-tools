@@ -12,7 +12,7 @@ RELOAD = 'reload'
 INGEST = 'ingest'
 
 EXIT_ALIASES = {'done', 'bye', 'kill'}
-MATCH_ALIASES = {'find'}
+MATCH_ALIASES = {'find', '['}
 RELOAD_ALIASES = {'refresh'}
 
 ALL_ALIASES = {EXIT, MATCH, RELOAD, INGEST}.union(EXIT_ALIASES).union(MATCH_ALIASES).union(RELOAD_ALIASES)

@@ -1,50 +1,37 @@
-import re
+from unicodedata import normalize
 
-from src.definitions.data_management import BAR_REGEX, MD_COMPOSITE_REGEX, PAREN_REGEX
+from src.definitions.data_management import *
 from src.utils.common import is_empty
 
 
-GENRE_CANON = {
-    'Psy-Trance': 'Psytrance',
-}
-
-LABEL_CANON = {
-    'joof': 'JOOF',
-    'shinemusic': 'Shine Music',
-    'vii': 'VII',
-    'rfr': 'RFR',
-    'cdr': 'CDR',
-    'knm': 'KNM',
-    'umc': 'UMC',
-    'uv': 'UV',
-    'nx1': 'NX1',
-    'srx': 'SRX',
-    'kgg': 'KGG',
-    'dpe': 'DPE',
-    'kmx': 'KMX',
-    'dbx': 'DBX',
-    'x7m': 'X7M',
-    'cr2': 'CR2',
-    'dfc': 'DFC',
-    'kd': 'KD',
-    'tk': 'TK',
-    'uk': 'UK',
-    'l.i.e.s.': 'L.I.E.S.',
-    'n.a.m.e': 'N.A.M.E',
-    'd.o.c.': 'D.O.C.'
-}
-
-
 def get_canonical_form(segment, canon):
+    """
+    Get canonical entity form.
+
+    :param segment: Text segment.
+    :param canon: Mapping of aliases to canonical names.
+    """
     return (canon.get(segment, ' '.join([ss.capitalize() for ss in segment.split()])
             if re.match(PAREN_REGEX, segment) is None else segment))
 
 
 def transform_segments(segments, canon):
+    """
+    Get canonical entity forms for all segments.
+
+    :param segments: Text segments.
+    :param canon: Mapping of aliases to canonical names.
+    """
     return [get_canonical_form(seg, canon) for seg in segments]
 
 
 def transform_parens(segment, canon):
+    """
+    Get canonical entity forms for text embedded in parentheses.
+
+    :param segment: Paranthetical segment.
+    :param canon: Mapping of aliases to canonical names.
+    """
     phrase = segment[1:-1]
     return segment.upper() if len(phrase) == 2 else '(' + ' '.join(transform_segments(phrase.split(), canon)) + ')'
 
@@ -53,7 +40,7 @@ def dedupe_title(title):
     """
     Remove repetitions from the given title.
 
-    :param title: Title to dedupe
+    :param title: Title to dedupe.
     """
 
     if title is None:
@@ -80,7 +67,7 @@ def transform_artist(artist):
     """
     Applies artist-specific transformation rules to standardize artist names across the board.
 
-    :param artist: Artist string to transform
+    :param artist: Artist string to transform.
     """
 
     if 'Kamaya Painters' in artist:
@@ -96,7 +83,7 @@ def transform_genre(genre):
     """
     Applies genre-specific transformation rules to standardize genre names across the board.
 
-    :param genre: Genre string to transform
+    :param genre: Genre string to transform.
     """
 
     bar_matches = re.findall(BAR_REGEX, genre)
@@ -123,7 +110,7 @@ def transform_label(label):
     """
     Applies label-specific transformation rules to standardize label names across the board.
 
-    :param label: Label string to transform
+    :param label: Label string to transform.
     """
 
     parent_label_parens = {'(Armada)', '(Armada Music)', '(Spinnin)'}
@@ -134,11 +121,11 @@ def transform_label(label):
     label_lower = label.lower()
     if 'hommega' in label_lower:
         return 'HOMmega Productions'
-
     if 'pure trance' in label_lower and label_lower != 'pure trance progressive':
         return 'Pure Trance Recordings'
 
     paren_matches = re.findall(PAREN_REGEX, label_lower)
+
     if len(paren_matches) == 0:
         transformed_segments = transform_segments([lp.strip() for lp in label_lower.split()], LABEL_CANON)
     else:
@@ -151,7 +138,15 @@ def transform_label(label):
         post_segments = ([] if paren_end == len(label_lower) - 1 else
                          [lp.strip() for lp in label_lower[paren_end:].split()])
         post_segments = transform_segments(post_segments, LABEL_CANON)
-
         transformed_segments = pre_segments + parens + post_segments
 
     return ' '.join([seg.strip() for seg in transformed_segments])
+
+
+def normalize_tag_text(text):
+    """
+    Normalizes ID3 tag text into ASCII to circumvent persistence issues.
+
+    :param text: Original ID3 tag text.
+    """
+    return normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii') if type(text) == str else text

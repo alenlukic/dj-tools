@@ -60,13 +60,15 @@ METADATA_KEY_TO_ID3 = {
     ArtistFields.REMIXERS.value: ID3Tag.REMIXER.value
 }
 
-ID3_SYNONYMS = {
-    ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value]
+ID3_TAG_SYNONYMS = {
+    ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value],
+    ID3Tag.COMMENT_ENG.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value],
+    ID3Tag.COMMENT_XXX.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value]
 }
 
 ALL_TRACK_DB_COLS = set([c.value for c in TrackDBCols])
 
-ALL_ID3_TAGS = set([t.value for t in ID3Tag])
+TRACK_MD_ID3_TAGS = set([t.value for t in ID3Tag])
 
 REQUIRED_ID3_TAGS = {ID3Tag.TITLE.value, ID3Tag.ARTIST.value, ID3Tag.BPM.value, ID3Tag.KEY.value}
 
@@ -177,6 +179,36 @@ CAMELOT_MAP = {
     'e': '12B'
 }
 
+GENRE_CANON = {
+    'Psy-Trance': 'Psytrance'
+}
+
+LABEL_CANON = {
+    'joof': 'JOOF',
+    'shinemusic': 'Shine Music',
+    'vii': 'VII',
+    'rfr': 'RFR',
+    'cdr': 'CDR',
+    'knm': 'KNM',
+    'umc': 'UMC',
+    'uv': 'UV',
+    'nx1': 'NX1',
+    'srx': 'SRX',
+    'kgg': 'KGG',
+    'dpe': 'DPE',
+    'kmx': 'KMX',
+    'dbx': 'DBX',
+    'x7m': 'X7M',
+    'cr2': 'CR2',
+    'dfc': 'DFC',
+    'kd': 'KD',
+    'tk': 'TK',
+    'uk': 'UK',
+    'l.i.e.s.': 'L.I.E.S.',
+    'n.a.m.e': 'N.A.M.E',
+    'd.o.c.': 'D.O.C.'
+}
+
 BAR_REGEX = re.compile(r'.*?\|')
 
 MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{3}\]')
@@ -184,3 +216,5 @@ MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{3}\]')
 MD_SPLIT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
 
 PAREN_REGEX = re.compile(r'\(.*\)')
+
+GD_TIMESTAMP_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'

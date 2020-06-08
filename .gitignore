@@ -115,8 +115,8 @@ logs/*
 # Short-lived scripts
 src/scripts/tmp/*
 
-# Local config
-config.json
+# Local configs
+config/*
 
 # Mac OS gunk
 .DS_Store
