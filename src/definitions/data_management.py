@@ -19,6 +19,7 @@ class ID3Tag(Enum):
     KEY = 'TKEY'
     LABEL = 'TPUB'
     USER_COMMENT = 'TXXX'
+    ENERGY = 'TXXX:EnergyLevel'
     COMMENT = 'COMM'
     COMMENT_XXX = 'COMM::XXX'
     COMMENT_ENG = 'COMM::eng'
@@ -53,6 +54,7 @@ METADATA_KEY_TO_ID3 = {
     TrackDBCols.TITLE.value: ID3Tag.TITLE.value,
     TrackDBCols.BPM.value: ID3Tag.BPM.value,
     TrackDBCols.KEY.value: ID3Tag.KEY.value,
+    TrackDBCols.ENERGY.value: ID3Tag.ENERGY.value,
     TrackDBCols.GENRE.value: ID3Tag.GENRE.value,
     TrackDBCols.LABEL.value: ID3Tag.LABEL.value,
     TrackDBCols.COMMENT.value: ID3Tag.COMMENT.value,

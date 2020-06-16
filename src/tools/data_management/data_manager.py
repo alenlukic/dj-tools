@@ -376,8 +376,9 @@ class DataManager:
                 tags_to_update = {}
 
                 for field in COMMENT_FIELDS:
+                    tag_value = af.get_tag(METADATA_KEY_TO_ID3.get(field, None))
                     col_value = normalize_tag_text(getattr(track, field, None))
-                    comment_value = normalize_tag_text(comment.get(field, None))
+                    comment_value = normalize_tag_text(comment.get(field, None) or tag_value)
 
                     # Skip any fields without values in either DB or comment
                     if col_value is None and comment_value is None:
