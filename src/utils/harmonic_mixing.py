@@ -1,4 +1,3 @@
-from ast import literal_eval
 from collections import defaultdict
 from datetime import datetime
 
@@ -6,6 +5,7 @@ from src.definitions.data_management import *
 from src.definitions.harmonic_mixing import CollectionStat, TIMESTAMP_FORMAT
 from src.tools.data_management.audio_file import AudioFile
 from src.utils.common import is_empty
+from src.utils.data_management import load_comment
 
 
 def flip_camelot_letter(camelot_letter):
@@ -52,7 +52,7 @@ def generate_camelot_map(tracks):
             except Exception:
                 track_comment = '{}'
 
-        track_comment = literal_eval(track_comment)
+        track_comment = load_comment(track_comment)
 
         # Increment artist/remixer counts
         artist_str = track_comment.get(ArtistFields.ARTISTS.value, '')

@@ -1,4 +1,3 @@
-from ast import literal_eval
 from collections import ChainMap
 from os import path, stat
 from time import ctime
@@ -106,7 +105,7 @@ class AudioFile:
         """ Parses track title and returns formatted track title and featured artist name, if any. """
 
         title = self.get_tag(ID3Tag.TITLE, '')
-        segments = [seg.strip() for seg in title.split(' ') if not is_empty(seg.strip())]
+        segments = [seg.strip() for seg in title.split(' ') if not is_empty(seg)]
 
         i = 0
         n = len(segments)
@@ -185,8 +184,8 @@ class AudioFile:
                     return int(segments[1])
 
                 if comment.startswith('Metadata: ') or comment.startswith('{'):
-                    track_metadata = (literal_eval(comment) if comment.startswith('{')
-                                      else literal_eval(comment.split('Metadata: ')[1]))
+                    track_metadata = (load_comment(comment) if comment.startswith('{')
+                                      else load_comment(comment.split('Metadata: ')[1]))
                     return int(track_metadata.get('Energy', ''))
 
             except Exception:
@@ -223,7 +222,7 @@ class AudioFile:
 
     def get_tag(self, tag, default=None):
         """
-        Return specified tag's value.
+        Return specified tag's value. TODO: possible special handling for specific tags
 
         :param tag: Tag whose value to return.
         :param default: Default value to return if tag value not present.
@@ -233,17 +232,20 @@ class AudioFile:
         tag_values = self.tags.get(id3_tag, [])
 
         if len(tag_values) > 0:
-            # TODO: possible special handling for specific tags
             return tag_values[0]
 
         synonym_values = list(self.get_synonym_values(id3_tag).values())
         if len(synonym_values) > 0:
-            # TODO: possible special handling for specific tags
             return synonym_values[0][0]
 
         return default
 
     def get_tag_synonyms(self, tag):
+        """
+        Return tag's synonyms.
+
+        :param tag: Tag for which to retrieve synonyms.
+        """
         return ID3_TAG_SYNONYMS.get(tag, [tag])
 
     def get_synonym_values(self, tag):

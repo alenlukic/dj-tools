@@ -72,7 +72,7 @@ ALL_TRACK_DB_COLS = set([c.value for c in TrackDBCols])
 
 TRACK_MD_ID3_TAGS = set([t.value for t in ID3Tag])
 
-REQUIRED_ID3_TAGS = {ID3Tag.TITLE.value, ID3Tag.ARTIST.value, ID3Tag.BPM.value, ID3Tag.KEY.value}
+REQUIRED_ID3_TAGS = {ID3Tag.TITLE.value, ID3Tag.ARTIST.value, ID3Tag.BPM.value, ID3Tag.KEY.value, ID3Tag.ENERGY.value}
 
 CANONICAL_KEY_MAP = {
     k.lower(): v.lower() for k, v in {
