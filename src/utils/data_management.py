@@ -155,10 +155,12 @@ def normalize_tag_text(text):
 
 def load_comment(comment_string, default=None):
     """
+    Loads stringified comment as a dict.
 
-    :param comment_string:
-    :param default:
+    :param comment_string: Comment string to attempt loading.
+    :param default: (optional) Default comment string to load.
     """
+
     try:
         return literal_eval(comment_string)
     except Exception:
@@ -166,4 +168,3 @@ def load_comment(comment_string, default=None):
             return literal_eval(default)
         except Exception:
             return {}
-
