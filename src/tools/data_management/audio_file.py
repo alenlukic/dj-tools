@@ -6,7 +6,6 @@ from time import ctime
 import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
-from src.definitions.data_management import *
 from src.utils.data_management import *
 
 
@@ -158,12 +157,17 @@ class AudioFile:
         return formatted_title, featured
 
     # =======================
-    # =======================
     # Feature-related methods
     # =======================
 
     def parse_energy(self):
         """ Parse track energy (if any) from the comment tag. """
+
+        try:
+            energy = self.get_tag(ID3Tag.ENERGY)
+            return int(energy)
+        except Exception:
+            pass
 
         comment_tags = [ID3Tag.COMMENT, ID3Tag.USER_COMMENT, ID3Tag.COMMENT_ENG]
         for tag in comment_tags:
