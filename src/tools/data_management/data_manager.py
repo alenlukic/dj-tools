@@ -1,4 +1,3 @@
-from ast import literal_eval
 from collections import defaultdict
 import json
 from os.path import basename, join, splitext
@@ -9,10 +8,9 @@ from src.db.entities.artist import Artist
 from src.db.entities.artist_track import ArtistTrack
 from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.definitions.data_management import *
+from src.utils.common import *
 from src.tools.data_management.audio_file import AudioFile
-from src.utils.data_management import dedupe_title, normalize_tag_text, split_artist_string
-from src.utils.common import get_banner
+from src.utils.data_management import *
 from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
 
@@ -133,11 +131,7 @@ class DataManager:
                     session.rollback()
                     continue
 
-                try:
-                    comment = literal_eval(track_metadata.get(TrackDBCols.COMMENT.value, '{}'))
-                except Exception:
-                    comment = {}
-
+                comment = load_comment(track_metadata.get(TrackDBCols.COMMENT.value), '{}')
                 title = comment.get(TrackDBCols.TITLE.value)
 
                 # Update artists
@@ -367,12 +361,7 @@ class DataManager:
             log_buffer = []
 
             try:
-                try:
-                    comment = literal_eval(track.comment)
-                except Exception:
-                    log_buffer.append('Could not load comment')
-                    comment = {}
-
+                comment = load_comment(track.comment, '{}')
                 tags_to_update = {}
 
                 for field in COMMENT_FIELDS:
@@ -380,13 +369,17 @@ class DataManager:
                     col_value = normalize_tag_text(getattr(track, field, None))
                     comment_value = normalize_tag_text(comment.get(field, None) or tag_value)
 
+                    if field == TrackDBCols.BPM.value or field == TrackDBCols.ENERGY.value:
+                        col_value = int(col_value)
+                        comment_value = int(comment_value)
+
                     # Skip any fields without values in either DB or comment
                     if col_value is None and comment_value is None:
                         log_buffer.append('%s is null in DB and comment' % field)
                         continue
 
                     # Dedupe titles
-                    if field == TrackDBCols.TITLE:
+                    if field == TrackDBCols.TITLE.value:
                         updated_col_title = dedupe_title(col_value)
                         updated_comment_title = dedupe_title(comment_value)
                         title = updated_col_title or updated_comment_title
@@ -452,12 +445,7 @@ class DataManager:
             track_pk = track.get_id_title_identifier()
 
             try:
-                try:
-                    comment = literal_eval(track.comment)
-                except Exception:
-                    print('Could not load comment for %s' % track_pk)
-                    comment = {}
-
+                comment = load_comment(track.comment, '{}')
                 tags_to_update = {}
 
                 for field in ID3_COMMENT_FIELDS:

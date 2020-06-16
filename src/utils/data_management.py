@@ -1,3 +1,4 @@
+from ast import literal_eval
 from unicodedata import normalize
 
 from src.definitions.data_management import *
@@ -60,7 +61,7 @@ def split_artist_string(artists):
 
     :param artists: Artist string to split
     """
-    return [] if is_empty(artists) else [a.strip() for a in artists.split(',')]
+    return [] if is_empty(artists) else [a.strip() for a in artists.split(',') if not is_empty(a)]
 
 
 def transform_artist(artist):
@@ -150,3 +151,19 @@ def normalize_tag_text(text):
     :param text: Original ID3 tag text.
     """
     return normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii') if type(text) == str else text
+
+
+def load_comment(comment_string, default=None):
+    """
+
+    :param comment_string:
+    :param default:
+    """
+    try:
+        return literal_eval(comment_string)
+    except Exception:
+        try:
+            return literal_eval(default)
+        except Exception:
+            return {}
+
