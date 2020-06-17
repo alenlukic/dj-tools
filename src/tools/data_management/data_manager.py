@@ -365,13 +365,17 @@ class DataManager:
                 tags_to_update = {}
 
                 for field in COMMENT_FIELDS:
-                    tag_value = af.get_tag(METADATA_KEY_TO_ID3.get(field, None))
                     col_value = normalize_tag_text(getattr(track, field, None))
-                    comment_value = normalize_tag_text(comment.get(field, None) or tag_value)
+                    comment_value = normalize_tag_text(comment.get(field, None))
+                    tag_value = af.get_tag(METADATA_KEY_TO_ID3.get(field, None))
+
+                    if (col_value is None and comment_value is None) and tag_value is not None:
+                        setattr(track, field, tag_value)
+                        col_value = tag_value
 
                     if field == TrackDBCols.BPM.value or field == TrackDBCols.ENERGY.value:
-                        col_value = int(col_value)
-                        comment_value = int(comment_value)
+                        col_value = None if col_value is None else int(col_value)
+                        comment_value = None if comment_value is None else int(comment_value)
 
                     # Skip any fields without values in either DB or comment
                     if col_value is None and comment_value is None:
