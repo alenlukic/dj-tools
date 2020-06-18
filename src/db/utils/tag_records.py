@@ -5,8 +5,8 @@ from src.tools.data_management.audio_file import AudioFile
 
 def create_row(track):
     audio_file = AudioFile(track.file_path)
-    row = {k: audio_file.get_tag(k) for k in TAG_COLUMNS}
-    row['track.id'] = track.id
+    row = {'ID3Tag.%s' % k.name: audio_file.get_tag(k) for k in TAG_COLUMNS}
+    row['track_id'] = track.id
     return row
 
 
