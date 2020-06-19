@@ -1,6 +1,6 @@
 from src.definitions.db import TagRecordType
-from src.tools.db.track_metadata_pipeline import TrackMetadataPipeline
+from src.tools.db.tag_record_pipeline import TagRecordPipeline
 
 
 if __name__ == '__main__':
-    TrackMetadataPipeline(TagRecordType.INITIAL.value).create_tag_records()
+    TagRecordPipeline(TagRecordType.INITIAL.value).create_tag_records()

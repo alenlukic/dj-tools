@@ -8,20 +8,19 @@ from src.tools.data_management.audio_file import AudioFile
 
 class TagRecordFactory:
     def __init__(self, record_type, file_path, track_id, session):
-        self.record_type = record_type
         self.file_path = file_path
         self.track_id = track_id
         self.session = session
+        self.TagRecordEntity = getattr(tag_records, record_type)
         self.audio_file = AudioFile(self.file_path)
         self.row = self._create_row()
 
     def create_tag_record(self):
-        if self.session.query(self.record_type).filter_by(track_id=self.track_id).first() is not None:
+        if self.session.query(self.TagRecordEntity).filter_by(track_id=self.track_id).first() is not None:
             return
 
         self._create_tag_record()
-        db_entity = getattr(tag_records, self.record_type)(**self.row)
-        self.session.add(db_entity)
+        self.session.add(self.TagRecordEntity(**self.row))
 
     def _create_row(self):
         row = {k.name.lower(): self.audio_file.get_tag(k) for k in TAG_COLUMNS}

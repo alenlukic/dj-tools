@@ -11,7 +11,7 @@ from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
 
 
-class TrackMetadataPipeline:
+class TagRecordPipeline:
     PIPELINE_DIR = CONFIG['PIPELINE_DIR']
     RECORD_FACTORIES = {
         TagRecordType.INITIAL.value: 'TagRecordFactory',
