@@ -17,6 +17,7 @@ class TrackMetadataPipeline:
     """ TODO. """
 
     def __init__(self, cmd, track_dir=PIPELINE_DIR):
+        """ TODO. """
         self.cmd = cmd
         self.database = database
         self.track_dir = track_dir
@@ -30,8 +31,13 @@ class TrackMetadataPipeline:
         try:
             for track_file in self.track_files:
                 track_path = join(PIPELINE_DIR, track_file)
-                track_id = session.query(Track).filter_by(file_path=join(PROCESSED_MUSIC_DIR, track_file)).first().id
-                record_builder = TagRecordFactory(track_path, track_id, session)
+                track = session.query(Track).filter_by(file_path=join(PROCESSED_MUSIC_DIR, track_file)).first()
+
+                if track is None:
+                    print('%s not found, skipping' % join(PROCESSED_MUSIC_DIR, track_file))
+                    continue
+
+                record_builder = TagRecordFactory(track_path, track.id, session)
                 record_builder.build(self.cmd, self.cmd_args)
 
             session.commit()
