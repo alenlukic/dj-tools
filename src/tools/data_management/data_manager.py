@@ -80,7 +80,7 @@ class DataManager:
                     continue
 
                 # Copy to target directory
-                track.write_tags()
+                # track.write_tags()
                 new_base_name = basename(new_path)
                 try:
                     print('\nRenaming:\t%s\nto:\t\t%s' % (old_base_name, new_base_name))
@@ -124,7 +124,7 @@ class DataManager:
                     session.commit()
 
                     # Update ID3 tags only after saving to DB
-                    track.write_tags()
+                    # track.write_tags()
 
                 except Exception as e:
                     handle_error(e)
@@ -167,7 +167,7 @@ class DataManager:
         try:
             for track_path, track in tracks.items():
                 # Update ID3 tags
-                track.write_tags()
+                # track.write_tags()
 
                 # Get existing row
                 existing_track = session.query(Track).filter_by(file_path=track_path).first()

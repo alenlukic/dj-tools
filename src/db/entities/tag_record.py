@@ -9,30 +9,30 @@ class InitialTagRecord(Base):
     Postgres schema:
 
                          Table "public.initial_tags"
-         Column     |       Type        | Collation | Nullable | Default
-    ----------------+-------------------+-----------+----------+---------
-     id             | integer           |           | not null |
-     track_id       | integer           |           | not null |
-     ID3Tag.TITLE   | character varying |           |          |
-     ID3Tag.ARTIST  | character varying |           |          |
-     ID3Tag.REMIXER | character varying |           |          |
-     ID3Tag.GENRE   | character varying |           |          |
-     ID3Tag.KEY     | character varying |           |          |
-     ID3Tag.LABEL   | character varying |           |          |
-     ID3Tag.BPM     | integer           |           |          |
-     ID3Tag.ENERGY  | integer           |           |          |
+      Column  |       Type        | Collation | Nullable | Default
+    ----------+-------------------+-----------+----------+---------
+     id       | integer           |           | not null |
+     track_id | integer           |           | not null |
+     TITLE    | character varying |           |          |
+     ARTIST   | character varying |           |          |
+     REMIXER  | character varying |           |          |
+     GENRE    | character varying |           |          |
+     KEY      | character varying |           |          |
+     LABEL    | character varying |           |          |
+     BPM      | integer           |           |          |
+     ENERGY   | integer           |           |          |
     Indexes:
         "initial_tags_pkey" PRIMARY KEY, btree (id, track_id)
         "ix_initial_tags_id" UNIQUE, btree (id)
         "ix_initial_tags_track_id" UNIQUE, btree (track_id)
-        "ix_initial_tags_ID3Tag.ARTIST" btree ("ID3Tag.ARTIST")
-        "ix_initial_tags_ID3Tag.BPM" btree ("ID3Tag.BPM")
-        "ix_initial_tags_ID3Tag.ENERGY" btree ("ID3Tag.ENERGY")
-        "ix_initial_tags_ID3Tag.GENRE" btree ("ID3Tag.GENRE")
-        "ix_initial_tags_ID3Tag.KEY" btree ("ID3Tag.KEY")
-        "ix_initial_tags_ID3Tag.LABEL" btree ("ID3Tag.LABEL")
-        "ix_initial_tags_ID3Tag.REMIXER" btree ("ID3Tag.REMIXER")
-        "ix_initial_tags_ID3Tag.TITLE" btree ("ID3Tag.TITLE")
+        "ix_initial_tags_ARTIST" btree ("ARTIST")
+        "ix_initial_tags_BPM" btree ("BPM")
+        "ix_initial_tags_ENERGY" btree ("ENERGY")
+        "ix_initial_tags_GENRE" btree ("GENRE")
+        "ix_initial_tags_KEY" btree ("KEY")
+        "ix_initial_tags_LABEL" btree ("LABEL")
+        "ix_initial_tags_REMIXER" btree ("REMIXER")
+        "ix_initial_tags_TITLE" btree ("TITLE")
     Foreign-key constraints:
         "initial_tags_track_id_fkey" FOREIGN KEY (track_id) REFERENCES track(id)
     """
@@ -48,30 +48,30 @@ class PostMIKTagRecord(Base):
     Postgres schema:
 
                         Table "public.post_mik_tags"
-         Column     |       Type        | Collation | Nullable | Default
-    ----------------+-------------------+-----------+----------+---------
-     id             | integer           |           | not null |
-     track_id       | integer           |           | not null |
-     ID3Tag.TITLE   | character varying |           |          |
-     ID3Tag.ARTIST  | character varying |           |          |
-     ID3Tag.REMIXER | character varying |           |          |
-     ID3Tag.GENRE   | character varying |           |          |
-     ID3Tag.KEY     | character varying |           |          |
-     ID3Tag.LABEL   | character varying |           |          |
-     ID3Tag.BPM     | integer           |           |          |
-     ID3Tag.ENERGY  | integer           |           |          |
+      Column  |       Type        | Collation | Nullable | Default
+    ----------+-------------------+-----------+----------+---------
+     id       | integer           |           | not null |
+     track_id | integer           |           | not null |
+     TITLE    | character varying |           |          |
+     ARTIST   | character varying |           |          |
+     REMIXER  | character varying |           |          |
+     GENRE    | character varying |           |          |
+     KEY      | character varying |           |          |
+     LABEL    | character varying |           |          |
+     BPM      | integer           |           |          |
+     ENERGY   | integer           |           |          |
     Indexes:
         "post_mik_tags_pkey" PRIMARY KEY, btree (id, track_id)
         "ix_post_mik_tags_id" UNIQUE, btree (id)
         "ix_post_mik_tags_track_id" UNIQUE, btree (track_id)
-        "ix_post_mik_tags_ID3Tag.ARTIST" btree ("ID3Tag.ARTIST")
-        "ix_post_mik_tags_ID3Tag.BPM" btree ("ID3Tag.BPM")
-        "ix_post_mik_tags_ID3Tag.ENERGY" btree ("ID3Tag.ENERGY")
-        "ix_post_mik_tags_ID3Tag.GENRE" btree ("ID3Tag.GENRE")
-        "ix_post_mik_tags_ID3Tag.KEY" btree ("ID3Tag.KEY")
-        "ix_post_mik_tags_ID3Tag.LABEL" btree ("ID3Tag.LABEL")
-        "ix_post_mik_tags_ID3Tag.REMIXER" btree ("ID3Tag.REMIXER")
-        "ix_post_mik_tags_ID3Tag.TITLE" btree ("ID3Tag.TITLE")
+        "ix_post_mik_tags_ARTIST" btree ("ARTIST")
+        "ix_post_mik_tags_BPM" btree ("BPM")
+        "ix_post_mik_tags_ENERGY" btree ("ENERGY")
+        "ix_post_mik_tags_GENRE" btree ("GENRE")
+        "ix_post_mik_tags_KEY" btree ("KEY")
+        "ix_post_mik_tags_LABEL" btree ("LABEL")
+        "ix_post_mik_tags_REMIXER" btree ("REMIXER")
+        "ix_post_mik_tags_TITLE" btree ("TITLE")
     Foreign-key constraints:
         "post_mik_tags_track_id_fkey" FOREIGN KEY (track_id) REFERENCES track(id)
     """
@@ -87,30 +87,30 @@ class PostRekordboxTagRecord(Base):
     Postgres schema:
 
                      Table "public.post_rekordbox_tags"
-         Column     |       Type        | Collation | Nullable | Default
-    ----------------+-------------------+-----------+----------+---------
-     id             | integer           |           | not null |
-     track_id       | integer           |           | not null |
-     ID3Tag.TITLE   | character varying |           |          |
-     ID3Tag.ARTIST  | character varying |           |          |
-     ID3Tag.REMIXER | character varying |           |          |
-     ID3Tag.GENRE   | character varying |           |          |
-     ID3Tag.KEY     | character varying |           |          |
-     ID3Tag.LABEL   | character varying |           |          |
-     ID3Tag.BPM     | integer           |           |          |
-     ID3Tag.ENERGY  | integer           |           |          |
+      Column  |       Type        | Collation | Nullable | Default
+    ----------+-------------------+-----------+----------+---------
+     id       | integer           |           | not null |
+     track_id | integer           |           | not null |
+     TITLE    | character varying |           |          |
+     ARTIST   | character varying |           |          |
+     REMIXER  | character varying |           |          |
+     GENRE    | character varying |           |          |
+     KEY      | character varying |           |          |
+     LABEL    | character varying |           |          |
+     BPM      | integer           |           |          |
+     ENERGY   | integer           |           |          |
     Indexes:
         "post_rekordbox_tags_pkey" PRIMARY KEY, btree (id, track_id)
         "ix_post_rekordbox_tags_id" UNIQUE, btree (id)
         "ix_post_rekordbox_tags_track_id" UNIQUE, btree (track_id)
-        "ix_post_rekordbox_tags_ID3Tag.ARTIST" btree ("ID3Tag.ARTIST")
-        "ix_post_rekordbox_tags_ID3Tag.BPM" btree ("ID3Tag.BPM")
-        "ix_post_rekordbox_tags_ID3Tag.ENERGY" btree ("ID3Tag.ENERGY")
-        "ix_post_rekordbox_tags_ID3Tag.GENRE" btree ("ID3Tag.GENRE")
-        "ix_post_rekordbox_tags_ID3Tag.KEY" btree ("ID3Tag.KEY")
-        "ix_post_rekordbox_tags_ID3Tag.LABEL" btree ("ID3Tag.LABEL")
-        "ix_post_rekordbox_tags_ID3Tag.REMIXER" btree ("ID3Tag.REMIXER")
-        "ix_post_rekordbox_tags_ID3Tag.TITLE" btree ("ID3Tag.TITLE")
+        "ix_post_rekordbox_tags_ARTIST" btree ("ARTIST")
+        "ix_post_rekordbox_tags_BPM" btree ("BPM")
+        "ix_post_rekordbox_tags_ENERGY" btree ("ENERGY")
+        "ix_post_rekordbox_tags_GENRE" btree ("GENRE")
+        "ix_post_rekordbox_tags_KEY" btree ("KEY")
+        "ix_post_rekordbox_tags_LABEL" btree ("LABEL")
+        "ix_post_rekordbox_tags_REMIXER" btree ("REMIXER")
+        "ix_post_rekordbox_tags_TITLE" btree ("TITLE")
     Foreign-key constraints:
         "post_rekordbox_tags_track_id_fkey" FOREIGN KEY (track_id) REFERENCES track(id)
     """
@@ -132,30 +132,30 @@ class FinalTagRecord(Base):
     Postgres schema:
 
                           Table "public.final_tags"
-         Column     |       Type        | Collation | Nullable | Default
-    ----------------+-------------------+-----------+----------+---------
-     id             | integer           |           | not null |
-     track_id       | integer           |           | not null |
-     ID3Tag.TITLE   | character varying |           |          |
-     ID3Tag.ARTIST  | character varying |           |          |
-     ID3Tag.REMIXER | character varying |           |          |
-     ID3Tag.GENRE   | character varying |           |          |
-     ID3Tag.KEY     | character varying |           |          |
-     ID3Tag.LABEL   | character varying |           |          |
-     ID3Tag.BPM     | integer           |           |          |
-     ID3Tag.ENERGY  | integer           |           |          |
+      Column  |       Type        | Collation | Nullable | Default
+    ----------+-------------------+-----------+----------+---------
+     id       | integer           |           | not null |
+     track_id | integer           |           | not null |
+     TITLE    | character varying |           |          |
+     ARTIST   | character varying |           |          |
+     REMIXER  | character varying |           |          |
+     GENRE    | character varying |           |          |
+     KEY      | character varying |           |          |
+     LABEL    | character varying |           |          |
+     BPM      | integer           |           |          |
+     ENERGY   | integer           |           |          |
     Indexes:
         "final_tags_pkey" PRIMARY KEY, btree (id, track_id)
         "ix_final_tags_id" UNIQUE, btree (id)
         "ix_final_tags_track_id" UNIQUE, btree (track_id)
-        "ix_final_tags_ID3Tag.ARTIST" btree ("ID3Tag.ARTIST")
-        "ix_final_tags_ID3Tag.BPM" btree ("ID3Tag.BPM")
-        "ix_final_tags_ID3Tag.ENERGY" btree ("ID3Tag.ENERGY")
-        "ix_final_tags_ID3Tag.GENRE" btree ("ID3Tag.GENRE")
-        "ix_final_tags_ID3Tag.KEY" btree ("ID3Tag.KEY")
-        "ix_final_tags_ID3Tag.LABEL" btree ("ID3Tag.LABEL")
-        "ix_final_tags_ID3Tag.REMIXER" btree ("ID3Tag.REMIXER")
-        "ix_final_tags_ID3Tag.TITLE" btree ("ID3Tag.TITLE")
+        "ix_final_tags_ARTIST" btree ("ARTIST")
+        "ix_final_tags_BPM" btree ("BPM")
+        "ix_final_tags_ENERGY" btree ("ENERGY")
+        "ix_final_tags_GENRE" btree ("GENRE")
+        "ix_final_tags_KEY" btree ("KEY")
+        "ix_final_tags_LABEL" btree ("LABEL")
+        "ix_final_tags_REMIXER" btree ("REMIXER")
+        "ix_final_tags_TITLE" btree ("TITLE")
     Foreign-key constraints:
         "final_tags_track_id_fkey" FOREIGN KEY (track_id) REFERENCES track(id)
     """
