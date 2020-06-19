@@ -11,14 +11,9 @@ class TagRecordFactory:
         self.record_type = record_type
         self.file_path = file_path
         self.track_id = track_id
-        self.audio_file = AudioFile(self.file_path)
-        self.row = self.create_row()
         self.session = session
-
-    def create_row(self):
-        row = {k.name.lower(): self.audio_file.get_tag(k) for k in TAG_COLUMNS}
-        row['track_id'] = self.track_id
-        return row
+        self.audio_file = AudioFile(self.file_path)
+        self.row = self._create_row()
 
     def create_tag_record(self):
         if self.session.query(self.record_type).filter_by(track_id=self.track_id).first() is not None:
@@ -28,14 +23,17 @@ class TagRecordFactory:
         db_entity = getattr(tag_records, self.record_type)(**self.row)
         self.session.add(db_entity)
 
+    def _create_row(self):
+        row = {k.name.lower(): self.audio_file.get_tag(k) for k in TAG_COLUMNS}
+        row['track_id'] = self.track_id
+        return row
+
     def _create_tag_record(self):
         pass
 
 
 class PostMIKRecordFactory(TagRecordFactory):
     def _create_tag_record(self):
-        super()._create_tag_record()
-
         mik_comment = self.audio_file.get_tag(ID3Tag.COMMENT_ENG)
         try:
             if mik_comment is not None:
@@ -53,8 +51,6 @@ class PostRBRecordFactory(TagRecordFactory):
         self.rb_overrides = rb_overrides
 
     def _create_tag_record(self):
-        super()._create_tag_record()
-
         title = self.row[ID3Tag.TITLE.name.lower()]
         for k, v in self.rb_overrides[title].items():
             self.row[k] = v
@@ -62,8 +58,6 @@ class PostRBRecordFactory(TagRecordFactory):
 
 class FinalRecordFactory(TagRecordFactory):
     def _create_tag_record(self):
-        super()._create_tag_record()
-
         track_id = self.track_id
         initial_record = self.session.query(tag_records.InitialTagRecord).filter_by(track_id=track_id).first()
         post_mik_record = self.session.query(tag_records.PostMIKTagRecord).filter_by(track_id=track_id).first()
