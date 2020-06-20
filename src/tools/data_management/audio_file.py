@@ -36,7 +36,7 @@ class AudioFile:
         metadata = {
             TrackDBCols.FILE_PATH.value: self.full_path,
             TrackDBCols.TITLE.value: title,
-            TrackDBCols.BPM.value: int(bpm),
+            TrackDBCols.BPM.value: float(bpm),
             TrackDBCols.KEY.value: key,
             TrackDBCols.CAMELOT_CODE.value: camelot_code,
             TrackDBCols.ENERGY.value: self.parse_energy(),

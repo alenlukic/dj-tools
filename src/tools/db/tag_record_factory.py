@@ -33,6 +33,7 @@ class TagRecordFactory:
 
 class PostMIKRecordFactory(TagRecordFactory):
     def _create_tag_record(self):
+        # MIK won't write float bpm to ID3, so we write to the comment tag instead
         mik_comment = self.audio_file.get_tag(ID3Tag.COMMENT_ENG)
         try:
             if mik_comment is not None:
@@ -88,13 +89,14 @@ class FinalRecordFactory(TagRecordFactory):
 
     def _get_final_key(self, initial_record, mik_record, rb_record):
         initial_record_key = CANONICAL_KEY_MAP.get(initial_record.key.lower()).capitalize()
-        mik_record_key = CANONICAL_KEY_MAP.get(mik_record.key.lower()).capitalize()
+        mik_record_keys = [CANONICAL_KEY_MAP.get(mik_key.lower()).capitalize() for mik_key in mik_record.key.split('/')]
         rb_record_key = CANONICAL_KEY_MAP.get(rb_record.key.lower()).capitalize()
 
         key_dict = defaultdict(int)
         key_dict[initial_record_key] += 1
-        key_dict[mik_record_key] += 1
         key_dict[rb_record_key] += 1
+        for mik_record_key in mik_record_keys:
+            key_dict[mik_record_key] += 1
 
         reverse_key_dict = defaultdict(list)
         for k, v in key_dict.items():

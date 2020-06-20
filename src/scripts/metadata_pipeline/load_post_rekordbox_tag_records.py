@@ -3,4 +3,4 @@ from src.tools.db.tag_record_pipeline import TagRecordPipeline
 
 
 if __name__ == '__main__':
-    TagRecordPipeline(TagRecordType.POST_RB).create_tag_records()
+    TagRecordPipeline(TagRecordType.POST_RB.value).create_tag_records()

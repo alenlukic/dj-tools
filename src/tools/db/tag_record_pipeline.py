@@ -1,18 +1,22 @@
-from os.path import join
+from ast import literal_eval
+from os.path import join, exists
+from shutil import copyfile
 
 from src.db import database
 from src.db.entities.track import Track
-from src.definitions.common import CONFIG, PROCESSED_MUSIC_DIR
-from src.definitions.data_management import ID3Tag
+from src.db.entities.tag_record import FinalTagRecord
+from src.definitions.common import CONFIG, EXPERIMENTAL_MUSIC_DIR, PIPELINE_MUSIC_DIR, PROCESSED_MUSIC_DIR
+from src.definitions.data_management import MD_COMPOSITE_REGEX, ID3Tag, TrackDBCols
 from src.definitions.db import TagRecordType
+from src.tools.data_management.audio_file import AudioFile
 import src.tools.db.tag_record_factory as tag_record_factories
+from src.utils.data_management import normalize_tag_text
 from src.utils.common import is_empty
 from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
 
 
 class TagRecordPipeline:
-    PIPELINE_DIR = CONFIG['PIPELINE_DIR']
     RECORD_FACTORIES = {
         TagRecordType.INITIAL.value: 'TagRecordFactory',
         TagRecordType.POST_MIK.value: 'PostMIKRecordFactory',
@@ -20,15 +24,14 @@ class TagRecordPipeline:
         TagRecordType.FINAL.value: 'FinalRecordFactory'
     }
 
-    def __init__(self, record_type, track_dir=PIPELINE_DIR):
+    def __init__(self, record_type, source_dir=PIPELINE_MUSIC_DIR, target_dir=EXPERIMENTAL_MUSIC_DIR):
         self.record_type = record_type
         self.session = database.create_session()
-        self.track_dir = track_dir
-        self.track_files = get_audio_files(track_dir)
+        self.source_dir = source_dir
+        self.target_dir = target_dir
+        self.track_files = get_audio_files(source_dir)
 
     def create_tag_records(self):
-        database.enable_dry_run()
-
         factory_name = self.RECORD_FACTORIES.get(self.record_type, None)
         if factory_name is None:
             raise Exception('Did not find a factory for record type %s' % self.record_type)
@@ -37,7 +40,7 @@ class TagRecordPipeline:
 
         try:
             for track_file in self.track_files:
-                track_path = join(self.track_dir, track_file)
+                track_path = join(self.source_dir, track_file)
                 processed_track_path = join(PROCESSED_MUSIC_DIR, track_file)
                 track = self.session.query(Track).filter_by(file_path=processed_track_path).first()
 
@@ -65,7 +68,66 @@ class TagRecordPipeline:
 
         finally:
             self.session.close()
-            database.disable_dry_run()
+
+    def sync_final_records(self):
+        """ Syncs records in the final_tags table to tracks' ID3 tags and the tracks table. """
+        # final_records = {fr.title: fr for fr in self.session.query(FinalTagRecord).all()}
+        tracks = {t.file_path: t for t in self.session.query(Track).all()}
+
+        for track_file in self.track_files:
+            # title = track.title
+            # record = final_records[normalize_tag_text(title)]
+
+            # title_sans_md = MD_COMPOSITE_REGEX.split(title)[1].strip().split(' - ')[-1].strip()
+            # bpm = float(record.bpm)
+            # key = record.key
+            # energy = None if record.energy is None else int(record.energy)
+            #
+            # updated_tags = {k: v for k, v in {
+            #     TrackDBCols.TITLE.value: title_sans_md,
+            #     TrackDBCols.BPM.value: bpm,
+            #     TrackDBCols.KEY.value: key,
+            #     TrackDBCols.ENERGY.value: energy
+            # }.items() if v is not None}
+
+            source_path = join(PROCESSED_MUSIC_DIR, track_file)
+            # intermediate_path = join(self.source_dir, track_file)
+            # inter_audio_file = AudioFile(intermediate_path)
+            # track = tracks[source_path]
+            #
+            # key = inter_audio_file.get_tag(ID3Tag.KEY, None)
+            # camelot_code = inter_audio_file.format_camelot_code(key.lower())
+            # bpm = inter_audio_file.get_tag(ID3Tag.BPM, None)
+            # title_sans_md = MD_COMPOSITE_REGEX.split(track.title)[1].strip()
+            # title = ' '.join([inter_audio_file.generate_title_prefix(camelot_code, key, bpm), title_sans_md])
+            #
+            # updated_tags = {k: v for k, v in {
+            #     TrackDBCols.TITLE.value: title,
+            #     TrackDBCols.BPM.value: bpm,
+            #     TrackDBCols.KEY.value: key,
+            #     TrackDBCols.ENERGY.value: inter_audio_file.get_tag(ID3Tag.ENERGY, None)
+            # }.items() if v is not None}
+
+            audio_file = AudioFile(source_path)
+            # audio_file.write_tags(updated_tags)
+
+            track = tracks[source_path]
+            af_title = audio_file.get_tag(ID3Tag.TITLE)
+            if af_title is not None:
+                track.title = af_title
+            af_key = audio_file.get_tag(ID3Tag.KEY)
+            if af_key is not None:
+                track.key = af_key
+            af_energy = audio_file.get_tag(ID3Tag.ENERGY)
+            if af_energy is not None:
+                track.energy = af_energy
+            comment = literal_eval(audio_file.generate_metadata()[TrackDBCols.COMMENT.value])
+            comment[TrackDBCols.TITLE.value] = track.title
+            comment = str(comment)
+            audio_file.write_tag(TrackDBCols.COMMENT.value, comment)
+            track.comment = comment
+
+        self.session.commit()
 
     def _load_rb_tags(self):
         rb_tag_file = CONFIG['REKORDBOX_TAG_FILE']
