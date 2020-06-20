@@ -82,7 +82,7 @@ def generate_camelot_map(tracks):
             TrackDBCols.TITLE: title,
             ArtistFields.ARTISTS: {artist: 0 for artist in artists},
             ArtistFields.REMIXERS: {remixer: 0 for remixer in remixers},
-            TrackDBCols.BPM: None if bpm is None else int(bpm),
+            TrackDBCols.BPM: None if bpm is None else float(bpm),
             TrackDBCols.KEY: key,
             TrackDBCols.CAMELOT_CODE: camelot_code,
             TrackDBCols.LABEL: (label, 0),

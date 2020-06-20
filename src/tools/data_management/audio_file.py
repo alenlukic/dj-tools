@@ -194,9 +194,14 @@ class AudioFile:
         return None
 
     def format_bpm(self):
-        """ Format BPM value as padded 3-digit representation. """
+        """ Format BPM value as padded 5-digit + decimal point representation. """
         bpm = self.get_tag(ID3Tag.BPM, '')
-        return ''.join([str(0)] * max(3 - len(bpm), 0)) + bpm
+        parts = bpm.split('.')
+        whole = parts[0]
+        fractional = parts[1] if len(parts) > 1 else '00'
+        whole_padded = (str(0) * max(3 - len(whole), 0)) + whole
+        fractional_padded = fractional + (str(0) * max(2 - len(fractional), 0))
+        return '.'.join([whole_padded, fractional_padded])
 
     def format_key(self):
         """ Formats track key as canonical representation. """

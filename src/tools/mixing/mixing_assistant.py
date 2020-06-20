@@ -196,12 +196,13 @@ class MixingAssistant:
         :param lower_bound: Max percentage difference between current BPM and lower BPMs
         """
 
-        upper_bpm = int(floor(get_bpm_bound(bpm, lower_bound)))
-        lower_bpm = int(ceil(get_bpm_bound(bpm, upper_bound)))
+        upper_bpm = get_bpm_bound(bpm, lower_bound)
+        lower_bpm = get_bpm_bound(bpm, upper_bound)
 
         results = []
         code_map = self.camelot_map[camelot_code]
-        for b in range(lower_bpm, upper_bpm + 1):
+        matching_bpms = sorted([b for b in code_map.keys() if lower_bpm <= b <= upper_bpm])
+        for b in matching_bpms:
             results.extend(code_map[b])
 
         return results

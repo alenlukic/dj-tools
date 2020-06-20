@@ -213,9 +213,9 @@ LABEL_CANON = {
 
 BAR_REGEX = re.compile(r'.*?\|')
 
-MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{3}\]')
+MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{1,3}\.\d{1,2}\]')
 
-MD_SPLIT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+MD_SPLIT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{1,3})[.](\d{1,2})\]')
 
 PAREN_REGEX = re.compile(r'\(.*\)')
 
