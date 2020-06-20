@@ -75,6 +75,10 @@ class TagRecordPipeline:
         tracks = {t.file_path: t for t in self.session.query(Track).all()}
 
         for track_file in self.track_files:
+            source_path = join(PROCESSED_MUSIC_DIR, track_file)
+            track = tracks[source_path]
+            audio_file = AudioFile(source_path)
+
             # title = track.title
             # record = final_records[normalize_tag_text(title)]
 
@@ -89,10 +93,6 @@ class TagRecordPipeline:
             #     TrackDBCols.KEY.value: key,
             #     TrackDBCols.ENERGY.value: energy
             # }.items() if v is not None}
-
-            source_path = join(PROCESSED_MUSIC_DIR, track_file)
-            track = tracks[source_path]
-            audio_file = AudioFile(source_path)
 
             # key = audio_file.get_tag(ID3Tag.KEY, None)
             # camelot_code = audio_file.format_camelot_code(key.lower())
@@ -113,7 +113,7 @@ class TagRecordPipeline:
             # comment[TrackDBCols.TITLE.value] = title
             # comment[TrackDBCols.BPM.value] = track.bpm
             # comment = str(comment)
-            audio_file.write_tags({TrackDBCols.COMMENT.value: track.comment})
+            # audio_file.write_tags({TrackDBCols.COMMENT.value: track.comment})
             # track.comment = comment
 
         self.session.commit()

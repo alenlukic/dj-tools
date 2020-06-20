@@ -215,8 +215,6 @@ BAR_REGEX = re.compile(r'.*?\|')
 
 MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{1,3}\.\d{1,2}\]')
 
-MD_SPLIT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{1,3})[.](\d{1,2})\]')
-
 PAREN_REGEX = re.compile(r'\(.*\)')
 
 GD_TIMESTAMP_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
