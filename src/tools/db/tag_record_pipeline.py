@@ -69,15 +69,15 @@ class TagRecordPipeline:
         finally:
             self.session.close()
 
-    def sync_final_records(self):
-        """ Syncs records in the final_tags table to tracks' ID3 tags and the tracks table. TODO: clean this up!"""
-        # final_records = {fr.title: fr for fr in self.session.query(FinalTagRecord).all()}
-        tracks = {t.file_path: t for t in self.session.query(Track).all()}
-
-        for track_file in self.track_files:
-            source_path = join(PROCESSED_MUSIC_DIR, track_file)
-            track = tracks[source_path]
-            audio_file = AudioFile(source_path)
+    # def sync_final_records(self):
+    #     """ Syncs records in the final_tags table to tracks' ID3 tags and the tracks table. TODO: clean this up!"""
+    #     # final_records = {fr.title: fr for fr in self.session.query(FinalTagRecord).all()}
+    #     tracks = {t.file_path: t for t in self.session.query(Track).all()}
+    #
+    #     for track_file in self.track_files:
+    #         source_path = join(PROCESSED_MUSIC_DIR, track_file)
+    #         track = tracks[source_path]
+    #         audio_file = AudioFile(source_path)
 
             # title = track.title
             # record = final_records[normalize_tag_text(title)]
@@ -116,7 +116,7 @@ class TagRecordPipeline:
             # audio_file.write_tags({TrackDBCols.COMMENT.value: track.comment})
             # track.comment = comment
 
-        self.session.commit()
+        # self.session.commit()
 
     def _load_rb_tags(self):
         rb_tag_file = CONFIG['REKORDBOX_TAG_FILE']

@@ -125,7 +125,7 @@ class MixingAssistant:
 
             # Validate BPM and Camelot code exist and are well-formatted
             title = db_row.title
-            bpm = db_row.bpm
+            bpm = float(db_row.bpm)
             camelot_code = db_row.camelot_code
 
             if bpm is None:
