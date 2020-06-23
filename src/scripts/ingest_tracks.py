@@ -1,8 +1,6 @@
 from os.path import join
 import sys
 
-from src.db import database
-from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR, TMP_MUSIC_DIR
 from src.tools.data_management.data_manager import DataManager
 from src.utils.errors import handle_error

@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 import src.db.entities.tag_record as tag_records
-from src.definitions.database import TAG_COLUMNS
+from src.definitions.db import TAG_COLUMNS
 from src.definitions.data_management import ID3Tag, CANONICAL_KEY_MAP
 from src.tools.data_management.audio_file import AudioFile
 
@@ -11,28 +11,35 @@ class TagRecordFactory:
         self.file_path = file_path
         self.track_id = track_id
         self.session = session
+        self.tag_record = None
         self.TagRecordEntity = getattr(tag_records, record_type)
         self.audio_file = AudioFile(self.file_path)
-        self.row = self._create_row()
+        self.row = self.create_row()
 
     def create_tag_record(self):
         if self.session.query(self.TagRecordEntity).filter_by(track_id=self.track_id).first() is not None:
             return
 
-        self._create_tag_record()
-        self.session.add(self.TagRecordEntity(**self.row))
+        self.update_row()
+        self.update_database()
 
-    def _create_row(self):
+        return self.tag_record
+
+    def create_row(self):
         row = {k.name.lower(): self.audio_file.get_tag(k) for k in TAG_COLUMNS}
         row['track_id'] = self.track_id
         return row
 
-    def _create_tag_record(self):
+    def update_row(self):
         pass
+
+    def update_database(self):
+        self.tag_record = self.TagRecordEntity(**self.row)
+        self.session.add(self.tag_record)
 
 
 class PostMIKRecordFactory(TagRecordFactory):
-    def _create_tag_record(self):
+    def update_row(self):
         # MIK won't write float bpm to ID3, so we write to the comment tag instead
         mik_comment = self.audio_file.get_tag(ID3Tag.COMMENT_ENG)
         try:
@@ -50,14 +57,14 @@ class PostRBRecordFactory(TagRecordFactory):
         super().__init__(record_type, file_path, track_id, session)
         self.rb_overrides = rb_overrides
 
-    def _create_tag_record(self):
+    def update_row(self):
         title = self.row[ID3Tag.TITLE.name.lower()]
         for k, v in self.rb_overrides[title].items():
             self.row[k] = v
 
 
 class FinalRecordFactory(TagRecordFactory):
-    def _create_tag_record(self):
+    def update_row(self):
         track_id = self.track_id
         initial_record = self.session.query(tag_records.InitialTagRecord).filter_by(track_id=track_id).first()
         post_mik_record = self.session.query(tag_records.PostMIKTagRecord).filter_by(track_id=track_id).first()

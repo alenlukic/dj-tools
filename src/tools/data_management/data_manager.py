@@ -1,6 +1,6 @@
 from collections import defaultdict
 import json
-from os.path import basename, join, splitext
+from os.path import join
 from shutil import copyfile
 
 from src.db import database
@@ -31,13 +31,12 @@ class DataManager:
         finally:
             session.close()
 
-    def ingest_tracks(self, input_dir, target_dir=PROCESSED_MUSIC_DIR, upsert=False):
+    def ingest_tracks(self, input_dir, target_dir=PROCESSED_MUSIC_DIR):
         """
         Ingest new tracks - extract tags, format fields, and create DB entries.
 
         :param input_dir: Directory containing audio files to ingest
         :param target_dir: Directory where updated audio files should be saved
-        :param upsert: If True, tracks are upserted into the DB and original base names are retained
         """
 
         session = self.database.create_session()
@@ -48,7 +47,6 @@ class DataManager:
 
             for f in input_files:
                 old_path = join(input_dir, f)
-                old_base_name = basename(old_path)
 
                 # Load track and read ID3 tags
                 try:
@@ -57,33 +55,16 @@ class DataManager:
                     handle_error(e, 'Couldn\'t read ID3 tags for %s' % old_path)
                     continue
 
+                # Verify requisite ID3 tags exist
                 id3_data = track.get_tags()
                 if not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
-                    print('Can\'t automatically rename %s due to missing requisite ID3 tags' % old_path)
-                    continue
-
-                # Generate track name
-                metadata = track.get_metadata()
-                track_title = metadata.get(TrackDBCols.TITLE.value)
-
-                if track_title is None and not upsert:
-                    print('Failed to generate title for %s' % old_path)
-                    continue
-
-                file_ext = splitext(old_path)[-1].strip()
-                new_path = join(target_dir, old_base_name if upsert else track_title + file_ext)
-
-                # Ensure we're not adding a duplicate track
-                existing_track_check = session.query(Track).filter_by(file_path=new_path).first()
-                if existing_track_check is not None and not upsert:
-                    print('Existing track (id: %d) in DB with path %s - skipping' % (existing_track_check.id, new_path))
+                    print('Can\'t ingest %s due to missing requisite ID3 tags' % old_path)
                     continue
 
                 # Copy to target directory
-                # track.write_tags()
-                new_base_name = basename(new_path)
+                new_path = join(target_dir, f)
                 try:
-                    print('\nRenaming:\t%s\nto:\t\t%s' % (old_base_name, new_base_name))
+                    print('\nCopying:\t%s\nto:\t\t%s' % (old_path, new_path))
                     copyfile(old_path, new_path)
                 except Exception as e:
                     handle_error(e, 'Couldn\'t copy %s to target directory' % new_path)
@@ -92,7 +73,7 @@ class DataManager:
                 tracks_to_save[new_path] = track
 
             # Update database
-            self.upsert_tracks(tracks_to_save) if upsert else self.insert_tracks(tracks_to_save)
+            self.insert_tracks(tracks_to_save)
 
         except Exception as e:
             handle_error(e)
@@ -108,6 +89,7 @@ class DataManager:
         """
 
         session = self.database.create_session()
+
         try:
             artist_updates = {}
             artist_track_updates = {}
@@ -117,6 +99,8 @@ class DataManager:
                 track_metadata = track.get_metadata()
                 db_row = {k: v for k, v in track_metadata.items() if k in ALL_TRACK_DB_COLS}
                 db_row[TrackDBCols.FILE_PATH.value] = new_track_path
+                title = extract_unformatted_title(db_row[TrackDBCols.TITLE.value])
+                db_row[TrackDBCols.TITLE.value] = title
 
                 try:
                     # Persist row to DB
@@ -131,11 +115,8 @@ class DataManager:
                     session.rollback()
                     continue
 
-                comment = load_comment(track_metadata.get(TrackDBCols.COMMENT.value), '{}')
-                title = comment.get(TrackDBCols.TITLE.value)
-
                 # Update artists
-                artist_updates_result = self.update_artists(session, comment)
+                artist_updates_result = self.update_artists(session, load_comment(track_metadata.get(TrackDBCols.COMMENT.value), '{}'))
                 artist_updates[title] = artist_updates_result
 
                 # Add artist tracks
@@ -149,42 +130,6 @@ class DataManager:
         except Exception as e:
             handle_error(e)
             session.rollback()
-            raise e
-
-        finally:
-            session.close()
-
-    def upsert_tracks(self, tracks):
-        """
-        Upserts new metadata to existing track rows.
-
-        :param tracks: Dictionary mapping track name to its internal model
-        """
-
-        session = self.database.create_session()
-        columns_to_update = [c for c in ALL_TRACK_DB_COLS if not (c == 'id' or c == 'file_path' or c == 'date_added')]
-
-        try:
-            for track_path, track in tracks.items():
-                # Update ID3 tags
-                # track.write_tags()
-
-                # Get existing row
-                existing_track = session.query(Track).filter_by(file_path=track_path).first()
-                if existing_track is None:
-                    raise Exception('Could not find track associated with file path %s in DB' % track_path)
-
-                # Update row with new metadata values
-                track_metadata = track.get_metadata()
-                for col in columns_to_update:
-                    new_val = track_metadata.get(col)
-                    if new_val is not None:
-                        setattr(existing_track, col, new_val)
-
-                session.commit()
-
-        except Exception as e:
-            handle_error(e)
             raise e
 
         finally:

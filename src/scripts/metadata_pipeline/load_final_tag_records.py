@@ -1,6 +1,6 @@
 from src.definitions.db import TagRecordType
-from src.tools.db.tag_record_pipeline import TagRecordPipeline
+from src.tools.db.track_ingestion_pipeline import FinalPipelineStage
 
 
 if __name__ == '__main__':
-    TagRecordPipeline(TagRecordType.FINAL.value).create_tag_records()
+    FinalPipelineStage(TagRecordType.FINAL.value).execute()

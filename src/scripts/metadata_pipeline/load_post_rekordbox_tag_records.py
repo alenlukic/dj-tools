@@ -1,6 +1,6 @@
 from src.definitions.db import TagRecordType
-from src.tools.db.tag_record_pipeline import TagRecordPipeline
+from src.tools.db.track_ingestion_pipeline import PostRBPipelineStage
 
 
 if __name__ == '__main__':
-    TagRecordPipeline(TagRecordType.POST_RB.value).create_tag_records()
+    PostRBPipelineStage(TagRecordType.POST_RB.value).execute()
