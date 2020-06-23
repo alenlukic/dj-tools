@@ -1,4 +1,3 @@
-from math import ceil, floor
 from sys import exit
 
 from src.db import database
@@ -82,17 +81,9 @@ class MixingAssistant:
 
         print('Track data reloaded.')
 
-    def ingest_tracks(self, upsert=None):
-        """
-        Ingest tracks in tmp directories.
-
-        :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
-        """
-
-        upsert_lower = (upsert or '').lower()
-        upsert_tracks = True if upsert_lower == 'true' else False
-        ingest_tracks(self.dm, upsert_tracks)
-
+    def ingest_tracks(self):
+        """ Ingest tracks in tmp directories. """
+        ingest_tracks(self.dm)
         print('\nSongs renamed.')
 
     def shutdown(self):
