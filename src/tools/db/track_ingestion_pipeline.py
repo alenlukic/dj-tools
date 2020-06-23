@@ -4,8 +4,8 @@ from shutil import copyfile
 
 from src.db import database
 from src.db.entities.track import Track
-from src.definitions.common import CONFIG, PROCESSED_MUSIC_DIR
-from src.definitions.data_management import ID3Tag, TrackDBCols
+from src.definitions.common import PROCESSED_MUSIC_DIR
+from src.definitions.data_management import TrackDBCols
 from src.definitions.db import *
 from src.tools.data_management.audio_file import AudioFile
 from src.tools.data_management.data_manager import DataManager

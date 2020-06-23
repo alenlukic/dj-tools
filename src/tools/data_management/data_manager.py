@@ -107,16 +107,14 @@ class DataManager:
                     session.add(Track(**db_row))
                     session.commit()
 
-                    # Update ID3 tags only after saving to DB
-                    # track.write_tags()
-
                 except Exception as e:
                     handle_error(e)
                     session.rollback()
                     continue
 
                 # Update artists
-                artist_updates_result = self.update_artists(session, load_comment(track_metadata.get(TrackDBCols.COMMENT.value), '{}'))
+                comment = load_comment(track_metadata.get(TrackDBCols.COMMENT.value), '{}')
+                artist_updates_result = self.update_artists(session, comment)
                 artist_updates[title] = artist_updates_result
 
                 # Add artist tracks
