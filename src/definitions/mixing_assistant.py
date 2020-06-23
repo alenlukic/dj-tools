@@ -36,7 +36,7 @@ COMMANDS = {
                             '[05A - Cm - 140] Leftfield - Song Of Life (John Askew Remix)')
         ]
     ),
-    RELOAD: Command(RELOAD, 'Reload finalized tracks.', 'reload_track_data', RELOAD_ALIASES),
+    RELOAD: Command(RELOAD, 'Reload processed tracks.', 'reload_track_data', RELOAD_ALIASES),
     INGEST: Command(
         INGEST,
         'Ingest tracks in the unprocessed audio directory.',
