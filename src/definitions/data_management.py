@@ -63,9 +63,9 @@ METADATA_KEY_TO_ID3 = {
 }
 
 ID3_TAG_SYNONYMS = {
-    ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value],
-    ID3Tag.COMMENT_ENG.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value],
-    ID3Tag.COMMENT_XXX.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_ENG.value, ID3Tag.COMMENT_XXX.value]
+    ID3Tag.COMMENT.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_XXX.value, ID3Tag.COMMENT_ENG.value],
+    ID3Tag.COMMENT_XXX.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_XXX.value, ID3Tag.COMMENT_ENG.value],
+    ID3Tag.COMMENT_ENG.value: [ID3Tag.COMMENT.value, ID3Tag.COMMENT_XXX.value, ID3Tag.COMMENT_ENG.value],
 }
 
 ALL_TRACK_DB_COLS = set([c.value for c in TrackDBCols])
@@ -213,9 +213,7 @@ LABEL_CANON = {
 
 BAR_REGEX = re.compile(r'.*?\|')
 
-MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{3}\]')
-
-MD_SPLIT_REGEX = re.compile(r'\[(\d{2}[AB])\s-\s([A-Za-z#]{1,3})\s-\s(\d{3})\]')
+MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{1,3}\.\d{1,2}\]')
 
 PAREN_REGEX = re.compile(r'\(.*\)')
 

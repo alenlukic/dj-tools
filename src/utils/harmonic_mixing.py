@@ -64,14 +64,14 @@ def generate_camelot_map(tracks):
                 artist_counts[artist] += 1
 
         # Create track metadata dict and add to index
-        title = track_comment.get(TrackDBCols.TITLE.value)
-        bpm = track_comment.get(TrackDBCols.BPM.value)
-        key = track_comment.get(TrackDBCols.KEY.value)
-        camelot_code = track_comment.get(TrackDBCols.CAMELOT_CODE.value)
-        label = track_comment.get(TrackDBCols.LABEL.value)
-        genre = track_comment.get(TrackDBCols.GENRE.value)
-        energy = track_comment.get(TrackDBCols.ENERGY.value)
-        date_added = track_comment.get(TrackDBCols.DATE_ADDED.value)
+        title = track.title
+        bpm = track.bpm
+        key = track.key
+        camelot_code = track.camelot_code
+        label = track.label
+        genre = track.genre
+        energy = track.energy
+        date_added = track.date_added
 
         # Increment label count
         if not is_empty(label):
@@ -82,7 +82,7 @@ def generate_camelot_map(tracks):
             TrackDBCols.TITLE: title,
             ArtistFields.ARTISTS: {artist: 0 for artist in artists},
             ArtistFields.REMIXERS: {remixer: 0 for remixer in remixers},
-            TrackDBCols.BPM: None if bpm is None else int(bpm),
+            TrackDBCols.BPM: None if bpm is None else float(bpm),
             TrackDBCols.KEY: key,
             TrackDBCols.CAMELOT_CODE: camelot_code,
             TrackDBCols.LABEL: (label, 0),

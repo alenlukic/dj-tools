@@ -36,7 +36,7 @@ class AudioFile:
         metadata = {
             TrackDBCols.FILE_PATH.value: self.full_path,
             TrackDBCols.TITLE.value: title,
-            TrackDBCols.BPM.value: int(bpm),
+            TrackDBCols.BPM.value: float(bpm),
             TrackDBCols.KEY.value: key,
             TrackDBCols.CAMELOT_CODE.value: camelot_code,
             TrackDBCols.ENERGY.value: self.parse_energy(),
@@ -45,6 +45,16 @@ class AudioFile:
             TrackDBCols.DATE_ADDED.value: ctime(stat(self.full_path).st_birthtime)
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
+        metadata[TrackDBCols.COMMENT.value] = self.generate_comment(metadata)
+
+        return metadata
+
+    def generate_comment(self, metadata):
+        """
+        Generates string comment for metadata.
+
+        :param metadata: Metadata for which to generate comment.
+        """
 
         comment = {k: v for k, v in dict(ChainMap(
             {k: v for k, v in metadata.items()},
@@ -52,10 +62,9 @@ class AudioFile:
                 ArtistFields.ARTISTS.value: self.get_tag(ID3Tag.ARTIST),
                 ArtistFields.REMIXERS.value: self.get_tag(ID3Tag.REMIXER)
             }
-        )).items() if not is_empty(v)}
-        metadata[TrackDBCols.COMMENT.value] = str(comment)
+        )).items() if not is_empty(v) and k != TrackDBCols.COMMENT.value}
 
-        return metadata
+        return str(comment)
 
     # =====================
     # Title-related methods
@@ -194,9 +203,16 @@ class AudioFile:
         return None
 
     def format_bpm(self):
-        """ Format BPM value as padded 3-digit representation. """
+        """ Format BPM value as padded 5-digit + decimal point representation. """
+
         bpm = self.get_tag(ID3Tag.BPM, '')
-        return ''.join([str(0)] * max(3 - len(bpm), 0)) + bpm
+        parts = bpm.split('.')
+        whole = parts[0]
+        fractional = parts[1] if len(parts) > 1 else '00'
+        whole_padded = (str(0) * max(3 - len(whole), 0)) + whole
+        fractional_padded = fractional + (str(0) * max(2 - len(fractional), 0))
+
+        return '.'.join([whole_padded, fractional_padded])
 
     def format_key(self):
         """ Formats track key as canonical representation. """
@@ -305,6 +321,8 @@ class AudioFile:
                 self.id3[tag] = TPUB(text=text)
             elif tag == ID3Tag.COMMENT.value or tag == ID3Tag.COMMENT_ENG.value or tag == ID3Tag.COMMENT_XXX.value:
                 self.id3[ID3Tag.COMMENT.value] = COMM(text=text)
+                self.id3[ID3Tag.COMMENT_ENG.value] = COMM(text=text)
+                self.id3[ID3Tag.COMMENT_XXX.value] = COMM(text=text)
 
         if save:
             self.id3.save()
@@ -319,10 +337,9 @@ class AudioFile:
         track_metadata = tags_to_write or self.get_metadata()
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
-            synonyms = list(self.get_synonym_values(mk).keys())
+            synonyms = set([mk] + list(self.get_synonym_values(mk).keys()))
             for syn in synonyms:
                 self.write_tag(syn, v, False)
-
         self.id3.save()
 
     def save_tags(self):

@@ -1,11 +1,9 @@
-from math import ceil, floor
 from sys import exit
 
 from src.db import database
 from src.db.entities.track import Track
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
-from src.scripts.ingest_tracks import ingest_tracks
 from src.tools.data_management.data_manager import DataManager
 from src.tools.mixing.command import CommandParsingException
 from src.tools.mixing.transition_match import TransitionMatch
@@ -82,19 +80,6 @@ class MixingAssistant:
 
         print('Track data reloaded.')
 
-    def ingest_tracks(self, upsert=None):
-        """
-        Ingest tracks in tmp directories.
-
-        :param upsert: Indicates whether to attempt upserting existing DB entries using track metadata.
-        """
-
-        upsert_lower = (upsert or '').lower()
-        upsert_tracks = True if upsert_lower == 'true' else False
-        ingest_tracks(self.dm, upsert_tracks)
-
-        print('\nSongs renamed.')
-
     def shutdown(self):
         """ Exits the CLI. """
         print('Goodbye.')
@@ -125,7 +110,7 @@ class MixingAssistant:
 
             # Validate BPM and Camelot code exist and are well-formatted
             title = db_row.title
-            bpm = db_row.bpm
+            bpm = float(db_row.bpm)
             camelot_code = db_row.camelot_code
 
             if bpm is None:
@@ -196,12 +181,13 @@ class MixingAssistant:
         :param lower_bound: Max percentage difference between current BPM and lower BPMs
         """
 
-        upper_bpm = int(floor(get_bpm_bound(bpm, lower_bound)))
-        lower_bpm = int(ceil(get_bpm_bound(bpm, upper_bound)))
+        upper_bpm = get_bpm_bound(bpm, lower_bound)
+        lower_bpm = get_bpm_bound(bpm, upper_bound)
 
         results = []
         code_map = self.camelot_map[camelot_code]
-        for b in range(lower_bpm, upper_bpm + 1):
+        matching_bpms = sorted([b for b in code_map.keys() if lower_bpm <= b <= upper_bpm])
+        for b in matching_bpms:
             results.extend(code_map[b])
 
         return results

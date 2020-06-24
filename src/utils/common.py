@@ -21,7 +21,7 @@ def is_empty(value):
 
     typ = type(value)
     return ((value is None) or
-            (typ == str and len(value.strip()) == 0) or
+            (typ == str and (len(value.strip()) == 0 or value.strip() == '\x00')) or
             ((typ == list or type == tuple) and all([is_empty(e) for e in value])) or
             (typ == dict and all([is_empty(v) for v in value.values()])))
 

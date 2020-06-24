@@ -168,3 +168,17 @@ def load_comment(comment_string, default=None):
             return literal_eval(default)
         except Exception:
             return {}
+
+
+def extract_unformatted_title(formatted_title):
+    """
+
+    :param formatted_title:
+    """
+
+    md_title_split = MD_COMPOSITE_REGEX.split(formatted_title)
+    title = md_title_split[-1].strip()
+    title = ' - '.join(title.split(' - ')[1:])
+
+    return title
+
