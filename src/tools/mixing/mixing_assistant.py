@@ -4,7 +4,6 @@ from src.db import database
 from src.db.entities.track import Track
 from src.definitions.harmonic_mixing import *
 from src.definitions.mixing_assistant import *
-from src.scripts.ingest_tracks import ingest_tracks
 from src.tools.data_management.data_manager import DataManager
 from src.tools.mixing.command import CommandParsingException
 from src.tools.mixing.transition_match import TransitionMatch
@@ -80,11 +79,6 @@ class MixingAssistant:
         TransitionMatch.collection_md = self.collection_md
 
         print('Track data reloaded.')
-
-    def ingest_tracks(self):
-        """ Ingest tracks in tmp directories. """
-        ingest_tracks(self.dm)
-        print('\nSongs renamed.')
 
     def shutdown(self):
         """ Exits the CLI. """

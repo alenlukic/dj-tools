@@ -18,7 +18,8 @@ class TagRecordFactory:
 
     def create_tag_record(self):
         if self.session.query(self.TagRecordEntity).filter_by(track_id=self.track_id).first() is not None:
-            return
+            raise Exception('%s already exists in table for %s record types' %
+                            (self.track_id, self.TagRecordEntity.__class__.__name__))
 
         self.update_row()
         self.update_database()
@@ -34,7 +35,6 @@ class TagRecordFactory:
         pass
 
     def update_database(self):
-        print('%s tag record:\n%s\n-------\n' % (self.file_path, str(self.row)))
         self.tag_record = self.TagRecordEntity(**self.row)
         self.session.add(self.tag_record)
 
