@@ -18,14 +18,10 @@ from src.utils.file_operations import get_audio_files
 class DataManager:
     """ Encapsulates track database management utilities. """
 
-    def __init__(self):
-        """ Initialize data manager. """
-        self.database = database
-
     def load_tracks(self):
         """ Loads tracks from the database into memory. """
 
-        session = self.database.create_session()
+        session = database.create_session()
         try:
             return session.query(Track).all()
         finally:
@@ -39,7 +35,7 @@ class DataManager:
         :param target_dir: Directory where updated audio files should be saved
         """
 
-        session = self.database.create_session()
+        session = database.create_session()
 
         try:
             input_files = get_audio_files(input_dir)
@@ -88,7 +84,7 @@ class DataManager:
         :param tracks: Dictionary mapping track name to its internal model
         """
 
-        session = self.database.create_session()
+        session = database.create_session()
 
         try:
             artist_updates = {}

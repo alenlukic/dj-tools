@@ -34,6 +34,7 @@ class TagRecordFactory:
         pass
 
     def update_database(self):
+        print('%s tag record:\n%s\n-------\n' % (self.file_path, str(self.row)))
         self.tag_record = self.TagRecordEntity(**self.row)
         self.session.add(self.tag_record)
 
@@ -82,7 +83,7 @@ class FinalRecordFactory(TagRecordFactory):
     def _get_final_bpm(self, initial_record, mik_record, rb_record):
         bpm_dict = defaultdict(int)
         for record in [initial_record, mik_record, rb_record]:
-            bpm_dict[record.bpm] += 1
+            bpm_dict[float(record.bpm)] += 1
 
         reverse_bpm_dict = defaultdict(list)
         for k, v in bpm_dict.items():
@@ -92,7 +93,7 @@ class FinalRecordFactory(TagRecordFactory):
         if len(reverse_bpm_dict[max_bpm_freq]) == 1:
             return reverse_bpm_dict[max_bpm_freq][0]
 
-        return rb_record.bpm
+        return float(rb_record.bpm)
 
     def _get_final_key(self, initial_record, mik_record, rb_record):
         initial_record_key = CANONICAL_KEY_MAP.get(initial_record.key.lower()).capitalize()

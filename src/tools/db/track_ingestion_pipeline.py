@@ -1,11 +1,10 @@
 from collections import ChainMap
-from os.path import join
 from shutil import copyfile
+from os.path import splitext
 
 from src.db import database
 from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.definitions.data_management import TrackDBCols
 from src.definitions.db import *
 from src.tools.data_management.audio_file import AudioFile
 from src.tools.data_management.data_manager import DataManager
@@ -26,6 +25,7 @@ class PipelineStage:
     def execute(self):
         try:
             self.create_tag_records()
+            self.session.commit()
         except Exception as e:
             self.session.rollback()
             handle_error(e)
@@ -68,6 +68,7 @@ class InitialPipelineStage(PipelineStage):
         try:
             self.initialize_tracks_in_database()
             self.create_tag_records()
+            self.session.commit()
         except Exception as e:
             self.session.rollback()
             handle_error(e)
@@ -84,6 +85,7 @@ class PostRBPipelineStage(PipelineStage):
         try:
             self.cmd_overrides = {'rb_overrides': self.load_rb_tags()}
             self.create_tag_records()
+            self.session.commit()
         except Exception as e:
             self.session.rollback()
             handle_error(e)
@@ -118,6 +120,7 @@ class FinalPipelineStage(PipelineStage):
             tag_records = self.create_tag_records()
             self.write_tags(tag_records)
             self.update_track_table(tag_records)
+            self.session.commit()
         except Exception as e:
             self.session.rollback()
             handle_error(e)
@@ -132,20 +135,28 @@ class FinalPipelineStage(PipelineStage):
 
             audio_file = AudioFile(new_path)
             audio_file.write_tags({
-                TrackDBCols.BPM.value: tag_record.bpm,
+                TrackDBCols.BPM.value: float(tag_record.bpm),
                 TrackDBCols.KEY.value: tag_record.key
             })
 
     def update_track_table(self, tag_records):
         for track_file, tag_record in tag_records.items():
             old_path = join(self.target_dir, track_file)
-            new_path = join(PROCESSED_MUSIC_DIR, track_file)
+            _, ext = splitext(old_path)
 
             audio_file = AudioFile(old_path)
             metadata = audio_file.get_metadata()
+
+            new_path = join(PROCESSED_MUSIC_DIR, metadata[TrackDBCols.TITLE.value] + ext)
             metadata[TrackDBCols.FILE_PATH.value] = new_path
+
             track = self.session.query(Track).filter_by(id=tag_record.track_id).first()
+            metadata[TrackDBCols.DATE_ADDED.value] = track.date_added
+
+            metadata[TrackDBCols.COMMENT.value] = audio_file.generate_comment(metadata)
             for col, val in metadata.items():
                 setattr(track, col, val)
 
             copyfile(old_path, new_path)
+            audio_file = AudioFile(new_path)
+            audio_file.write_tags(metadata)
