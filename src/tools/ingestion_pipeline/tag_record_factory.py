@@ -1,13 +1,24 @@
 from collections import defaultdict
 
 import src.db.entities.tag_record as tag_records
-from src.definitions.db import TAG_COLUMNS
+from src.definitions.ingestion_pipeline import TAG_COLUMNS
 from src.definitions.data_management import ID3Tag, CANONICAL_KEY_MAP
 from src.tools.data_management.audio_file import AudioFile
 
 
 class TagRecordFactory:
+    """ Create an ID3 tag record for use in the ingestion pipeline. """
+
     def __init__(self, record_type, file_path, track_id, session):
+        """
+        Initializer.
+
+        :param record_type: Tag record type.
+        :param file_path: Path to track file.
+        :param track_id: Corresponding id in the track table.
+        :param session: DB session.
+        """
+
         self.file_path = file_path
         self.track_id = track_id
         self.session = session
@@ -17,6 +28,8 @@ class TagRecordFactory:
         self.row = self.create_row()
 
     def create_tag_record(self):
+        """ Create and persist tag record. """
+
         if self.session.query(self.TagRecordEntity).filter_by(track_id=self.track_id).first() is not None:
             raise Exception('%s already exists in table for %s record types' %
                             (self.track_id, self.TagRecordEntity.__class__.__name__))
@@ -27,21 +40,27 @@ class TagRecordFactory:
         return self.tag_record
 
     def create_row(self):
+        """ Create row to persist. """
         row = {k.name.lower(): self.audio_file.get_tag(k) for k in TAG_COLUMNS}
         row['track_id'] = self.track_id
         return row
 
     def update_row(self):
+        """ Execute any additional logic to update row prior to persisting. """
         pass
 
     def update_database(self):
+        """ Persist the record. """
         self.tag_record = self.TagRecordEntity(**self.row)
         self.session.add(self.tag_record)
 
 
 class PostMIKRecordFactory(TagRecordFactory):
+    """ Create an ID3 tag record after MIK analysis. """
+
     def update_row(self):
-        # MIK won't write float bpm to ID3, so we write to the comment tag instead
+        """ Parse out key and BPM after MIK analysis. """
+
         mik_comment = self.audio_file.get_tag(ID3Tag.COMMENT_ENG)
         try:
             if mik_comment is not None:
@@ -54,18 +73,34 @@ class PostMIKRecordFactory(TagRecordFactory):
 
 
 class PostRBRecordFactory(TagRecordFactory):
+    """ Create an ID3 tag record after Rekordbox analysis. """
+
     def __init__(self, record_type, file_path, track_id, session, rb_overrides):
+        """
+        Initializer.
+
+        :param record_type: Tag record type.
+        :param file_path: Path to track file.
+        :param track_id: Corresponding id in the track table.
+        :param session: DB session.
+        :param rb_overrides: Rekordbox metadata export dict.
+        """
         super().__init__(record_type, file_path, track_id, session)
         self.rb_overrides = rb_overrides
 
     def update_row(self):
+        """ Update row with metadata from Rekordbox export. """
         title = self.row[ID3Tag.TITLE.name.lower()]
         for k, v in self.rb_overrides[title].items():
             self.row[k] = v
 
 
 class FinalRecordFactory(TagRecordFactory):
+    """ Create final consolidated ID3 tag record. """
+
     def update_row(self):
+        """ Consolidate information from the other analyses. """
+
         track_id = self.track_id
         initial_record = self.session.query(tag_records.InitialTagRecord).filter_by(track_id=track_id).first()
         post_mik_record = self.session.query(tag_records.PostMIKTagRecord).filter_by(track_id=track_id).first()

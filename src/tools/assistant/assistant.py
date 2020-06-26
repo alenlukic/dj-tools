@@ -3,13 +3,13 @@ from sys import exit
 from src.db import database
 from src.db.entities.track import Track
 from src.definitions.harmonic_mixing import *
-from src.definitions.mixing_assistant import *
+from src.definitions.assistant import *
 from src.tools.data_management.data_manager import DataManager
-from src.tools.mixing.command import CommandParsingException
-from src.tools.mixing.transition_match import TransitionMatch
+from src.tools.assistant.command import CommandParsingException
+from src.tools.assistant.transition_match import TransitionMatch
 from src.utils.errors import handle_error
 from src.utils.harmonic_mixing import *
-from src.utils.mixing_assistant import *
+from src.utils.assistant import *
 
 
 def parse_user_input(user_input):
@@ -39,11 +39,11 @@ def parse_user_input(user_input):
     return cmd_name, args
 
 
-class MixingAssistant:
-    """" CLI mixing assistant functions."""
+class Assistant:
+    """" CLI assistant functions."""
 
     def __init__(self):
-        """ Initializes data manager. """
+        """ Initializes data manager and track data. """
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
         self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
@@ -106,7 +106,7 @@ class MixingAssistant:
                     title_mismatch_message = '\n\nWarning: found %s in path %s (but not title)' % (track_title, path)
 
             if db_row is None:
-                raise MixingException('%s not found in database.' % track_title)
+                raise Exception('%s not found in database.' % track_title)
 
             # Validate BPM and Camelot code exist and are well-formatted
             title = db_row.title
@@ -114,14 +114,14 @@ class MixingAssistant:
             camelot_code = db_row.camelot_code
 
             if bpm is None:
-                raise MixingException('Did not find a BPM for %s.' % title)
+                raise Exception('Did not find a BPM for %s.' % title)
             if camelot_code is None:
-                raise MixingException('Did not find a Camelot code for %s.' % title)
+                raise Exception('Did not find a Camelot code for %s.' % title)
 
             camelot_map_entry = self.camelot_map[camelot_code][bpm]
             cur_track_md = [md for md in camelot_map_entry if md.get(TrackDBCols.TITLE) == title]
             if len(cur_track_md) == 0:
-                raise MixingException('%s metadata not found in Camelot map.' % title)
+                raise Exception('%s metadata not found in Camelot map.' % title)
 
             cur_track_md = cur_track_md[0]
 
@@ -252,7 +252,3 @@ class MixingAssistant:
 
         for result in results[start_index:]:
             print(result.format())
-
-
-class MixingException(Exception):
-    pass

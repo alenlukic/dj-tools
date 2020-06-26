@@ -29,7 +29,7 @@ class DataManager:
 
     def ingest_tracks(self, input_dir, target_dir=PROCESSED_MUSIC_DIR):
         """
-        Ingest new tracks - extract tags, format fields, and create DB entries.
+        Ingest new tracks - extract tags, format fields, and create track table entries.
 
         :param input_dir: Directory containing audio files to ingest
         :param target_dir: Directory where updated audio files should be saved

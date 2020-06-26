@@ -1,4 +1,4 @@
-from src.definitions.mixing_assistant import COMMANDS
+from src.definitions.assistant import COMMANDS
 
 
 def print_error(message):

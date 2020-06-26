@@ -1,21 +1,32 @@
 from collections import ChainMap
 from shutil import copyfile
+from os import remove
 from os.path import splitext
 
 from src.db import database
 from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.definitions.db import *
+from src.definitions.data_management import TrackDBCols
+from src.definitions.ingestion_pipeline import *
 from src.tools.data_management.audio_file import AudioFile
 from src.tools.data_management.data_manager import DataManager
-import src.tools.db.tag_record_factory as tag_record_factories
+import src.tools.ingestion_pipeline.tag_record_factory as tag_record_factories
 from src.utils.common import is_empty
 from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
 
 
 class PipelineStage:
+    """ Encapsulates the execution of a single stage in the ingestion pipeline. """
+
     def __init__(self, record_type, source_dir=UNPROCESSED_DIR):
+        """
+        Initializer.
+
+        :param record_type: Type corresponding to a database table that will house the produced records.
+        :param source_dir: Directory where tracks to process live.
+        """
+
         self.record_type = record_type
         self.session = database.create_session()
         self.source_dir = source_dir
@@ -23,6 +34,8 @@ class PipelineStage:
         self.cmd_overrides = {}
 
     def execute(self):
+        """ Execute this stage of the pipeline. """
+
         try:
             self.create_tag_records()
             self.session.commit()
@@ -33,6 +46,8 @@ class PipelineStage:
             self.session.close()
 
     def create_tag_records(self):
+        """ Create ID3 metadata records. """
+
         factory_name = TAG_RECORD_FACTORIES.get(self.record_type, None)
         if factory_name is None:
             raise Exception('Did not find a factory for record type %s' % self.record_type)
@@ -60,11 +75,22 @@ class PipelineStage:
 
 
 class InitialPipelineStage(PipelineStage):
+    """ Encapsulates execution of the first step in the pipeline. """
+
     def __init__(self, record_type, source_dir=UNPROCESSED_DIR, target_dir=PROCESSING_DIR):
+        """
+        Initializer.
+
+        :param record_type: Type corresponding to a database table that will house the produced records.
+        :param source_dir: Directory where tracks to process live.
+        :param target_dir: Source directory for next pipeline stage.
+        """
         super().__init__(record_type, source_dir)
         self.target_dir = target_dir
 
     def execute(self):
+        """ Execute this stage of the pipeline. """
+
         try:
             self.initialize_tracks_in_database()
             self.create_tag_records()
@@ -76,12 +102,17 @@ class InitialPipelineStage(PipelineStage):
             self.session.close()
 
     def initialize_tracks_in_database(self):
+        """ Initializes records in the track table. """
         dm = DataManager()
         dm.ingest_tracks(self.source_dir, self.target_dir)
 
 
 class PostRBPipelineStage(PipelineStage):
+    """ Encapsulates pipeline stage to execute after Rekordbox analysis of new tracks. """
+
     def execute(self):
+        """ Execute this stage of the pipeline. """
+
         try:
             self.cmd_overrides = {'rb_overrides': self.load_rb_tags()}
             self.create_tag_records()
@@ -93,8 +124,9 @@ class PostRBPipelineStage(PipelineStage):
             self.session.close()
 
     def load_rb_tags(self):
-        track_tags = {}
+        """ Load analysis information from file exported by Rekordbox. """
 
+        track_tags = {}
         with open(RB_TAG_FILE, 'r', encoding='utf-16', errors='ignore') as f:
             lines = [x.strip() for x in f.readlines() if not is_empty(x)]
             for i, line in enumerate(lines):
@@ -111,11 +143,22 @@ class PostRBPipelineStage(PipelineStage):
 
 
 class FinalPipelineStage(PipelineStage):
+    """ Encapsulates last pipeline stage, during which records are finalized. """
+
     def __init__(self, record_type, source_dir=PROCESSING_DIR, target_dir=FINALIZED_DIR):
+        """
+        Initializer.
+
+        :param record_type: Type corresponding to a database table that will house the produced records.
+        :param source_dir: Directory where tracks to process live.
+        :param target_dir: Directory where track collection is stored.
+        """
         super().__init__(record_type, source_dir)
         self.target_dir = target_dir
 
     def execute(self):
+        """ Execute this stage of the pipeline. """
+
         try:
             tag_records = self.create_tag_records()
             self.write_tags(tag_records)
@@ -128,6 +171,8 @@ class FinalPipelineStage(PipelineStage):
             self.session.close()
 
     def write_tags(self, tag_records):
+        """ Write finalized ID3 tags. """
+
         for track_file, tag_record in tag_records.items():
             old_path = join(self.source_dir, track_file)
             new_path = join(self.target_dir, track_file)
@@ -140,6 +185,8 @@ class FinalPipelineStage(PipelineStage):
             })
 
     def update_track_table(self, tag_records):
+        """ Finalize track table entries. """
+
         for track_file, tag_record in tag_records.items():
             old_path = join(self.target_dir, track_file)
             _, ext = splitext(old_path)
@@ -147,7 +194,8 @@ class FinalPipelineStage(PipelineStage):
             audio_file = AudioFile(old_path)
             metadata = audio_file.get_metadata()
 
-            new_path = join(PROCESSED_MUSIC_DIR, metadata[TrackDBCols.TITLE.value] + ext)
+            formatted_title = metadata[TrackDBCols.TITLE.value] + ext
+            new_path = join(PROCESSED_MUSIC_DIR, formatted_title)
             metadata[TrackDBCols.FILE_PATH.value] = new_path
 
             track = self.session.query(Track).filter_by(id=tag_record.track_id).first()
@@ -160,3 +208,34 @@ class FinalPipelineStage(PipelineStage):
             copyfile(old_path, new_path)
             audio_file = AudioFile(new_path)
             audio_file.write_tags(metadata)
+
+            copyfile(old_path, join(self.target_dir, formatted_title))
+            remove(old_path)
+
+
+class PostPipelineSyncStage(PipelineStage):
+    """ Re-copies finalized tracks to collection to enable Rekordbox tag refresh. """
+
+    def __init__(self, record_type=None, source_dir=FINALIZED_DIR, target_dir=PROCESSED_MUSIC_DIR):
+        """
+        Initializer.
+
+        :param record_type: Type corresponding to a database table that will house the produced records.
+        :param source_dir: Directory where tracks to process live.
+        :param target_dir: Directory where track collection is stored.
+        """
+        super().__init__(record_type, source_dir)
+        self.target_dir = target_dir
+
+    def execute(self):
+        """ Execute this stage of the pipeline. """
+
+        try:
+            for track_file in self.track_files:
+                old_path = join(self.source_dir, track_file)
+                new_path = join(self.target_dir, track_file)
+                copyfile(old_path, new_path)
+        except Exception as e:
+            handle_error(e)
+        finally:
+            self.session.close()

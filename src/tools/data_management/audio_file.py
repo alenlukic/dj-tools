@@ -238,7 +238,7 @@ class AudioFile:
 
     def get_tag(self, tag, default=None):
         """
-        Return specified tag's value. TODO: possible special handling for specific tags
+        Return specified tag's value.
 
         :param tag: Tag whose value to return.
         :param default: Default value to return if tag value not present.

@@ -172,8 +172,9 @@ def load_comment(comment_string, default=None):
 
 def extract_unformatted_title(formatted_title):
     """
+    Extracts unformatted (title only) title from a title enriched with metadata and artist information.
 
-    :param formatted_title:
+    :param formatted_title: The enriched title.
     """
 
     md_title_split = MD_COMPOSITE_REGEX.split(formatted_title)
@@ -181,4 +182,3 @@ def extract_unformatted_title(formatted_title):
     title = ' - '.join(title.split(' - ')[1:])
 
     return title
-
