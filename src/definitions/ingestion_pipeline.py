@@ -2,7 +2,7 @@ from enum import Enum
 from os.path import join
 
 from src.definitions.common import CONFIG
-from src.definitions.data_management import ID3Tag, TrackDBCols
+from src.definitions.data_management import ID3Tag
 
 
 class TagRecordType(Enum):
@@ -25,6 +25,10 @@ TAG_COLUMNS = [
     ID3Tag.KEY,
     ID3Tag.ENERGY
 ]
+
+NUM_STEPS = 5
+
+PIPELINE_CMDS = {'next', 'cancel'}
 
 PIPELINE = CONFIG['INGESTION_PIPELINE']
 PIPELINE_ROOT = PIPELINE['ROOT']

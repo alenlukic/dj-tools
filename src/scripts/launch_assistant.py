@@ -1,16 +1,16 @@
 # noinspection PyUnresolvedReferences
 import readline
 
-from src.tools.mixing.command import CommandParsingException
-from src.tools.mixing.mixing_assistant import MixingAssistant
+from src.tools.assistant.command import CommandParsingException
+from src.tools.assistant.assistant import Assistant
 from src.utils.errors import handle_error
-from src.utils.mixing_assistant import print_error
+from src.utils.assistant import print_error
 
 
 def run_assistant():
     """ Accepts user input in an infinite loop until termination. """
 
-    ma = MixingAssistant()
+    ma = Assistant()
     print('Mixing assistant is now online.')
 
     while True:

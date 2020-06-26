@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 import src.db.entities.tag_record as tag_records
-from src.definitions.db import TAG_COLUMNS
+from src.definitions.ingestion_pipeline import TAG_COLUMNS
 from src.definitions.data_management import ID3Tag, CANONICAL_KEY_MAP
 from src.tools.data_management.audio_file import AudioFile
 

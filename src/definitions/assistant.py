@@ -2,8 +2,8 @@ from collections import ChainMap
 import re
 
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.tools.mixing.command import Command
-from src.tools.mixing.command_argument import CommandArgument
+from src.tools.assistant.command import Command
+from src.tools.assistant.command_argument import CommandArgument
 
 
 EXIT = 'exit'
