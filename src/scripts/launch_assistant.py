@@ -11,7 +11,7 @@ def run_assistant():
     """ Accepts user input in an infinite loop until termination. """
 
     ma = Assistant()
-    print('Mixing assistant is now online.')
+    print('Assistant is now online.')
 
     while True:
         print('\n$ ', end='')
