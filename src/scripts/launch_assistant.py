@@ -10,13 +10,13 @@ from src.utils.assistant import print_error
 def run_assistant():
     """ Accepts user input in an infinite loop until termination. """
 
-    ma = Assistant()
+    assistant = Assistant()
     print('Assistant is now online.')
 
     while True:
         print('\n$ ', end='')
         try:
-            ma.execute(input())
+            assistant.execute(input())
         except CommandParsingException as e:
             handle_error(e, 'Failed to parse command:', print_error)
         except Exception as e:
