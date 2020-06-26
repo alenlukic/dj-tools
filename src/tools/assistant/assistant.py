@@ -252,4 +252,3 @@ class Assistant:
 
         for result in results[start_index:]:
             print(result.format())
-            
