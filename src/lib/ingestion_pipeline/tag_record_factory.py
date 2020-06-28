@@ -3,7 +3,7 @@ from collections import defaultdict
 import src.db.entities.tag_record as tag_records
 from src.definitions.ingestion_pipeline import TAG_COLUMNS
 from src.definitions.data_management import ID3Tag, CANONICAL_KEY_MAP
-from src.tools.data_management.audio_file import AudioFile
+from src.lib.data_management.audio_file import AudioFile
 
 
 class TagRecordFactory:
@@ -53,6 +53,14 @@ class TagRecordFactory:
         """ Persist the record. """
         self.tag_record = self.TagRecordEntity(**self.row)
         self.session.add(self.tag_record)
+
+
+class InitialRecordFactory(TagRecordFactory):
+    """ Create initial ID3 record. """
+
+    def update_row(self):
+        """ Remove the 'energy' key from the row. """
+        del self.row[ID3Tag.ENERGY.name.lower()]
 
 
 class PostMIKRecordFactory(TagRecordFactory):

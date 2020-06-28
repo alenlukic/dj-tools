@@ -13,7 +13,7 @@ class TagRecordType(Enum):
 
 
 TAG_RECORD_FACTORIES = {
-    TagRecordType.INITIAL.value: 'TagRecordFactory',
+    TagRecordType.INITIAL.value: 'InitialRecordFactory',
     TagRecordType.POST_MIK.value: 'PostMIKRecordFactory',
     TagRecordType.POST_RB.value: 'PostRBRecordFactory',
     TagRecordType.FINAL.value: 'FinalRecordFactory'
@@ -26,7 +26,7 @@ TAG_COLUMNS = [
     ID3Tag.ENERGY
 ]
 
-NUM_STEPS = 5
+NUM_STEPS = 4
 
 PIPELINE_CMDS = {'next', 'cancel'}
 

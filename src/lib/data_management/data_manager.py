@@ -9,7 +9,7 @@ from src.db.entities.artist_track import ArtistTrack
 from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.utils.common import *
-from src.tools.data_management.audio_file import AudioFile
+from src.lib.data_management.audio_file import AudioFile
 from src.utils.data_management import *
 from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files

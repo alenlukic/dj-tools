@@ -1,6 +1,5 @@
 from collections import ChainMap
 from shutil import copyfile
-from os import remove
 from os.path import splitext
 
 from src.db import database
@@ -8,9 +7,9 @@ from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import TrackDBCols
 from src.definitions.ingestion_pipeline import *
-from src.tools.data_management.audio_file import AudioFile
-from src.tools.data_management.data_manager import DataManager
-import src.tools.ingestion_pipeline.tag_record_factory as tag_record_factories
+from src.lib.data_management.audio_file import AudioFile
+from src.lib.data_management.data_manager import DataManager
+import src.lib.ingestion_pipeline.tag_record_factory as tag_record_factories
 from src.utils.common import is_empty
 from src.utils.errors import handle_error
 from src.utils.file_operations import get_audio_files
@@ -208,34 +207,3 @@ class FinalPipelineStage(PipelineStage):
             copyfile(old_path, new_path)
             audio_file = AudioFile(new_path)
             audio_file.write_tags(metadata)
-
-            copyfile(old_path, join(self.target_dir, formatted_title))
-            remove(old_path)
-
-
-class PostPipelineSyncStage(PipelineStage):
-    """ Re-copies finalized tracks to collection to enable Rekordbox tag refresh. """
-
-    def __init__(self, record_type=None, source_dir=FINALIZED_DIR, target_dir=PROCESSED_MUSIC_DIR):
-        """
-        Initializer.
-
-        :param record_type: Type corresponding to a database table that will house the produced records.
-        :param source_dir: Directory where tracks to process live.
-        :param target_dir: Directory where track collection is stored.
-        """
-        super().__init__(record_type, source_dir)
-        self.target_dir = target_dir
-
-    def execute(self):
-        """ Execute this stage of the pipeline. """
-
-        try:
-            for track_file in self.track_files:
-                old_path = join(self.source_dir, track_file)
-                new_path = join(self.target_dir, track_file)
-                copyfile(old_path, new_path)
-        except Exception as e:
-            handle_error(e)
-        finally:
-            self.session.close()

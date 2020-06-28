@@ -4,9 +4,9 @@ from src.db import database
 from src.db.entities.track import Track
 from src.definitions.harmonic_mixing import *
 from src.definitions.assistant import *
-from src.tools.data_management.data_manager import DataManager
-from src.tools.assistant.command import CommandParsingException
-from src.tools.assistant.transition_match import TransitionMatch
+from src.lib.data_management.data_manager import DataManager
+from src.lib.assistant.command import CommandParsingException
+from src.lib.assistant.transition_match import TransitionMatch
 from src.utils.errors import handle_error
 from src.utils.harmonic_mixing import *
 from src.utils.assistant import *
