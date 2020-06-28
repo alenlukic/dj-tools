@@ -1,6 +1,6 @@
 import sys
 
-from src.tools.data_management.data_manager import DataManager
+from src.lib.data_management.data_manager import DataManager
 
 
 if __name__ == '__main__':

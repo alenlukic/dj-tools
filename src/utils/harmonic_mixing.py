@@ -3,7 +3,7 @@ from datetime import datetime
 
 from src.definitions.data_management import *
 from src.definitions.harmonic_mixing import CollectionStat, TIMESTAMP_FORMAT
-from src.tools.data_management.audio_file import AudioFile
+from src.lib.data_management.audio_file import AudioFile
 from src.utils.common import is_empty
 from src.utils.data_management import load_comment
 

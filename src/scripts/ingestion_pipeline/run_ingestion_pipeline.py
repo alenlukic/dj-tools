@@ -1,7 +1,7 @@
 # noinspection PyUnresolvedReferences
 import readline
 
-from src.tools.ingestion_pipeline.track_ingestion_pipeline import *
+from src.lib.ingestion_pipeline.track_ingestion_pipeline import *
 from src.utils.errors import handle_error
 from src.utils.assistant import print_error
 
@@ -13,8 +13,7 @@ def run_pipeline():
         0: (InitialPipelineStage, TagRecordType.INITIAL.value),
         1: (PipelineStage, TagRecordType.POST_MIK.value),
         2: (PostRBPipelineStage, TagRecordType.POST_RB.value),
-        3: (FinalPipelineStage, TagRecordType.FINAL.value),
-        4: (PostPipelineSyncStage, None)
+        3: (FinalPipelineStage, TagRecordType.FINAL.value)
     }
     n = 0
 

@@ -1,8 +1,8 @@
 # noinspection PyUnresolvedReferences
 import readline
 
-from src.tools.assistant.command import CommandParsingException
-from src.tools.assistant.assistant import Assistant
+from src.lib.assistant.command import CommandParsingException
+from src.lib.assistant.assistant import Assistant
 from src.utils.errors import handle_error
 from src.utils.assistant import print_error
 
