@@ -25,7 +25,7 @@ def serialize(tracks):
                 payload = {
                     SerializationKeys.TRACK_ID.value: track_id,
                     SerializationKeys.TRACK_TITLE.value: title,
-                    SerializationKeys.SAMPLES.value: str(samples)
+                    SerializationKeys.SAMPLES.value: str(list(samples))
                 }
                 json.dump(payload, fp, indent=2)
 

@@ -1,4 +1,32 @@
+from datetime import datetime
 from math import log2
+
+from src.definitions.harmonic_mixing import TIMESTAMP_FORMAT
+
+
+def default_transform(value):
+    return value
+
+
+def datetime_transform(value):
+    return None if value is None else datetime.strptime(value, TIMESTAMP_FORMAT).timestamp()
+
+
+def float_transform(value):
+    return None if value is value is None else float(value)
+
+
+def int_transform(value):
+    return None if value is value is None else int(value)
+
+
+def string_transform(value):
+    return None if value is value is None else str(value)
+
+
+def get_or_default(source, target, transform=default_transform, default=None):
+    value = getattr(source, target, default)
+    return transform(value)
 
 
 def get_banner(message):
