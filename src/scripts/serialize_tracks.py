@@ -4,7 +4,7 @@ import numpy as np
 from src.db import database
 from src.db.entities.track import Track
 from src.definitions.common import NUM_CORES
-from src.lib.feature_extraction.sample_serializer import serialize
+from src.scripts.tmp.sample_serializer import serialize
 from src.utils.errors import handle_error
 
 
