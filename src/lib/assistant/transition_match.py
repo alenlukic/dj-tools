@@ -147,10 +147,10 @@ class TransitionMatch:
 
     def _get_percent_of_bound_score(self, absolute_diff, cur_track_bpm):
         """
+        Returns score match between two BPMs relative to key change bounds.
 
-        :param absolute_diff:
-        :param cur_track_bpm:
-        :return:
+        :param absolute_diff: The absolute difference between the BPMs.
+        :param cur_track_bpm: The current track's BPM.
         """
 
         relative_diff = abs(absolute_diff) / float(cur_track_bpm)

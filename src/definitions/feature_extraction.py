@@ -12,4 +12,3 @@ class SerializationKeys(Enum):
 
 
 SERIALIZED_SAMPLE_DIR = CONFIG['SERIALIZED_SAMPLE_DIR']
-

@@ -25,6 +25,14 @@ def string_transform(value):
 
 
 def get_or_default(source, target, transform=default_transform, default=None):
+    """
+    Transformed and return desired value.
+
+    :param source: Source object.
+    :param target: Attribute name to get.
+    :param transform: Function to transform the value.
+    :param default: Default value.
+    """
     value = getattr(source, target, default)
     return transform(value)
 
