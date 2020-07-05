@@ -118,9 +118,7 @@ class FinalRecordFactory(TagRecordFactory):
             'title': initial_record.title,
             'bpm': self._get_final_bpm(initial_record, post_mik_record, post_rb_record),
             'key': self._get_final_key(initial_record, post_mik_record, post_rb_record),
-            'energy': post_mik_record.energy,
-            'artist': initial_record.artist,
-            'remixer': initial_record.remixer
+            'energy': post_mik_record.energy
         }
 
     def _get_final_bpm(self, initial_record, mik_record, rb_record):

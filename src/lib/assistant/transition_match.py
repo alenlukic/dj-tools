@@ -30,13 +30,14 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
+
+                    (self.get_bpm_score(), 0.24),
+                    (self.get_camelot_priority_score(), 0.24),
+                    (self.get_energy_score(), 0.06),
+                    (self.get_freshness_score(), 0.16),
                     (self.get_artist_score(), 0.08),
-                    (self.get_bpm_score(), 0.23),
-                    (self.get_camelot_priority_score(), 0.23),
-                    (self.get_energy_score(), 0.05),
-                    (self.get_freshness_score(), 0.12),
-                    (self.get_genre_score(), 0.13),
-                    (self.get_label_score(), 0.16),
+                    (self.get_genre_score(), 0.10),
+                    (self.get_label_score(), 0.12),
                 ]
                 self.score = 100 * sum([score * weight for score, weight in score_weights])
 
@@ -83,28 +84,13 @@ class TransitionMatch:
         if absolute_diff == 0:
             return 1.0
 
-        # Current track's BPM is lower
-        relative_diff = abs(absolute_diff) / float(cur_track_bpm)
-        if absolute_diff < 0:
-            if relative_diff <= SAME_UPPER_BOUND:
-                return float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
-            if relative_diff <= UP_KEY_UPPER_BOUND:
-                # Not sure how to evaluate step up / down - arbitrarily pick middle of the range
-                midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
-                return float(midpoint - abs(midpoint - relative_diff)) / midpoint
-            return 0.0
+        percent_of_bound_score = self._get_percent_of_bound_score(absolute_diff, cur_track_bpm)
+        if percent_of_bound_score >= 0.75:
+            return 1.0
+        if percent_of_bound_score >= 0.5:
+            return 0.75
 
-        # Current track's BPM is higher
-        abs_same_lower_bound = abs(SAME_LOWER_BOUND)
-        abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
-        abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
-        if relative_diff <= abs_same_lower_bound:
-            return float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
-        if relative_diff <= abs_down_key_lower_bound:
-            midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
-            return float(midpoint - abs(midpoint - relative_diff)) / midpoint
-
-        return 0.0
+        return percent_of_bound_score
 
     def get_camelot_priority_score(self):
         """ Gets camelot priority component of the score. """
@@ -157,8 +143,41 @@ class TransitionMatch:
     def format(self):
         """ Format result with score and track's base file name. """
         score = '{:.2f}'.format(self.get_score())
-        energy = '{}'.format(self.metadata.get(TrackDBCols.ENERGY, '?'))
-        return (' ' * (9 - len(score))).join([score, energy + ' ' * 4, self.metadata[TrackDBCols.TITLE]])
+        return ('   ' * (9 - len(score))).join([score, self.metadata[TrackDBCols.TITLE]])
+
+    def _get_percent_of_bound_score(self, absolute_diff, cur_track_bpm):
+        """
+        Returns score match between two BPMs relative to key change bounds.
+
+        :param absolute_diff: The absolute difference between the BPMs.
+        :param cur_track_bpm: The current track's BPM.
+        """
+
+        relative_diff = abs(absolute_diff) / float(cur_track_bpm)
+
+        # Current track's BPM is lower - weigh score of lower BPM tracks slightly less
+        if absolute_diff < 0:
+            score = 0.0
+            discount = 0.9
+            if relative_diff <= SAME_UPPER_BOUND:
+                score = float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
+            if relative_diff <= UP_KEY_UPPER_BOUND:
+                # Not sure how to evaluate step up / down - arbitrarily pick middle of the range
+                midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
+                score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
+            return score * discount
+
+        # Current track's BPM is higher
+        abs_same_lower_bound = abs(SAME_LOWER_BOUND)
+        abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
+        abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
+        if relative_diff <= abs_same_lower_bound:
+            return float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
+        if relative_diff <= abs_down_key_lower_bound:
+            midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
+            return float(midpoint - abs(midpoint - relative_diff)) / midpoint
+
+        return 0.0
 
     def __lt__(self, other):
         return (self.get_score(), self.get_freshness_score()) < (other.get_score(), other.get_freshness_score())

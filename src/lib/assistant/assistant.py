@@ -44,10 +44,14 @@ class Assistant:
 
     def __init__(self):
         """ Initializes data manager and track data. """
+
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
         self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
         TransitionMatch.collection_md = self.collection_md
+        self.max_results = 50
+        self.cutoff_threshold_score = 50.0
+        self.result_threshold = 20
 
     def execute(self, user_input):
         """
@@ -192,13 +196,12 @@ class Assistant:
 
         return results
 
-    def _get_matches_for_code(self, harmonic_codes, cur_track_md, score_thresh=50):
+    def _get_matches_for_code(self, harmonic_codes, cur_track_md):
         """
         Find matches for the given track.
 
         :param harmonic_codes: List of harmonic Camelot codes and their respective transition priorities.
         :param cur_track_md: Current track metadata.
-        :param score_thresh: Minimum transition score needed to include a match in results.
         """
 
         bpm = cur_track_md[TrackDBCols.BPM]
@@ -214,18 +217,15 @@ class Assistant:
 
             for md in self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND):
                 match = TransitionMatch(md, cur_track_md, priority)
-                if match.get_score() >= score_thresh:
-                    same_key.append(match)
+                same_key.append(match)
 
             for md in self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND):
                 match = TransitionMatch(md, cur_track_md, priority)
-                if match.get_score() >= score_thresh:
-                    higher_key.append(match)
+                higher_key.append(match)
 
             for md in self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND):
                 match = TransitionMatch(md, cur_track_md, priority)
-                if match.get_score() >= score_thresh:
-                    lower_key.append(match)
+                lower_key.append(match)
 
         # Rank and format results
         same_key = sorted(same_key, reverse=True)
@@ -247,8 +247,17 @@ class Assistant:
         print(RESULT_COLUMN_HEADER)
         print(DASHED_LINE)
 
-        if len(results) == 0:
+        num_results = len(results)
+        if num_results == 0:
             return
 
-        for result in results[start_index:]:
+        for i, result in enumerate(results[start_index:]):
+            if i == self.max_results:
+                break
+
+            if num_results >= self.result_threshold and result.get_score() < self.cutoff_threshold_score:
+                break
+
             print(result.format())
+            if (i + 1) % 5 == 0:
+                print()
