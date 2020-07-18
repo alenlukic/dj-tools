@@ -31,10 +31,10 @@ class TransitionMatch:
             else:
                 score_weights = [
 
-                    (self.get_bpm_score(), 0.24),
+                    (self.get_bpm_score(), 0.26),
                     (self.get_camelot_priority_score(), 0.24),
                     (self.get_energy_score(), 0.06),
-                    (self.get_freshness_score(), 0.16),
+                    (self.get_freshness_score(), 0.14),
                     (self.get_artist_score(), 0.08),
                     (self.get_genre_score(), 0.10),
                     (self.get_label_score(), 0.12),
@@ -84,13 +84,35 @@ class TransitionMatch:
         if absolute_diff == 0:
             return 1.0
 
-        percent_of_bound_score = self._get_percent_of_bound_score(absolute_diff, cur_track_bpm)
-        if percent_of_bound_score >= 0.75:
-            return 1.0
-        if percent_of_bound_score >= 0.5:
-            return 0.75
+        relative_diff = abs(absolute_diff) / float(cur_track_bpm)
+        if absolute_diff < 0:
+            # Slightly discount score of lower BPM tracks
+            score = 0.0
+            discount = 0.9
 
-        return percent_of_bound_score
+            if relative_diff <= SAME_UPPER_BOUND:
+                score = float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
+
+            if relative_diff <= UP_KEY_UPPER_BOUND:
+                # Not sure how to evaluate step up / down - arbitrarily pick middle of the range
+                midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
+                score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
+
+            return score * discount
+
+        # Current track's BPM is higher
+        abs_same_lower_bound = abs(SAME_LOWER_BOUND)
+        abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
+        abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
+
+        if relative_diff <= abs_same_lower_bound:
+            return float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
+
+        if relative_diff <= abs_down_key_lower_bound:
+            midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
+            return float(midpoint - abs(midpoint - relative_diff)) / midpoint
+
+        return 0.0
 
     def get_camelot_priority_score(self):
         """ Gets camelot priority component of the score. """

@@ -2,8 +2,6 @@ from enum import Enum
 
 from src.definitions.common import CONFIG
 
-SAMPLE_RATE = 44100
-
 
 class SerializationKeys(Enum):
     TRACK_ID = 'Track ID'
@@ -11,4 +9,10 @@ class SerializationKeys(Enum):
     SAMPLES = 'Samples'
 
 
-SERIALIZED_SAMPLE_DIR = CONFIG['SERIALIZED_SAMPLE_DIR']
+FEATURE_DIR = CONFIG['FEATURE_DIR']
+
+SAMPLE_RATE = 44100
+
+OVERLAP_WINDOW = int(SAMPLE_RATE / 6)
+
+N_MELS = 256

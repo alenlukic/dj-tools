@@ -46,7 +46,7 @@ COMMANDS = {
     )
 }
 
-DASHED_LINE = ''.join(['-'] * 148)
+DASHED_LINE = ''.join(['-'] * 128)
 
 QUALIFIED_PATH_REGEX = re.compile(r'%s.*' % PROCESSED_MUSIC_DIR)
 
