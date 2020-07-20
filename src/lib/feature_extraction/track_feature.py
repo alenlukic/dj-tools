@@ -9,42 +9,69 @@ from src.utils.feature_extraction import load_json_from_file
 
 
 class TrackFeature:
+    """ Encapsulates a track feature. """
+
     def __init__(self, track):
+        """
+        Constructor.
+
+        :param track: The track for which to compute a feature.
+        """
+
         self.track = track
         self.feature_file = join(FEATURE_DIR, str(track.id))
-        self.track_features = self.load()
         self.feature_name = None
         self.feature_value = None
+        self.track_features = {}
 
     def get_feature(self):
+        """ Return the computed feature value. """
         return self.feature_value
 
     def load(self, postprocessor=lambda x: x):
+        """
+        Load the track's features as a JSON and get the existing feature value, if any.
+
+        :param postprocessor: Transformation function to apply to feature value after loading (default is identity).
+        """
+
         feature_json = load_json_from_file(self.feature_file)
-        self.feature_value = postprocessor(feature_json.get(self.feature_name))
+        self.feature_value = feature_json.get(self.feature_name)
+        if self.feature_value is not None:
+            self.feature_value = postprocessor(self.feature_value)
         return feature_json
 
     def save(self, preprocessor=lambda x: x):
-        copyfile(self.feature_file, join(FEATURE_DIR, str(self.track.id)) + '_old')
+        """
+        Save the track's features as a JSON and persist the computed feature value, if any.
+
+        :param preprocessor: Transformation function to apply to feature value before persisting (default is identity).
+        """
+
+        if self.feature_value is None:
+            return
+
+        copyfile(self.feature_file, join(FEATURE_DIR, '_old_' + str(self.track.id)))
         with open(self.feature_file, 'w') as fp:
             self.track_features[self.feature_name] = preprocessor(self.feature_value)
-            json.dump(self.track_features, fp, indent=2)
+            json.dump(self.track_features, fp)
 
     def compute(self):
+        """ Compute feature value. """
         pass
 
 
 class SegmentedMeanMelSpectrogram(TrackFeature):
     def __init__(self, track, n_mels=N_MELS):
         super().__init__(track)
-        self.track = track
         self.feature_name = 'Segmented Mean Mel Spectrogram'
         self.n_mels = n_mels
+        self.track_features = self.load()
 
-    def load(self, postprocessor=lambda x: np.array(x)):
+    def load(self, postprocessor=lambda fv: np.array([[float(v) for v in row] for row in fv])):
         return super().load(postprocessor)
 
-    def save(self, preprocessor=lambda x: x.tolist()):
+    def save(self, preprocessor=lambda fv: [[np.format_float_scientific(v, precision = 3) for v in row] for row in fv]):
         super().save(preprocessor)
 
     def compute(self):
