@@ -30,7 +30,6 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-
                     (self.get_bpm_score(), 0.25),
                     (self.get_camelot_priority_score(), 0.25),
                     (self.get_energy_score(), 0.06),
@@ -108,7 +107,7 @@ class TransitionMatch:
         if relative_diff <= abs_same_lower_bound:
             score = float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
 
-        elif relative_diff <= abs_down_key_lower_bound:
+        if relative_diff <= abs_down_key_lower_bound:
             midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
             score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
 

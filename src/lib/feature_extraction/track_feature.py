@@ -11,7 +11,7 @@ class TrackFeature:
         self.track = track
         self.feature_file = join(FEATURE_DIR, str(track.id))
         self.track_features = self.load()
-        self.feature_name = 'Generic Feature'
+        self.feature_name = None
         self.feature_value = None
 
     def get_feature(self):
