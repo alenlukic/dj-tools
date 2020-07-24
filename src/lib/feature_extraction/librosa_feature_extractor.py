@@ -26,4 +26,3 @@
 #
 #     def get_chroma_frequencies(self, samples):
 #         return librosa.feature.chroma_cqt(samples, sr=SAMPLE_RATE).tolist()
-
