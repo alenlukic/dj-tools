@@ -134,11 +134,13 @@ class Assistant:
             same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md)
 
             # Print matches
-            self._print_transition_ranks('Higher key (step down)', higher_key)
-            self._print_transition_ranks('Lower key (step up)', lower_key)
-            self._print_transition_ranks('Same key', same_key, 1)
+            # self._print_transition_ranks('Higher key (step down)', higher_key)
+            # self._print_transition_ranks('Lower key (step up)', lower_key)
+            # self._print_transition_ranks('Same key', same_key, 1)
+            #
+            # print(title_mismatch_message)
 
-            print(title_mismatch_message)
+            return same_key, higher_key, lower_key
 
         except Exception as e:
             handle_error(e)

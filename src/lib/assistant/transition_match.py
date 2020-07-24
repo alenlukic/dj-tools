@@ -21,6 +21,8 @@ class TransitionMatch:
         self.cur_track_md = cur_track_md
         self.camelot_priority = camelot_priority
         self.score = None
+        # TODO
+        self.factors = {}
 
     def get_score(self):
         """ Calculate the transition score using multiple weighed subscores. """
