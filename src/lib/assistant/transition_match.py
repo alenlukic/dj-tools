@@ -21,7 +21,6 @@ class TransitionMatch:
         self.cur_track_md = cur_track_md
         self.camelot_priority = camelot_priority
         self.score = None
-        # TODO
         self.factors = {}
 
     def get_score(self):
@@ -32,13 +31,13 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-                    (self.get_bpm_score(), 0.25),
-                    (self.get_camelot_priority_score(), 0.25),
+                    (self.get_bpm_score(), 0.22),
+                    (self.get_camelot_priority_score(), 0.26),
                     (self.get_energy_score(), 0.06),
-                    (self.get_freshness_score(), 0.14),
+                    (self.get_freshness_score(), 0.12),
                     (self.get_artist_score(), 0.08),
-                    (self.get_genre_score(), 0.10),
-                    (self.get_label_score(), 0.12),
+                    (self.get_genre_score(), 0.12),
+                    (self.get_label_score(), 0.14),
                 ]
                 self.score = 100 * sum([score * weight for score, weight in score_weights])
 
@@ -47,121 +46,171 @@ class TransitionMatch:
     def get_artist_score(self):
         """ Returns artist/remixer intersection component of the score. """
 
-        artist_counts = self.metadata.get(ArtistFields.ARTISTS, {})
-        remixer_counts = self.metadata.get(ArtistFields.REMIXERS, {})
-        cur_track_artist_counts = self.cur_track_md.get(ArtistFields.ARTISTS, {})
-        cur_track_remixer_counts = self.cur_track_md.get(ArtistFields.REMIXERS, {})
+        def _get_artist_score():
+            artist_counts = self.metadata.get(ArtistFields.ARTISTS, {})
+            remixer_counts = self.metadata.get(ArtistFields.REMIXERS, {})
+            cur_track_artist_counts = self.cur_track_md.get(ArtistFields.ARTISTS, {})
+            cur_track_remixer_counts = self.cur_track_md.get(ArtistFields.REMIXERS, {})
 
-        artists = (set(artist_counts.keys())).union(set(remixer_counts.keys()))
-        cur_track_artists = (set(cur_track_artist_counts.keys())).union(set(cur_track_remixer_counts.keys()))
+            artists = (set(artist_counts.keys())).union(set(remixer_counts.keys()))
+            cur_track_artists = (set(cur_track_artist_counts.keys())).union(set(cur_track_remixer_counts.keys()))
 
-        total_artists = len(artists) + len(cur_track_artists)
-        if total_artists == 0:
-            return 0.0
+            total_artists = len(artists) + len(cur_track_artists)
+            if total_artists == 0:
+                return 0.0
 
-        overlap = artists.intersection(cur_track_artists)
-        n = len(overlap)
-        if n == 0:
-            return 0.0
+            overlap = artists.intersection(cur_track_artists)
+            n = len(overlap)
+            if n == 0:
+                return 0.0
 
-        unified_counts = {}
-        for count_dict in [artist_counts, remixer_counts, cur_track_artist_counts, cur_track_remixer_counts]:
-            for k, v in count_dict.items():
-                unified_counts[k] = v
+            unified_counts = {}
+            for count_dict in [artist_counts, remixer_counts, cur_track_artist_counts, cur_track_remixer_counts]:
+                for k, v in count_dict.items():
+                    unified_counts[k] = v
 
-        log_artist_count = log2smooth(self.collection_md[CollectionStat.ARTIST_COUNTS])
-        return sum([1.0 - (log2smooth(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
+            log_artist_count = log2smooth(self.collection_md[CollectionStat.ARTIST_COUNTS])
+            return sum([1.0 - (log2smooth(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
+
+        if MatchFactors.ARTIST not in self.factors:
+            self.factors[MatchFactors.ARTIST] = _get_artist_score()
+        return self.factors[MatchFactors.ARTIST]
 
     def get_bpm_score(self):
         """ Calculates BPM match component of the score. """
 
-        bpm = self.metadata.get(TrackDBCols.BPM)
-        cur_track_bpm = self.cur_track_md.get(TrackDBCols.BPM)
-        if bpm is None or cur_track_bpm is None:
-            return 0.0
+        def _get_bpm_score():
+            bpm = self.metadata.get(TrackDBCols.BPM)
+            cur_track_bpm = self.cur_track_md.get(TrackDBCols.BPM)
+            if bpm is None or cur_track_bpm is None:
+                return 0.0
 
-        # Exact match
-        absolute_diff = cur_track_bpm - bpm
-        if absolute_diff == 0:
-            return 1.0
+            # Exact match
+            absolute_diff = cur_track_bpm - bpm
+            if absolute_diff == 0:
+                return 1.0
 
-        relative_diff = abs(absolute_diff) / float(cur_track_bpm)
-        if absolute_diff < 0:
-            if relative_diff <= SAME_UPPER_BOUND:
-                return float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
+            relative_diff = abs(absolute_diff) / float(cur_track_bpm)
+            if absolute_diff < 0:
+                if relative_diff <= SAME_UPPER_BOUND:
+                    score = float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
+                    self.factors[MatchFactors.BPM] = score
+                    return score
 
-            if relative_diff <= UP_KEY_UPPER_BOUND:
-                # Not sure how to evaluate step up / down - arbitrarily pick middle of the range
-                midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
-                return float(midpoint - abs(midpoint - relative_diff)) / midpoint
+                if relative_diff <= UP_KEY_UPPER_BOUND:
+                    # Not sure how to evaluate step up / down - arbitrarily picking range midpoint for now
+                    midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
+                    return float(midpoint - abs(midpoint - relative_diff)) / midpoint
 
-            return 0.0
+                return 0.0
 
-        # Current track's BPM is higher
-        abs_same_lower_bound = abs(SAME_LOWER_BOUND)
-        abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
-        abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
+            # Current track's BPM is higher
+            abs_same_lower_bound = abs(SAME_LOWER_BOUND)
+            abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
+            abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
 
-        # Slightly discount score of lower BPM tracks
-        score = 0.0
-        discount = 0.9
+            # Slightly discount score of lower BPM tracks
+            score = 0.0
+            discount = 0.9
 
-        if relative_diff <= abs_same_lower_bound:
-            score = float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
+            if relative_diff <= abs_same_lower_bound:
+                score = float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
 
-        if relative_diff <= abs_down_key_lower_bound:
-            midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
-            score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
+            if relative_diff <= abs_down_key_lower_bound:
+                midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
+                score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
 
-        return score * discount
+            return score * discount
+
+        if MatchFactors.BPM not in self.factors:
+            self.factors[MatchFactors.BPM] = _get_bpm_score()
+        return self.factors[MatchFactors.BPM]
 
     def get_camelot_priority_score(self):
         """ Gets camelot priority component of the score. """
 
-        if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
-            return 0.1
-        if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
-            return 0.25
-        if self.camelot_priority == CamelotPriority.MAJOR_MINOR_JUMP:
-            return 0.9
+        def _get_camelot_priority_score():
+            if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
+                self.factors[MatchFactors.CAMELOT] = 0.1
+                return 0.1
+            if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
+                self.factors[MatchFactors.CAMELOT] = 0.25
+                return 0.25
+            if self.camelot_priority == CamelotPriority.MAJOR_MINOR_JUMP:
+                self.factors[MatchFactors.CAMELOT] = 0.9
+                return 0.9
 
-        return float(self.camelot_priority / CamelotPriority.SAME_KEY.value)
+            return float(self.camelot_priority / CamelotPriority.SAME_KEY.value)
+
+        if MatchFactors.CAMELOT not in self.factors:
+            self.factors[MatchFactors.CAMELOT] = _get_camelot_priority_score()
+        return self.factors[MatchFactors.CAMELOT]
 
     def get_energy_score(self):
         """ Calculates the energy match component of the score. """
 
-        energy = self.metadata.get(TrackDBCols.ENERGY)
-        cur_track_energy = self.cur_track_md.get(TrackDBCols.ENERGY)
-        if energy is None or cur_track_energy is None:
-            return 0.0
+        def _get_energy_score():
+            energy = self.metadata.get(TrackDBCols.ENERGY)
+            cur_track_energy = self.cur_track_md.get(TrackDBCols.ENERGY)
+            if energy is None or cur_track_energy is None:
+                return 0.0
 
-        return 1.0 - (abs(energy - cur_track_energy) / 10.0)
+            return 1.0 - (abs(energy - cur_track_energy) / 10.0)
+
+        if MatchFactors.ENERGY not in self.factors:
+            self.factors[MatchFactors.ENERGY] = _get_energy_score()
+        return self.factors[MatchFactors.ENERGY]
 
     def get_freshness_score(self):
         """ Calculates the freshness component of the score. """
-        date_added = self.metadata.get(TrackDBCols.DATE_ADDED)
-        if date_added is None:
-            return 0.5
 
-        return (date_added - self.collection_md[CollectionStat.OLDEST]) / self.collection_md[CollectionStat.TIME_RANGE]
+        def _get_freshness_score():
+            date_added = self.metadata.get(TrackDBCols.DATE_ADDED)
+            if date_added is None:
+                return 0.5
+
+            return ((date_added - self.collection_md[CollectionStat.OLDEST]) /
+                    self.collection_md[CollectionStat.TIME_RANGE])
+
+        if MatchFactors.FRESHNESS not in self.factors:
+            self.factors[MatchFactors.FRESHNESS] = _get_freshness_score()
+        return self.factors[MatchFactors.FRESHNESS]
 
     def get_genre_score(self):
         """ Returns 1 if genres match and 0 otherwise. """
 
-        genre = self.metadata.get(TrackDBCols.GENRE)
-        cur_track_genre = self.cur_track_md.get(TrackDBCols.GENRE)
+        def _get_genre_score():
+            genre = self.metadata.get(TrackDBCols.GENRE)
+            cur_track_genre = self.cur_track_md.get(TrackDBCols.GENRE)
 
-        return 0.0 if (genre is None or cur_track_genre is None or genre != cur_track_genre) else 1.0
+            if genre is None or cur_track_genre is None:
+                return 0.0
+
+            if (genre == cur_track_genre or
+                    ((genre == 'Trance' or genre == 'Classic Trance') and (
+                    cur_track_genre == 'Trance' or cur_track_genre == 'Classic Trance'))):
+                return 1.0
+
+            return 0.0
+
+        if MatchFactors.GENRE not in self.factors:
+            self.factors[MatchFactors.GENRE] = _get_genre_score()
+        return self.factors[MatchFactors.GENRE]
 
     def get_label_score(self):
         """ Calculates the label match component of the score. """
 
-        label, label_count = self.metadata.get(TrackDBCols.LABEL, (None, None))
-        cur_label, cur_label_count = self.cur_track_md.get(TrackDBCols.LABEL, (None, None))
-        if label != cur_label or label == 'CDR' or cur_label == 'CDR' or label is None or cur_label is None:
-            return 0.0
+        def _get_label_score():
+            label, label_count = self.metadata.get(TrackDBCols.LABEL, (None, None))
+            cur_label, cur_label_count = self.cur_track_md.get(TrackDBCols.LABEL, (None, None))
+            if label != cur_label or label == 'CDR' or cur_label == 'CDR' or label is None or cur_label is None:
+                return 0.0
 
-        return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md[CollectionStat.LABEL_COUNTS]))
+            return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md[CollectionStat.LABEL_COUNTS]))
+
+        if MatchFactors.LABEL not in self.factors:
+            self.factors[MatchFactors.LABEL] = _get_label_score()
+        return self.factors[MatchFactors.LABEL]
 
     def format(self):
         """ Format result with score and track's base file name. """

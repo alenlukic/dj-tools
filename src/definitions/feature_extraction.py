@@ -9,6 +9,20 @@ class SerializationKeys(Enum):
     SAMPLES = 'Samples'
 
 
+class RelativeKey(Enum):
+    SAME = 'Same'
+    STEP_DOWN = 'Step Down'
+    STEP_UP = 'Step Up'
+
+
+class Feature(Enum):
+    SMMS = 'Segmented Mean Mel Spectrogram'
+
+
+class MatchScore(Enum):
+    SMMS_SCORE = 'SMMS Score'
+
+
 FEATURE_DIR = CONFIG['FEATURE_DIR']
 
 SAMPLE_RATE = 44100

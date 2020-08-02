@@ -11,6 +11,8 @@ def compute_spectrograms():
         for track in tracks:
             try:
                 smms = SegmentedMeanMelSpectrogram(track)
+                if smms.feature_value is not None:
+                    continue
                 smms.compute()
                 smms.save()
             except Exception as e:

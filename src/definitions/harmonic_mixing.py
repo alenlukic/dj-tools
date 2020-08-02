@@ -9,6 +9,16 @@ class CollectionStat(Enum):
     ARTIST_COUNTS = 'Artist Counts'
 
 
+class MatchFactors(Enum):
+    ARTIST = 'Artist'
+    BPM = 'BPM'
+    CAMELOT = 'Camelot'
+    ENERGY = 'Energy'
+    FRESHNESS = 'Freshness'
+    GENRE = 'Genre'
+    LABEL = 'Label'
+
+
 # How harmonic a particular key transition is (higher = more harmonic)
 class CamelotPriority(Enum):
     TWO_OCTAVE_JUMP = 0

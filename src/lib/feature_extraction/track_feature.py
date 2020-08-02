@@ -28,32 +28,32 @@ class TrackFeature:
         """ Return the computed feature value. """
         return self.feature_value
 
-    def load(self, postprocessor=lambda x: x):
-        """
-        Load the track's features as a JSON and get the existing feature value, if any.
+    def preprocess(self, feature_value):
+        """ Transform feature value prior to serialization. """
+        return feature_value
 
-        :param postprocessor: Transformation function to apply to feature value after loading (default is identity).
-        """
+    def postprocess(self, feature_value):
+        """ Transform feature value after deserialization. """
+        return feature_value
+
+    def load(self):
+        """ Load the track's features as a JSON and get the existing feature value, if any. """
 
         feature_json = load_json_from_file(self.feature_file)
         self.feature_value = feature_json.get(self.feature_name)
         if self.feature_value is not None:
-            self.feature_value = postprocessor(self.feature_value)
+            self.feature_value = self.postprocess(self.feature_value)
         return feature_json
 
-    def save(self, preprocessor=lambda x: x):
-        """
-        Save the track's features as a JSON and persist the computed feature value, if any.
-
-        :param preprocessor: Transformation function to apply to feature value before persisting (default is identity).
-        """
+    def save(self):
+        """ Save the track's features as a JSON and persist the computed feature value, if any. """
 
         if self.feature_value is None:
             return
 
         copyfile(self.feature_file, join(FEATURE_DIR, '_old_' + str(self.track.id)))
         with open(self.feature_file, 'w') as fp:
-            self.track_features[self.feature_name] = preprocessor(self.feature_value)
+            self.track_features[self.feature_name] = self.preprocess(self.feature_value)
             json.dump(self.track_features, fp)
 
     def compute(self):
@@ -64,15 +64,17 @@ class TrackFeature:
 class SegmentedMeanMelSpectrogram(TrackFeature):
     def __init__(self, track, n_mels=N_MELS):
         super().__init__(track)
-        self.feature_name = 'Segmented Mean Mel Spectrogram'
+        self.feature_name = Feature.SMMS.value
         self.n_mels = n_mels
         self.track_features = self.load()
 
-    def load(self, postprocessor=lambda fv: np.array([[float(v) for v in row] for row in fv])):
-        return super().load(postprocessor)
+    def preprocess(self, feature_value):
+        """ Transform feature value prior to serialization. """
+        return [[np.format_float_scientific(v, precision=3) for v in row] for row in feature_value]
 
-    def save(self, preprocessor=lambda fv: [[np.format_float_scientific(v, precision = 3) for v in row] for row in fv]):
-        super().save(preprocessor)
+    def postprocess(self, feature_value):
+        """ Transform feature value after deserialization. """
+        return np.array([[float(v) for v in row] for row in feature_value])
 
     def compute(self):
         """ Compute the segmented mean Mel spectrogram. """

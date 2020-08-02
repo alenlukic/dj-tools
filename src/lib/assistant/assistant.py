@@ -133,7 +133,7 @@ class Assistant:
             harmonic_codes = self._get_all_harmonic_codes(cur_track_md)
             same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md)
 
-            # Print matches
+            # # Print matches
             # self._print_transition_ranks('Higher key (step down)', higher_key)
             # self._print_transition_ranks('Lower key (step up)', lower_key)
             # self._print_transition_ranks('Same key', same_key, 1)
