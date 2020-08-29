@@ -1,8 +1,6 @@
 import json
 from os.path import exists
 
-from src.utils.errors import handle_error
-
 
 def load_json_from_file(path):
     """
@@ -14,6 +12,5 @@ def load_json_from_file(path):
     try:
         with open(path, 'r+' if exists(path) else 'w+') as fp:
             return json.load(fp)
-    except Exception as e:
-        handle_error(e, '(Path: %s' % path + ')')
+    except Exception:
         return {}

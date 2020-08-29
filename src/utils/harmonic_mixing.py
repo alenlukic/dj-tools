@@ -26,6 +26,13 @@ def format_camelot_number(camelot_number):
     return str(camelot_number) if camelot_number >= 10 else '0' + str(camelot_number)
 
 
+def generate_artist_counts(artist_counts, track_md_dict):
+    result = {}
+    for a in track_md_dict:
+        result[a] = artist_counts[a]
+    return result
+
+
 def generate_camelot_map(tracks):
     """
     Generate and return map of camelot code -> BPM -> set of tracks, along with collection metadata.
@@ -55,6 +62,23 @@ def generate_camelot_map(tracks):
             label_counts[track.label] += 1
 
         # Create track metadata dict and add to index
+        new_tmd = {
+            TrackDBCols.FILE_PATH: file_path,
+            TrackDBCols.TITLE: track.title,
+            TrackDBCols.BPM: get_or_default(track, 'bpm', float_transform),
+            TrackDBCols.KEY: track.key,
+            TrackDBCols.CAMELOT_CODE: track.camelot_code,
+            TrackDBCols.LABEL: track.label,
+            TrackDBCols.GENRE: track.genre,
+            TrackDBCols.ENERGY: get_or_default(track, 'energy', int_transform),
+            TrackDBCols.DATE_ADDED: get_or_default(track, 'date_added', datetime_transform),
+            ArtistFields.ARTISTS: {artist: 0 for artist in artists},
+            ArtistFields.REMIXERS: {remixer: 0 for remixer in remixers}
+        }
+        sanitized_tmd = {}
+        for k, v in new_tmd.items():
+            if not is_empty(v):
+                sanitized_tmd[k] = v
         track_mds.append({k: v for k, v in {
             TrackDBCols.FILE_PATH: file_path,
             TrackDBCols.TITLE: track.title,
@@ -76,9 +100,9 @@ def generate_camelot_map(tracks):
     for track_md in track_mds:
         # Update artist, remixer, and label counts for track
         if ArtistFields.ARTISTS in track_md:
-            track_md[ArtistFields.ARTISTS] = {a: artist_counts[a] for a in track_md[ArtistFields.ARTISTS]}
+            track_md[ArtistFields.ARTISTS] = generate_artist_counts(artist_counts, track_md[ArtistFields.ARTISTS])
         if ArtistFields.REMIXERS in track_md:
-            track_md[ArtistFields.REMIXERS] = {r: artist_counts[r] for r in track_md[ArtistFields.REMIXERS]}
+            track_md[ArtistFields.REMIXERS] = generate_artist_counts(artist_counts, track_md[ArtistFields.REMIXERS])
         if TrackDBCols.LABEL in track_md:
             label = track_md[TrackDBCols.LABEL]
             track_md[TrackDBCols.LABEL] = (label, label_counts[label])

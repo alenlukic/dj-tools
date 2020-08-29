@@ -18,9 +18,8 @@ class TransitionMatch(Base):
      relative_key  | character varying |           | not null |
     Indexes:
         "transition_match_pkey" PRIMARY KEY, btree (id, on_deck_id, candidate_id)
-        "ix_transition_match_candidate_id" UNIQUE, btree (candidate_id)
         "ix_transition_match_id" UNIQUE, btree (id)
-        "ix_transition_match_on_deck_id" UNIQUE, btree (on_deck_id)
+        "transition_match_on_deck_id_candidate_id_idx" UNIQUE, btree (on_deck_id, candidate_id)
     Foreign-key constraints:
         "transition_match_candidate_id_fkey" FOREIGN KEY (candidate_id) REFERENCES feature_value(track_id)
         "transition_match_on_deck_id_fkey" FOREIGN KEY (on_deck_id) REFERENCES feature_value(track_id)
