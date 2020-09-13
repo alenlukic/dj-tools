@@ -5,7 +5,7 @@ import os
 # import time
 
 from src.db.database import Database
-# from src.db.entities.feature_value import FeatureValue
+from src.db.entities.feature_value import FeatureValue
 from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
 from src.definitions.common import NUM_CORES
 # from src.definitions.data_management import TrackDBCols
@@ -16,6 +16,9 @@ from src.lib.assistant.transition_match import TransitionMatch
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
 from src.utils.errors import handle_error
 from src.utils.harmonic_mixing import *
+
+
+SESSION_LIMIT = 10
 
 
 def join_tasks(tasks):
@@ -287,6 +290,9 @@ assistant = Assistant()
 cm = assistant.camelot_map
 mdw = MatchDataWrapper(assistant.tracks)
 
+fv_sesh = database.create_session()
+fv_set = set([fv.track_id for fv in fv_sesh.query(FeatureValue).all()])
+fv_sesh.close()
 
 if __name__ == '__main__':
     # Initialize MDW structs / preprocess tracks
@@ -320,6 +326,7 @@ if __name__ == '__main__':
     join_tasks(m_tasks)
     kill_processes(m_task_pids)
 
+    # Build transition match table
     m_bounds = [
         (SAME_UPPER_BOUND, SAME_LOWER_BOUND, RelativeKey.SAME.value),
         (UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, RelativeKey.STEP_DOWN.value),
@@ -373,17 +380,42 @@ if __name__ == '__main__':
 
                 m_results = [m_parcel.recv() for m_parcel in m_parcels]
                 m_task_pids = []
-                for m_result in m_results:
-                    (m_smms_map_update, m_pid) = m_result
-                    m_task_pids.append(m_pid)
 
-                    for t_bpm, smms_dict in m_smms_map_update.items():
-                        for t_id, t_smms in smms_dict.items():
-                            mdw.smms_map[t_bpm][t_id] = t_smms
+                new_sesh = database.create_session()
+                try:
+                    counter = 0
+                    for m_result in m_results:
+                        (m_smms_map_update, m_pid) = m_result
+                        m_task_pids.append(m_pid)
+
+                        for t_bpm, smms_dict in m_smms_map_update.items():
+                            for t_id, t_smms in smms_dict.items():
+                                mdw.smms_map[t_bpm][t_id] = t_smms
+
+                                if t_id not in fv_set:
+                                    if counter == SESSION_LIMIT:
+                                        new_sesh.close()
+                                        new_sesh = database.create_session()
+                                        counter = 0
+
+                                    fv_set.add(t_id)
+                                    fv_row = {
+                                        'track_id': t_id,
+                                        'features': {
+                                            Feature.SMMS.value: t_smms.preprocess(t_smms.feature_value)
+                                        }
+                                    }
+                                    new_sesh.add(FeatureValue(**fv_row))
+                                    new_sesh.commit()
+                                    counter += 1
+
+                finally:
+                    new_sesh.close()
 
                 join_tasks(m_tasks)
                 kill_processes(m_task_pids)
 
+                print('----')
                 print('Min BPM in SMMS map: %f' % min(mdw.smms_bpms))
                 print('Max BPM in SMMS map: %f' % max(mdw.smms_bpms))
                 print('Deleted %d SMMS map entries' % m_del_count)
@@ -417,13 +449,39 @@ if __name__ == '__main__':
                 print('---\n')
 
                 session = database.create_session()
-                for tm_row in m_match_rows:
-                    try:
-                        session.add(tm_row)
-                        session.commit()
-                    except Exception as ex:
-                        handle_error(ex)
-                        continue
+                try:
+                    counter = 0
+                    for tm_row in m_match_rows:
+                        try:
+                            if counter == SESSION_LIMIT:
+                                session.close()
+                                session = database.create_session()
+                                counter = 0
+
+                            for oc_id in [tm_row.on_deck_id, tm_row.candidate_id]:
+                                if oc_id not in fv_set:
+                                    oc_bpm = MatchDataWrapper.std_bpm(
+                                        [octr.bpm for octr in mdw.all_tracks if octr.id == oc_id][0])
+                                    oc_smms = mdw.smms_map[oc_bpm][oc_id]
+                                    fv_set.add(oc_id)
+                                    fv_row = {
+                                        'track_id': oc_id,
+                                        'features': {
+                                            Feature.SMMS.value: oc_smms.preprocess(oc_smms.feature_value)
+                                        }
+                                    }
+                                    session.add(FeatureValue(**fv_row))
+                                    session.commit()
+
+                            session.add(tm_row)
+                            session.commit()
+                            counter += 1
+                        except Exception as ex:
+                            handle_error(ex)
+                            continue
+
+                finally:
+                    session.close()
 
             mdw.reset()
             del mdw.transition_matches[m_relative_key]
