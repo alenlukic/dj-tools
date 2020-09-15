@@ -89,7 +89,7 @@ class Assistant:
         print('Goodbye.')
         exit()
 
-    def get_transition_matches(self, db_row, track_title, sort=True):
+    def get_transition_matches(self, track_title):
         """
         Prints transition matches for the given track.
 
@@ -99,18 +99,18 @@ class Assistant:
         session = database.create_session()
         try:
             # Validate metadata exists
-            # title_mismatch_message = ''
-            # db_row = session.query(Track).filter_by(title=track_title).first()
+            title_mismatch_message = ''
+            db_row = session.query(Track).filter_by(title=track_title).first()
 
-            # if db_row is None:
-            #     db_row = session.query(Track).filter(Track.file_path.like('%{}%'.format(track_title))).first()
-            #
-            #     if db_row is not None:
-            #         path = db_row.file_path
-            #         title_mismatch_message = '\n\nWarning: found %s in path %s (but not title)' % (track_title, path)
-            #
-            # if db_row is None:
-            #     raise Exception('%s not found in database.' % track_title)
+            if db_row is None:
+                db_row = session.query(Track).filter(Track.file_path.like('%{}%'.format(track_title))).first()
+
+                if db_row is not None:
+                    path = db_row.file_path
+                    title_mismatch_message = '\n\nWarning: found %s in path %s (but not title)' % (track_title, path)
+
+            if db_row is None:
+                raise Exception('%s not found in database.' % track_title)
 
             # Validate BPM and Camelot code exist and are well-formatted
             title = db_row.title
@@ -131,14 +131,14 @@ class Assistant:
 
             # Generate and rank matches
             harmonic_codes = self._get_all_harmonic_codes(cur_track_md)
-            same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md, sort)
+            same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md)
 
-            # # Print matches
-            # self._print_transition_ranks('Higher key (step down)', higher_key)
-            # self._print_transition_ranks('Lower key (step up)', lower_key)
-            # self._print_transition_ranks('Same key', same_key, 1)
-            #
-            # print(title_mismatch_message)
+            # Print matches
+            self._print_transition_ranks('Higher key (step down)', higher_key)
+            self._print_transition_ranks('Lower key (step up)', lower_key)
+            self._print_transition_ranks('Same key', same_key, 1)
+
+            print(title_mismatch_message)
 
             return same_key, higher_key, lower_key
 
@@ -177,7 +177,7 @@ class Assistant:
             (code_number, flip_camelot_letter(code_letter), CamelotPriority.ADJACENT_JUMP.value)
         ]
 
-    def _get_matches(self, bpm, camelot_code, upper_bound, lower_bound, sort):
+    def _get_matches(self, bpm, camelot_code, upper_bound, lower_bound):
         """
         Calculate BPM ranges and find matching tracks.
 
@@ -192,15 +192,13 @@ class Assistant:
 
         results = []
         code_map = self.camelot_map[camelot_code]
-        matching_bpms = [b for b in code_map.keys() if lower_bpm <= b <= upper_bpm]
-        if sort:
-            matching_bpms = sorted(matching_bpms)
+        matching_bpms = sorted([b for b in code_map.keys() if lower_bpm <= b <= upper_bpm])
         for b in matching_bpms:
             results.extend(code_map[b])
 
         return results
 
-    def _get_matches_for_code(self, harmonic_codes, cur_track_md, sort):
+    def _get_matches_for_code(self, harmonic_codes, cur_track_md):
         """
         Find matches for the given track.
 
@@ -219,23 +217,22 @@ class Assistant:
             hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
             lk_code = format_camelot_number((code_number - 7) % 12) + code_letter
 
-            for md in self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND, sort):
+            for md in self._get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND):
                 match = TransitionMatch(md, cur_track_md, priority)
                 same_key.append(match)
 
-            for md in self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, sort):
+            for md in self._get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND):
                 match = TransitionMatch(md, cur_track_md, priority)
                 higher_key.append(match)
 
-            for md in self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, sort):
+            for md in self._get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND):
                 match = TransitionMatch(md, cur_track_md, priority)
                 lower_key.append(match)
 
         # Rank and format results
-        if sort:
-            same_key = sorted(same_key, reverse=True)
-            higher_key = sorted(higher_key, reverse=True)
-            lower_key = sorted(lower_key, reverse=True)
+        same_key = sorted(same_key, reverse=True)
+        higher_key = sorted(higher_key, reverse=True)
+        lower_key = sorted(lower_key, reverse=True)
 
         return same_key, higher_key, lower_key
 

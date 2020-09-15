@@ -1,14 +1,11 @@
 from multiprocessing import Process, Pipe
 import numpy as np
 import os
-# import sys
-# import time
 
 from src.db.database import Database
 from src.db.entities.feature_value import FeatureValue
 from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
 from src.definitions.common import NUM_CORES
-# from src.definitions.data_management import TrackDBCols
 from src.definitions.feature_extraction import *
 from src.definitions.harmonic_mixing import *
 from src.lib.assistant.assistant import Assistant as ExternalAssistant
@@ -129,12 +126,11 @@ def _get_matches_for_code(harmonic_codes, cur_track_md, sort, camelot_map):
         for md in _get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND, sort, camelot_map):
             match = TransitionMatch(md, cur_track_md, priority)
             same_key.append(match)
-
-        for md in _get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, sort, camelot_map):
+        for md in _get_matches(bpm, hk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, sort, camelot_map):
             match = TransitionMatch(md, cur_track_md, priority)
             higher_key.append(match)
 
-        for md in _get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, sort, camelot_map):
+        for md in _get_matches(bpm, lk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, sort, camelot_map):
             match = TransitionMatch(md, cur_track_md, priority)
             lower_key.append(match)
 
@@ -200,12 +196,10 @@ class MatchDataWrapper:
         # SMMS structures
         self.smms_map = defaultdict(dict)
         self.smms_bpms = set()
-        self.stat_ledger = defaultdict(int)
 
     def reset(self):
-        self.smms_map = defaultdict({})
+        self.smms_map = defaultdict(dict)
         self.smms_bpms = set()
-        self.stat_ledger = defaultdict(int)
 
     @staticmethod
     def std_bpm(bpm):
@@ -243,20 +237,17 @@ def generate_mel_scores(track_id, track_mel, matches, relative_key):
 
 def compute_feature_values(tracks, relative_key, dropbox):
     smms_map = mdw.smms_map
-    stat_ledger = mdw.stat_ledger
 
     match_rows = []
     for track in tracks:
         track_id = track.id
-        track_mel = smms_map[MatchDataWrapper.std_bpm(track.bpm)][track_id]
+        track_std_bpm = MatchDataWrapper.std_bpm(track.bpm)
+        if track_id not in smms_map[track_std_bpm]:
+            smms_map[track_std_bpm][track_id] = SegmentedMeanMelSpectrogram(track)
 
+        track_mel = smms_map[MatchDataWrapper.std_bpm(track.bpm)][track_id]
         match_rows.extend(generate_mel_scores(track_id, track_mel,
                                               mdw.transition_matches[track_id][relative_key], relative_key))
-
-        stat_ledger['p'] += 1
-        if stat_ledger['p'] % 100 == 0:
-            print('\n----------------\nProcessed %d of %d tracks\n----------------\n' % (
-                stat_ledger['p'], stat_ledger['t']))
 
     dropbox.send((match_rows, os.getpid()))
 
@@ -293,6 +284,8 @@ mdw = MatchDataWrapper(assistant.tracks)
 fv_sesh = database.create_session()
 fv_set = set([fv.track_id for fv in fv_sesh.query(FeatureValue).all()])
 fv_sesh.close()
+
+tm_set = set()
 
 if __name__ == '__main__':
     # Initialize MDW structs / preprocess tracks
@@ -415,11 +408,13 @@ if __name__ == '__main__':
                 join_tasks(m_tasks)
                 kill_processes(m_task_pids)
 
+                m_smms_size = sum([len(v) for v in mdw.smms_map.values()])
                 print('----')
-                print('Min BPM in SMMS map: %f' % min(mdw.smms_bpms))
-                print('Max BPM in SMMS map: %f' % max(mdw.smms_bpms))
+                print('SMMS size: %d' % m_smms_size)
+                if m_smms_size > 0:
+                    print('Min BPM in SMMS map: %f' % min(mdw.smms_bpms))
+                    print('Max BPM in SMMS map: %f' % max(mdw.smms_bpms))
                 print('Deleted %d SMMS map entries' % m_del_count)
-                print('SMMS size: %d' % sum([len(v) for v in mdw.smms_map.values()]))
 
                 # Create TransitionMatch rows in parallel
                 tracks_to_process = mdw.bpm_map[MatchDataWrapper.std_bpm(m_track_bpm)]
@@ -452,6 +447,8 @@ if __name__ == '__main__':
                 try:
                     counter = 0
                     for tm_row in m_match_rows:
+                        if (tm_row.on_deck_id, tm_row.candidate_id) in tm_set:
+                            continue
                         try:
                             if counter == SESSION_LIMIT:
                                 session.close()
@@ -475,6 +472,7 @@ if __name__ == '__main__':
 
                             session.add(tm_row)
                             session.commit()
+                            tm_set.add((tm_row.on_deck_id, tm_row.candidate_id))
                             counter += 1
                         except Exception as ex:
                             handle_error(ex)
@@ -483,7 +481,11 @@ if __name__ == '__main__':
                 finally:
                     session.close()
 
+            # Reset
+            for k, v in mdw.transition_matches.items():
+                if m_relative_key in v:
+                    del v[m_relative_key]
             mdw.reset()
-            del mdw.transition_matches[m_relative_key]
+
     finally:
         database.close_all_sessions()
