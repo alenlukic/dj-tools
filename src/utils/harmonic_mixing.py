@@ -40,7 +40,7 @@ def generate_camelot_map(tracks):
     :param tracks: Set of all tracks in the DB.
     """
 
-    collection_md = {CollectionStat.NEWEST: -1, CollectionStat.OLDEST: float('inf')}
+    collection_md = {CollectionStat.NEWEST: -1, CollectionStat.OLDEST: float('inf'), CollectionStat.SMMS_MAX: 461.53}
     label_counts = defaultdict(int)
     artist_counts = defaultdict(int)
     camelot_map = defaultdict(lambda: defaultdict(list))
@@ -62,24 +62,8 @@ def generate_camelot_map(tracks):
             label_counts[track.label] += 1
 
         # Create track metadata dict and add to index
-        new_tmd = {
-            TrackDBCols.FILE_PATH: file_path,
-            TrackDBCols.TITLE: track.title,
-            TrackDBCols.BPM: get_or_default(track, 'bpm', float_transform),
-            TrackDBCols.KEY: track.key,
-            TrackDBCols.CAMELOT_CODE: track.camelot_code,
-            TrackDBCols.LABEL: track.label,
-            TrackDBCols.GENRE: track.genre,
-            TrackDBCols.ENERGY: get_or_default(track, 'energy', int_transform),
-            TrackDBCols.DATE_ADDED: get_or_default(track, 'date_added', datetime_transform),
-            ArtistFields.ARTISTS: {artist: 0 for artist in artists},
-            ArtistFields.REMIXERS: {remixer: 0 for remixer in remixers}
-        }
-        sanitized_tmd = {}
-        for k, v in new_tmd.items():
-            if not is_empty(v):
-                sanitized_tmd[k] = v
         track_mds.append({k: v for k, v in {
+            TrackDBCols.ID: track.id,
             TrackDBCols.FILE_PATH: file_path,
             TrackDBCols.TITLE: track.title,
             TrackDBCols.BPM: get_or_default(track, 'bpm', float_transform),

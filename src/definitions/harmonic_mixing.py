@@ -7,6 +7,7 @@ class CollectionStat(Enum):
     TIME_RANGE = 'Time Range'
     LABEL_COUNTS = 'Label Counts'
     ARTIST_COUNTS = 'Artist Counts'
+    SMMS_MAX = 'SMMS Max'
 
 
 class MatchFactors(Enum):
@@ -17,6 +18,7 @@ class MatchFactors(Enum):
     FRESHNESS = 'Freshness'
     GENRE = 'Genre'
     LABEL = 'Label'
+    SMMS_SCORE = 'SMMS Score'
 
 
 # How harmonic a particular key transition is (higher = more harmonic)

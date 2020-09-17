@@ -1,4 +1,6 @@
+from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
 from src.definitions.data_management import *
+from src.definitions.feature_extraction import Feature
 from src.definitions.harmonic_mixing import *
 from src.utils.common import log2smooth
 
@@ -7,6 +9,7 @@ class TransitionMatch:
     """ Wrapper for a track with a harmonic transition from the current track. """
 
     collection_md = None
+    db_session = None
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
         """
@@ -23,6 +26,11 @@ class TransitionMatch:
         self.score = None
         self.factors = {}
 
+    def format(self):
+        """ Format result with score and track's base file name. """
+        score = '{:.2f}'.format(self.get_score())
+        return ('   ' * (9 - len(score))).join([score, self.metadata[TrackDBCols.TITLE]])
+
     def get_score(self):
         """ Calculate the transition score using multiple weighed subscores. """
 
@@ -31,13 +39,14 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-                    (self.get_bpm_score(), 0.22),
-                    (self.get_camelot_priority_score(), 0.26),
-                    (self.get_energy_score(), 0.06),
-                    (self.get_freshness_score(), 0.12),
-                    (self.get_artist_score(), 0.08),
-                    (self.get_genre_score(), 0.12),
-                    (self.get_label_score(), 0.14),
+                    (self.get_smms_score(), 0.27),
+                    (self.get_camelot_priority_score(), 0.2),
+                    (self.get_bpm_score(), 0.18),
+                    (self.get_freshness_score(), 0.1),
+                    (self.get_label_score(), 0.1),
+                    (self.get_artist_score(), 0.05),
+                    (self.get_genre_score(), 0.05),
+                    (self.get_energy_score(), 0.05)
                 ]
                 self.score = 100 * sum([score * weight for score, weight in score_weights])
 
@@ -212,10 +221,21 @@ class TransitionMatch:
             self.factors[MatchFactors.LABEL] = _get_label_score()
         return self.factors[MatchFactors.LABEL]
 
-    def format(self):
-        """ Format result with score and track's base file name. """
-        score = '{:.2f}'.format(self.get_score())
-        return ('   ' * (9 - len(score))).join([score, self.metadata[TrackDBCols.TITLE]])
+    def get_smms_score(self):
+        def _get_smms_score():
+            smms_score = self.db_session.query(TransitionMatchRow).filter(
+                TransitionMatchRow.on_deck_id == self.cur_track_md.get(TrackDBCols.ID),
+                TransitionMatchRow.candidate_id == self.metadata.get(TrackDBCols.ID)).first()
+            if smms_score is None:
+                return 0.0
+            else:
+                smms_val = smms_score.match_factors[Feature.SMMS.value]
+                smms_max = self.collection_md[CollectionStat.SMMS_MAX]
+                return max(0.0, 1.0 - (float(smms_val) / smms_max))
+
+        if MatchFactors.SMMS_SCORE not in self.factors:
+            self.factors[MatchFactors.SMMS_SCORE] = _get_smms_score()
+        return self.factors[MatchFactors.SMMS_SCORE]
 
     def _get_percent_of_bound_score(self, absolute_diff, cur_track_bpm):
         """

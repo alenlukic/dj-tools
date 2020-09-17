@@ -1,6 +1,7 @@
 # noinspection PyUnresolvedReferences
 import readline
 
+from src.db import database
 from src.lib.assistant.command import CommandParsingException
 from src.lib.assistant.assistant import Assistant
 from src.utils.errors import handle_error
@@ -24,4 +25,7 @@ def run_assistant():
 
 
 if __name__ == '__main__':
-    run_assistant()
+    try:
+        run_assistant()
+    finally:
+        database.close_all_sessions()

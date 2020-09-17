@@ -126,11 +126,11 @@ def _get_matches_for_code(harmonic_codes, cur_track_md, sort, camelot_map):
         for md in _get_matches(bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND, sort, camelot_map):
             match = TransitionMatch(md, cur_track_md, priority)
             same_key.append(match)
-        for md in _get_matches(bpm, hk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, sort, camelot_map):
+        for md in _get_matches(bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, sort, camelot_map):
             match = TransitionMatch(md, cur_track_md, priority)
             higher_key.append(match)
 
-        for md in _get_matches(bpm, lk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, sort, camelot_map):
+        for md in _get_matches(bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, sort, camelot_map):
             match = TransitionMatch(md, cur_track_md, priority)
             lower_key.append(match)
 
@@ -321,9 +321,9 @@ if __name__ == '__main__':
 
     # Build transition match table
     m_bounds = [
-        (SAME_UPPER_BOUND, SAME_LOWER_BOUND, RelativeKey.SAME.value),
-        (UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, RelativeKey.STEP_DOWN.value),
-        (DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, RelativeKey.STEP_UP.value)
+        # (SAME_UPPER_BOUND, SAME_LOWER_BOUND, RelativeKey.SAME.value),
+        (UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, RelativeKey.STEP_UP.value),
+        (DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, RelativeKey.STEP_DOWN.value)
     ]
     try:
         for (m_upper, m_lower, m_relative_key) in m_bounds:
@@ -352,8 +352,8 @@ if __name__ == '__main__':
                 for m_bpm in m_smms_map_keys:
                     if not (m_lower_bound <= float(m_bpm) <= m_upper_bound):
                         mdw.smms_bpms.remove(float(m_bpm))
+                        m_del_count += len(mdw.smms_map[m_bpm])
                         del mdw.smms_map[m_bpm]
-                        m_del_count += 1
 
                 # Expand track frontier
                 m_frontier_tracks = get_frontier_tracks(m_bpm_chunk_delta)
@@ -470,8 +470,13 @@ if __name__ == '__main__':
                                     session.add(FeatureValue(**fv_row))
                                     session.commit()
 
-                            session.add(tm_row)
-                            session.commit()
+                            try:
+                                session.add(tm_row)
+                                session.commit()
+                            except Exception:
+                                session.rollback()
+                                continue
+
                             tm_set.add((tm_row.on_deck_id, tm_row.candidate_id))
                             counter += 1
                         except Exception as ex:

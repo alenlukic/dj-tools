@@ -19,10 +19,6 @@ class Feature(Enum):
     SMMS = 'Segmented Mean Mel Spectrogram'
 
 
-class MatchScore(Enum):
-    SMMS_SCORE = 'SMMS Score'
-
-
 FEATURE_DIR = CONFIG['FEATURE_DIR']
 
 SAMPLE_RATE = 44100

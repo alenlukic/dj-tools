@@ -48,10 +48,13 @@ class Assistant:
         self.dm = DataManager()
         self.tracks = self.dm.load_tracks()
         self.camelot_map, self.collection_md = generate_camelot_map(self.tracks)
-        TransitionMatch.collection_md = self.collection_md
-        self.max_results = 50
+        self.session = database.create_session()
+        self.max_results = 75
         self.cutoff_threshold_score = 50.0
         self.result_threshold = 20
+
+        TransitionMatch.db_session = self.session
+        TransitionMatch.collection_md = self.collection_md
 
     def execute(self, user_input):
         """
@@ -96,14 +99,13 @@ class Assistant:
         :param track_title - Formatted track title (with metadata)
         """
 
-        session = database.create_session()
         try:
             # Validate metadata exists
             title_mismatch_message = ''
-            db_row = session.query(Track).filter_by(title=track_title).first()
+            db_row = self.session.query(Track).filter_by(title=track_title).first()
 
             if db_row is None:
-                db_row = session.query(Track).filter(Track.file_path.like('%{}%'.format(track_title))).first()
+                db_row = self.session.query(Track).filter(Track.file_path.like('%{}%'.format(track_title))).first()
 
                 if db_row is not None:
                     path = db_row.file_path
@@ -144,9 +146,6 @@ class Assistant:
 
         except Exception as e:
             handle_error(e)
-
-        finally:
-            session.close()
 
     def _get_all_harmonic_codes(self, cur_track_md):
         """
