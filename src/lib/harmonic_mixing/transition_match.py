@@ -8,7 +8,7 @@ from src.utils.common import log2smooth
 class TransitionMatch:
     """ Wrapper for a track with a harmonic transition from the current track. """
 
-    collection_md = None
+    collection_metadata = None
     db_session = None
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
@@ -78,7 +78,7 @@ class TransitionMatch:
                 for k, v in count_dict.items():
                     unified_counts[k] = v
 
-            log_artist_count = log2smooth(self.collection_md[CollectionStat.ARTIST_COUNTS])
+            log_artist_count = log2smooth(self.collection_metadata[CollectionStat.ARTIST_COUNTS])
             return sum([1.0 - (log2smooth(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
 
         if MatchFactors.ARTIST not in self.factors:
@@ -178,8 +178,8 @@ class TransitionMatch:
             if date_added is None:
                 return 0.5
 
-            return ((date_added - self.collection_md[CollectionStat.OLDEST]) /
-                    self.collection_md[CollectionStat.TIME_RANGE])
+            return ((date_added - self.collection_metadata[CollectionStat.OLDEST]) /
+                    self.collection_metadata[CollectionStat.TIME_RANGE])
 
         if MatchFactors.FRESHNESS not in self.factors:
             self.factors[MatchFactors.FRESHNESS] = _get_freshness_score()
@@ -215,7 +215,7 @@ class TransitionMatch:
             if label != cur_label or label == 'CDR' or cur_label == 'CDR' or label is None or cur_label is None:
                 return 0.0
 
-            return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_md[CollectionStat.LABEL_COUNTS]))
+            return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_metadata[CollectionStat.LABEL_COUNTS]))
 
         if MatchFactors.LABEL not in self.factors:
             self.factors[MatchFactors.LABEL] = _get_label_score()
@@ -230,7 +230,7 @@ class TransitionMatch:
                 return 0.0
             else:
                 smms_val = smms_score.match_factors[Feature.SMMS.value]
-                smms_max = self.collection_md[CollectionStat.SMMS_MAX]
+                smms_max = self.collection_metadata[CollectionStat.SMMS_MAX]
                 return max(0.0, 1.0 - (float(smms_val) / smms_max))
 
         if MatchFactors.SMMS_SCORE not in self.factors:

@@ -40,6 +40,7 @@ def generate_camelot_map(tracks):
     :param tracks: Set of all tracks in the DB.
     """
 
+    # TODO: update CollectionStat.SMMS_MAX generation
     collection_md = {CollectionStat.NEWEST: -1, CollectionStat.OLDEST: float('inf'), CollectionStat.SMMS_MAX: 461.53}
     label_counts = defaultdict(int)
     artist_counts = defaultdict(int)

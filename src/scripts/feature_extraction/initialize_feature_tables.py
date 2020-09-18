@@ -9,7 +9,7 @@ from src.definitions.common import NUM_CORES
 from src.definitions.feature_extraction import *
 from src.definitions.harmonic_mixing import *
 from src.lib.assistant.assistant import Assistant as ExternalAssistant
-from src.lib.assistant.transition_match import TransitionMatch
+from src.lib.harmonic_mixing.transition_match import TransitionMatch
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
 from src.utils.errors import handle_error
 from src.utils.harmonic_mixing import *

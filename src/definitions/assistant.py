@@ -29,7 +29,7 @@ COMMANDS = {
     EXIT: Command(EXIT, 'Shut the assistant down.', 'shutdown', EXIT_ALIASES),
     MATCH: Command(
         MATCH,
-        'Find harmonic mixing matches for the given BPM and Camelot code.', 'get_transition_matches',
+        'Find harmonic mixing matches for the given BPM and Camelot code.', 'print_transition_matches',
         MATCH_ALIASES,
         [
             CommandArgument('track_title', 'string', 'Current track title.', 0,
