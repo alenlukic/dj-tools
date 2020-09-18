@@ -222,6 +222,8 @@ class TransitionMatch:
         return self.factors[MatchFactors.LABEL]
 
     def get_smms_score(self):
+        """ Calculates SMMS distance component of the score. """
+
         def _get_smms_score():
             smms_score = self.db_session.query(TransitionMatchRow).filter(
                 TransitionMatchRow.on_deck_id == self.cur_track_md.get(TrackDBCols.ID),

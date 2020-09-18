@@ -9,7 +9,7 @@ from src.utils.harmonic_mixing import *
 
 
 class TransitionMatchFinder:
-    """ """
+    """ Encapsulates functionality for finding transition matches. """
 
     def __init__(self, session=None):
         """ Initializes data manager and track data. """
