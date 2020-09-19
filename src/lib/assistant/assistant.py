@@ -39,7 +39,7 @@ class Assistant:
     """" CLI assistant functions."""
 
     def __init__(self):
-        """ """
+        """ Initialize the assistant. """
         self.session = database.create_session()
         self.transition_match_finder = TransitionMatchFinder(self.session)
 
