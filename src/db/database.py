@@ -59,6 +59,13 @@ class Database:
             if not self.dry_run:
                 self.session.add(entity)
 
+        def guarded_add(self, entity):
+            try:
+                self.add(entity)
+                self.commit()
+            except Exception:
+                self.rollback()
+
         def delete(self, entity):
             if not self.dry_run:
                 self.session.delete(entity)

@@ -10,6 +10,7 @@ class TransitionMatch:
 
     collection_metadata = None
     db_session = None
+    result_column_header = '   '.join(['Total Score', 'SMMS Score', ' Track'])
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
         """
@@ -29,7 +30,8 @@ class TransitionMatch:
     def format(self):
         """ Format result with score and track's base file name. """
         score = '{:.2f}'.format(self.get_score())
-        return ('   ' * (9 - len(score))).join([score, self.metadata[TrackDBCols.TITLE]])
+        smms_score = '{:.2f}'.format(100 * self.get_smms_score())
+        return ('         ' * (6 - len(score))).join([score, smms_score, self.metadata[TrackDBCols.TITLE]])
 
     def get_score(self):
         """ Calculate the transition score using multiple weighed subscores. """
@@ -39,14 +41,14 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-                    (self.get_smms_score(), 0.27),
-                    (self.get_camelot_priority_score(), 0.2),
-                    (self.get_bpm_score(), 0.18),
+                    (self.get_smms_score(), 0.24),
+                    (self.get_camelot_priority_score(), 0.24),
+                    (self.get_bpm_score(), 0.2),
                     (self.get_freshness_score(), 0.1),
-                    (self.get_label_score(), 0.1),
-                    (self.get_artist_score(), 0.05),
-                    (self.get_genre_score(), 0.05),
-                    (self.get_energy_score(), 0.05)
+                    (self.get_label_score(), 0.08),
+                    (self.get_artist_score(), 0.06),
+                    (self.get_genre_score(), 0.04),
+                    (self.get_energy_score(), 0.04)
                 ]
                 self.score = 100 * sum([score * weight for score, weight in score_weights])
 
@@ -274,7 +276,8 @@ class TransitionMatch:
         return 0.0
 
     def __lt__(self, other):
-        return (self.get_score(), self.get_freshness_score()) < (other.get_score(), other.get_freshness_score())
+        return ((self.get_score(), self.get_smms_score(), self.get_freshness_score()) <
+                (other.get_score(), self.get_smms_score(), other.get_freshness_score()))
 
     def __hash__(self):
         return hash(self.metadata[TrackDBCols.FILE_PATH])

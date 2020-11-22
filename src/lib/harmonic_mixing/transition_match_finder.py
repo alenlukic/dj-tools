@@ -186,7 +186,7 @@ class TransitionMatchFinder:
 
         print('\n\n\n%s results:\n\n\n' % result_type)
         print(DASHED_LINE)
-        print(RESULT_COLUMN_HEADER)
+        print(TransitionMatch.result_column_header)
         print(DASHED_LINE)
 
         num_results = len(results)

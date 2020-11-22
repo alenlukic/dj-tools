@@ -71,6 +71,19 @@ def kill_processes(pids):
             continue
 
 
+def recreate_session(db_session):
+    """ Close given DB session and return a new one. """
+    db_session.close()
+    return database.create_session()
+
+
+def recreate_session_contingent(clause, db_session, counter):
+    """ If clause is true, close existing session and return a new one; else return existing session unchanged. """
+    if clause:
+        return recreate_session(db_session), 0
+    return db_session, counter
+
+
 def init_data(track_chunk, dropbox):
     """
     Helper function to initialize data structures needed for script.
@@ -166,10 +179,10 @@ def generate_match_smms_values(track_id, track_mel, matches, relative_key):
 def generate_smms_values(tracks, relative_key, dropbox):
     """
     Helper function for computing current frontier tracks' SMMS scores.
+
     :param tracks: Tracks for which to compute SMMS scores
     :param relative_key: Relative transition key
     :param dropbox: Async data recepticle
-    :return:
     """
 
     smms_map = script_data.smms_map
@@ -201,21 +214,24 @@ def get_frontier_tracks(bpm_chunk_delta):
     for bpm in bpm_chunk_delta:
         std_bpm = format_bpm(bpm)
 
-        if std_bpm not in script_data.smms_map:
-            script_data.smms_map[std_bpm] = {}
-            script_data.bpm_vals_in_smms_map.add(float(std_bpm))
-            frontier_tracks.extend(script_data.bpm_to_tracks[std_bpm])
+        if std_bpm in script_data.smms_map:
+            continue
+
+        script_data.smms_map[std_bpm] = {}
+        script_data.bpm_vals_in_smms_map.add(float(std_bpm))
+        frontier_tracks.extend(script_data.bpm_to_tracks[std_bpm])
 
     return frontier_tracks
 
 
 if __name__ == '__main__':
-    # Initialize structs / preprocess tracks
+    # Initialize structs
     track_ids_to_process = set(sys.argv[1].split(','))
     script_data = ScriptData(track_ids_to_process)
     session = database.create_session()
     fv_id_set = set([fv.track_id for fv in session.query(FeatureValue).all()])
 
+    # Parallelize data initialization
     init_data_chunks = np.array_split(script_data.tracks_to_process, NUM_CORES)
     init_data_tasks = []
     init_data_parcels = []
@@ -228,32 +244,39 @@ if __name__ == '__main__':
         init_data_tasks.append(init_data_task)
         init_data_task.start()
 
+    # Process initialization result chunks
     init_data_results = [m_parcel.recv() for m_parcel in init_data_parcels]
     init_data_task_pids = []
     for init_data_res in init_data_results:
         (partial_bpm_map, partial_track_bpms, partial_transition_matches, id_task_pid) = init_data_res
         init_data_task_pids.append(id_task_pid)
         script_data.track_bpms.extend(partial_track_bpms)
+
         for tm_bpm, tm_bpm_track_matches in partial_bpm_map.items():
             script_data.bpm_to_tracks[tm_bpm].extend(tm_bpm_track_matches)
+
         for init_data_track_id, init_data_rk_map in partial_transition_matches.items():
             for rk, rk_matches in init_data_rk_map.items():
                 script_data.transition_matches[tm_bpm][rk] = rk_matches
 
+    # Sort BPMs to process
     script_data.track_bpms = sorted(list(set([tbpm for tbpm in script_data.track_bpms])))
+
+    # Clean up async processes
     join_tasks(init_data_tasks, init_data_task_pids)
 
-    # Generate transition matches
-    tm_bound_tuples = [
-        (SAME_UPPER_BOUND, SAME_LOWER_BOUND, RelativeKey.SAME.value),
-        (UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, RelativeKey.STEP_UP.value),
-        (DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, RelativeKey.STEP_DOWN.value)
-    ]
+    # Generate matches for same-key, step-up and step-down transitions
     try:
+        tm_bound_tuples = [
+            (SAME_UPPER_BOUND, SAME_LOWER_BOUND, RelativeKey.SAME.value),
+            (UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND, RelativeKey.STEP_UP.value),
+            (DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND, RelativeKey.STEP_DOWN.value)
+        ]
         for (upper_perc, lower_perc, cur_relative_key) in tm_bound_tuples:
-
             cur_frontier_index = 0
+
             for i, cur_track_bpm in enumerate(script_data.track_bpms):
+                # Get new BPM founds
                 cur_upper_bound = get_bpm_bound(float(cur_track_bpm), lower_perc)
                 cur_lower_bound = get_bpm_bound(float(cur_track_bpm), upper_perc)
 
@@ -271,19 +294,19 @@ if __name__ == '__main__':
                 print('Iteration: %d   Current bpm: %f   Lower bound: %f   Upper bound: %f' %
                       (i, cur_track_bpm, cur_lower_bound, cur_upper_bound))
 
-                # Prune then expand SMMS map
+                # Prune and expand SMMS map
                 prev_smms_map_keys = list(script_data.smms_map.keys())
                 smms_del_count = 0
                 for smms_bpm in prev_smms_map_keys:
-                    if not (cur_lower_bound <= float(smms_bpm) <= cur_upper_bound):
-                        script_data.bpm_vals_in_smms_map.remove(float(smms_bpm))
-                        smms_del_count += len(script_data.smms_map[smms_bpm])
-                        del script_data.smms_map[smms_bpm]
+                    if cur_lower_bound <= float(smms_bpm) <= cur_upper_bound:
+                        continue
 
-                # Expand track frontier
+                    script_data.bpm_vals_in_smms_map.remove(float(smms_bpm))
+                    smms_del_count += len(script_data.smms_map[smms_bpm])
+                    del script_data.smms_map[smms_bpm]
+
+                # Expand track frontier and start parallel SMMS cache update
                 new_frontier_tracks = get_frontier_tracks(cur_bpm_chunk_delta)
-
-                # Update SMMS cache
                 update_smms_chunks = np.array_split(new_frontier_tracks, NUM_CORES)
                 update_smms_tasks = []
                 update_smms_parcels = []
@@ -296,43 +319,37 @@ if __name__ == '__main__':
                     update_smms_tasks.append(update_smms_task)
                     update_smms_task.start()
 
+                # Process cache update result chunks
                 update_smms_results = [us_parcel.recv() for us_parcel in update_smms_parcels]
                 update_smms_task_pids = []
+                session = recreate_session(session)
+                sesh_counter = 0
+                for update_smms_result in update_smms_results:
+                    (partial_smms_update, task_pid) = update_smms_result
+                    update_smms_task_pids.append(task_pid)
 
-                session.close()
-                session = database.create_session()
-                try:
-                    sesh_counter = 0
-                    for update_smms_result in update_smms_results:
-                        (partial_smms_update, task_pid) = update_smms_result
-                        update_smms_task_pids.append(task_pid)
+                    for smms_bpm, smms_dict in partial_smms_update.items():
+                        for smms_track_id, smms_fv in smms_dict.items():
+                            script_data.smms_map[smms_bpm][smms_track_id] = smms_fv
 
-                        for smms_bpm, smms_dict in partial_smms_update.items():
-                            for smms_track_id, smms_fv in smms_dict.items():
-                                script_data.smms_map[smms_bpm][smms_track_id] = smms_fv
+                            if smms_track_id in fv_id_set:
+                                continue
 
-                                if smms_track_id not in fv_id_set:
-                                    if sesh_counter == ScriptData.SESSION_LIMIT:
-                                        session.close()
-                                        session = database.create_session()
-                                        sesh_counter = 0
-
-                                    fv_id_set.add(smms_track_id)
-                                    fv_row = {
-                                        'track_id': smms_track_id,
-                                        'features': {
-                                            Feature.SMMS.value: smms_fv.preprocess(smms_fv.feature_value)
-                                        }
-                                    }
-                                    session.add(FeatureValue(**fv_row))
-                                    session.commit()
-                                    sesh_counter += 1
-
-                finally:
-                    session.close()
+                            session, sesh_counter = recreate_session_contingent(
+                                sesh_counter == ScriptData.SESSION_LIMIT, session, sesh_counter)
+                            fv_id_set.add(smms_track_id)
+                            fv_row = {
+                                'track_id': smms_track_id,
+                                'features': {
+                                    Feature.SMMS.value: smms_fv.preprocess(smms_fv.feature_value)
+                                }
+                            }
+                            session.guarded_add(FeatureValue(**fv_row))
+                            sesh_counter += 1
 
                 join_tasks(init_data_tasks, init_data_task_pids)
 
+                # Print SMMS map updates
                 new_smms_map_size = sum([len(v) for v in script_data.smms_map.values()])
                 print('----')
                 print('Deleted %d SMMS map entries' % smms_del_count)
@@ -343,7 +360,8 @@ if __name__ == '__main__':
                 print('---\n')
 
                 # Create TransitionMatch rows in parallel
-                tracks_to_process = script_data.bpm_to_tracks[format_bpm(cur_track_bpm)]
+                tracks_to_process = list(filter(lambda ct: ct.id in script_data.tracks_to_process,
+                                                script_data.bpm_to_tracks[format_bpm(cur_track_bpm)]))
                 cfv_chunks = np.array_split(tracks_to_process, NUM_CORES)
                 cfv_tasks = []
                 cfv_parcels = []
@@ -367,40 +385,35 @@ if __name__ == '__main__':
                 join_tasks(cfv_tasks, cfv_task_pids)
 
                 # Add TransitionMatch records to DB
-                session = database.create_session()
+                session = recreate_session(session)
+                sesh_counter = 0
                 try:
-                    sesh_counter = 0
                     for tm_row in transition_match_rows:
                         try:
-                            if sesh_counter == ScriptData.SESSION_LIMIT:
-                                session.close()
-                                session = database.create_session()
-                                sesh_counter = 0
+                            session, sesh_counter = recreate_session_contingent(
+                                sesh_counter == ScriptData.SESSION_LIMIT, session, sesh_counter)
 
                             # Create FeatureValue entry if needed
                             for tm_track_id in [tm_row.on_deck_id, tm_row.candidate_id]:
-                                if tm_track_id not in fv_id_set:
-                                    tm_track_bpm = format_bpm(
-                                        [tmt.bpm for tmt in script_data.tracks_to_process if tmt.id == tm_track_id][0])
-                                    tm_track_smms = script_data.smms_map[tm_track_bpm][tm_track_id]
-                                    fv_id_set.add(tm_track_id)
-                                    fv_row = {
-                                        'track_id': tm_track_id,
-                                        'features': {
-                                            Feature.SMMS.value: tm_track_smms.preprocess(tm_track_smms.feature_value)
-                                        }
+                                if tm_track_id in fv_id_set:
+                                    continue
+
+                                tm_track_bpm = format_bpm(
+                                    [tmt.bpm for tmt in script_data.tracks_to_process if tmt.id == tm_track_id][0])
+                                tm_track_smms = script_data.smms_map[tm_track_bpm][tm_track_id]
+
+                                fv_id_set.add(tm_track_id)
+                                fv_row = {
+                                    'track_id': tm_track_id,
+                                    'features': {
+                                        Feature.SMMS.value: tm_track_smms.preprocess(tm_track_smms.feature_value)
                                     }
-                                    session.add(FeatureValue(**fv_row))
-                                    session.commit()
+                                }
+                                session.guarded_add(FeatureValue(**fv_row))
 
-                            try:
-                                session.add(tm_row)
-                                session.commit()
-                            except Exception:
-                                session.rollback()
-                                continue
-
+                            session.guarded_add(tm_row)
                             sesh_counter += 1
+
                         except Exception as ex:
                             handle_error(ex)
                             continue
