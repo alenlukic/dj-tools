@@ -26,6 +26,9 @@ class TrackFeature:
 
     def get_feature(self):
         """ Return the computed feature value. """
+        if self.feature_value is None:
+            self.compute()
+            self.save()
         return self.feature_value
 
     def preprocess(self, feature_value):
@@ -41,6 +44,9 @@ class TrackFeature:
 
         feature_json = load_json_from_file(self.feature_file)
         self.feature_value = feature_json.get(self.feature_name)
+        if self.feature_value is None:
+            self.compute()
+            self.save()
         if self.feature_value is not None:
             self.feature_value = self.postprocess(self.feature_value)
         return feature_json

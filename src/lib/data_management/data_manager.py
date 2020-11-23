@@ -6,6 +6,7 @@ from shutil import copyfile
 from src.db import database
 from src.db.entities.artist import Artist
 from src.db.entities.artist_track import ArtistTrack
+from src.db.entities.tag_record import InitialTagRecord, PostMIKTagRecord, PostRekordboxTagRecord, FinalTagRecord
 from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.utils.common import *
@@ -200,9 +201,50 @@ class DataManager:
             deletion_statuses, artist_ids_to_update = self.delete_artist_tracks(session, track_ids)
             DataManager.print_database_operation_statuses('Artist track deletion statuses', deletion_statuses)
 
-            # Then update artist track count colun
+            # Then, update artist track count column
             update_statuses = self.update_artist_counts(session, artist_ids_to_update)
             DataManager.print_database_operation_statuses('Artist track count update statuses', update_statuses)
+
+            # Then, remove references from the ingestion pipeline tables
+            tag_record_deletion_statuses = defaultdict(lambda: {})
+            for track_id in track_ids:
+                try:
+                    initial_tr = session.query(InitialTagRecord).filter_by(track_id=track_id).first()
+                    session.delete(initial_tr)
+                    tag_record_deletion_statuses['Initial Record'][track_id] = DBUpdateType.DELETE.value
+                except Exception as e:
+                    handle_error(e)
+                    tag_record_deletion_statuses['Initial Record'][track_id] = DBUpdateType.FAILURE.value
+                    continue
+
+                try:
+                    post_mik_tr = session.query(PostMIKTagRecord).filter_by(track_id=track_id).first()
+                    session.delete(post_mik_tr)
+                    tag_record_deletion_statuses['Post-MIK Record'][track_id] = DBUpdateType.DELETE.value
+                except Exception as e:
+                    handle_error(e)
+                    tag_record_deletion_statuses['Post-MIK Record'][track_id] = DBUpdateType.FAILURE.value
+                    continue
+
+                try:
+                    post_rb_tr = session.query(PostRekordboxTagRecord).filter_by(track_id=track_id).first()
+                    session.delete(post_rb_tr)
+                    tag_record_deletion_statuses['Post-RB Record'][track_id] = DBUpdateType.DELETE.value
+                except Exception as e:
+                    handle_error(e)
+                    tag_record_deletion_statuses['Post-RB Record'][track_id] = DBUpdateType.FAILURE.value
+                    continue
+
+                try:
+                    final_tr = session.query(FinalTagRecord).filter_by(track_id=track_id).first()
+                    session.delete(final_tr)
+                    tag_record_deletion_statuses['Final Record'][track_id] = DBUpdateType.DELETE.value
+                except Exception as e:
+                    handle_error(e)
+                    tag_record_deletion_statuses['Final Record'][track_id] = DBUpdateType.FAILURE.value
+                    continue
+
+            DataManager.print_database_operation_statuses('Tag record update statuses', tag_record_deletion_statuses)
 
             # Finally, delete the tracks themselves
             track_deletion_statuses = {}

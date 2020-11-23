@@ -25,12 +25,13 @@ class ScriptData:
 
         # Track collection class members
         self.all_tracks = self.transition_match_finder.tracks
-        self.tracks_to_process = set(list(filter(lambda t: t.id in track_ids, self.all_tracks)))
+        self.tracks_to_process = list(set(list(filter(lambda t: t.id in track_ids, self.all_tracks))))
+        self._print_tracks_to_process()
         self.num_tracks = len(self.tracks_to_process)
 
         # Track / transition data
+        self.track_bpms = sorted(list(set([t.bpm for t in self.tracks_to_process])))
         self.track_map = {track.file_path: track for track in self.all_tracks}
-        self.track_bpms = []
         self.bpm_to_tracks = defaultdict(list)
         self.transition_matches = defaultdict(lambda: {
             RelativeKey.SAME.value: [],
@@ -45,6 +46,11 @@ class ScriptData:
     def reset(self):
         self.smms_map = defaultdict(dict)
         self.bpm_vals_in_smms_map = set()
+
+    def _print_tracks_to_process(self):
+        print('Tracks to process\n-------')
+        for track in self.tracks_to_process:
+            print('%d  %s' % (track.id, track.title))
 
 
 def format_bpm(bpm):
@@ -226,7 +232,7 @@ def get_frontier_tracks(bpm_chunk_delta):
 
 if __name__ == '__main__':
     # Initialize structs
-    track_ids_to_process = set(sys.argv[1].split(','))
+    track_ids_to_process = set([int(tid) for tid in sys.argv[1].split(',')])
     script_data = ScriptData(track_ids_to_process)
     session = database.create_session()
     fv_id_set = set([fv.track_id for fv in session.query(FeatureValue).all()])
@@ -250,7 +256,6 @@ if __name__ == '__main__':
     for init_data_res in init_data_results:
         (partial_bpm_map, partial_track_bpms, partial_transition_matches, id_task_pid) = init_data_res
         init_data_task_pids.append(id_task_pid)
-        script_data.track_bpms.extend(partial_track_bpms)
 
         for tm_bpm, tm_bpm_track_matches in partial_bpm_map.items():
             script_data.bpm_to_tracks[tm_bpm].extend(tm_bpm_track_matches)
@@ -258,9 +263,6 @@ if __name__ == '__main__':
         for init_data_track_id, init_data_rk_map in partial_transition_matches.items():
             for rk, rk_matches in init_data_rk_map.items():
                 script_data.transition_matches[tm_bpm][rk] = rk_matches
-
-    # Sort BPMs to process
-    script_data.track_bpms = sorted(list(set([tbpm for tbpm in script_data.track_bpms])))
 
     # Clean up async processes
     join_tasks(init_data_tasks, init_data_task_pids)

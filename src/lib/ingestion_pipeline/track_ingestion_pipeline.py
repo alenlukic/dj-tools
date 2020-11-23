@@ -211,5 +211,5 @@ class FinalPipelineStage(PipelineStage):
 
     def print_track_ids(self, tag_records):
         """ Print track IDs as comma-separated string to provide input for SMMS script. """
-        print('%s' % ','.join([t.id for t in tag_records.keys()]))
+        print('%s' % ','.join([str(t.id) for t in tag_records.values()]))
 
