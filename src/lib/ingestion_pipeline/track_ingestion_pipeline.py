@@ -162,6 +162,7 @@ class FinalPipelineStage(PipelineStage):
             tag_records = self.create_tag_records()
             self.write_tags(tag_records)
             self.update_track_table(tag_records)
+            self.print_track_ids(tag_records)
             self.session.commit()
         except Exception as e:
             self.session.rollback()
@@ -207,3 +208,8 @@ class FinalPipelineStage(PipelineStage):
             copyfile(old_path, new_path)
             audio_file = AudioFile(new_path)
             audio_file.write_tags(metadata)
+
+    def print_track_ids(self, tag_records):
+        """ Print track IDs as comma-separated string to provide input for SMMS script. """
+        print('%s' % ','.join([str(t.id) for t in tag_records.values()]))
+

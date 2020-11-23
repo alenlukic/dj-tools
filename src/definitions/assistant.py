@@ -29,7 +29,7 @@ COMMANDS = {
     EXIT: Command(EXIT, 'Shut the assistant down.', 'shutdown', EXIT_ALIASES),
     MATCH: Command(
         MATCH,
-        'Find harmonic mixing matches for the given BPM and Camelot code.', 'get_transition_matches',
+        'Find harmonic mixing matches for the given BPM and Camelot code.', 'print_transition_matches',
         MATCH_ALIASES,
         [
             CommandArgument('track_title', 'string', 'Current track title.', 0,
@@ -46,7 +46,7 @@ COMMANDS = {
     )
 }
 
-DASHED_LINE = ''.join(['-'] * 148)
+DASHED_LINE = ''.join(['-'] * 128)
 
 QUALIFIED_PATH_REGEX = re.compile(r'%s.*' % PROCESSED_MUSIC_DIR)
 
