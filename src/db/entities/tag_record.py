@@ -52,7 +52,7 @@ class InitialTagRecord(Base):
 class PostMIKTagRecord(Base):
     """
     Postgres schema:
-3
+
                         Table "public.post_mik_tags"
       Column  |       Type        | Collation | Nullable | Default
     ----------+-------------------+-----------+----------+---------

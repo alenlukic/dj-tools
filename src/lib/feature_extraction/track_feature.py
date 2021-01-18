@@ -1,15 +1,11 @@
 from os.path import join
 import json
 import librosa
-import logging
 import numpy as np
 from shutil import copyfile
 
 from src.definitions.feature_extraction import *
 from src.utils.feature_extraction import load_json_from_file
-
-
-logging.getLogger('librosa').setLevel(logging.ERROR)
 
 
 class TrackFeature:

@@ -41,10 +41,10 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-                    (self.get_smms_score(), 0), # was 24
-                    (self.get_camelot_priority_score(), 0.27),
-                    (self.get_bpm_score(), 0.24),
-                    (self.get_freshness_score(), 0.21),
+                    (self.get_smms_score(), 0.24),
+                    (self.get_camelot_priority_score(), 0.24),
+                    (self.get_bpm_score(), 0.2),
+                    (self.get_freshness_score(), 0.1),
                     (self.get_label_score(), 0.1),
                     (self.get_artist_score(), 0.08),
                     (self.get_genre_score(), 0.06),

@@ -1,7 +1,6 @@
 from functools import lru_cache
 import numpy as np
 
-
 from src.db import database
 from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
 from src.definitions.feature_extraction import *
