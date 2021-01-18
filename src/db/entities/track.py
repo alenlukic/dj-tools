@@ -46,3 +46,9 @@ class Track(Base):
     def get_id_title_identifier(self):
         """ Returns identifier for this track in [id] [title] format. """
         return '%d %s' % (self.id, self.title)
+
+    def __eq__(self, other):
+        return self.id == other.id and self.__class__.__name__ == other.__class__.__name__
+
+    def __hash__(self):
+        return hash(self.__class__.__name__ + str(self.id))
