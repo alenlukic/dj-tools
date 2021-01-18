@@ -3,6 +3,7 @@ import numpy as np
 from os.path import join
 
 from src.db import database
+from src.db.entities.feature_value import FeatureValue
 from src.db.entities.track import Track
 from src.definitions.common import NUM_CORES
 from src.definitions.feature_extraction import FEATURE_DIR
@@ -11,13 +12,21 @@ from src.utils.errors import handle_error
 from src.utils.feature_extraction import load_json_from_file
 
 
-def compute_spectrograms(tracks):
+def compute_spectrograms(tracks, session):
     for track in tracks:
         print('Processing %s' % str(track.id))
         try:
             smms = SegmentedMeanMelSpectrogram(track)
             smms.compute()
             smms.save()
+
+            fv_row = {
+                'track_id': track.id,
+                'features': {
+                    smms.feature_name: smms.preprocess(smms.feature_value)
+                }
+            }
+            session.guarded_add(FeatureValue(**fv_row))
         except Exception as e:
             handle_error(e)
             continue
@@ -33,7 +42,7 @@ def run():
         workers = []
 
         for chunk in chunks:
-            worker = Process(target=compute_spectrograms, args=(chunk,))
+            worker = Process(target=compute_spectrograms, args=(chunk, session,))
             workers.append(worker)
             worker.start()
 
