@@ -1,10 +1,11 @@
 import logging
 
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine, inspect, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import session as sezzion, sessionmaker
 
 from src.definitions.common import CONFIG
+from src.utils.errors import handle_error
 
 
 class Database:
@@ -63,8 +64,12 @@ class Database:
             try:
                 self.add(entity)
                 self.commit()
-            except Exception:
+                return True
+            except Exception as e:
+                str_entity = str({c.key: getattr(entity, c.key) for c in inspect(entity).mapper.column_attrs})
+                handle_error(e, 'Failed to add %s to DB' % str_entity, print, False)
                 self.rollback()
+                return False
 
         def delete(self, entity):
             if not self.dry_run:
@@ -84,7 +89,7 @@ class Database:
             self.session.close()
 
     def enable_dry_run(self):
-        """ Switches DB session to dry run mode (no queries executed or data persisted. """
+        """ Switches DB session to dry run mode (no queries executed or data persisted). """
         self.dry_run = True
 
     def disable_dry_run(self):

@@ -42,11 +42,17 @@ class InitialTagRecord(Base):
 
     id = Column(Integer, Sequence('initial_tags_seq', metadata=metadata), primary_key=True, index=True, unique=True)
 
+    def __eq__(self, other):
+        return self.id == other.id and self.__class__.__name__ == other.__class__.__name__
+
+    def __hash__(self):
+        return hash(self.__class__.__name__ + str(self.id))
+
 
 class PostMIKTagRecord(Base):
     """
     Postgres schema:
-
+3
                         Table "public.post_mik_tags"
       Column  |       Type        | Collation | Nullable | Default
     ----------+-------------------+-----------+----------+---------
@@ -80,6 +86,12 @@ class PostMIKTagRecord(Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, Sequence('post_mik_tags_seq', metadata=metadata), primary_key=True, index=True, unique=True)
+
+    def __eq__(self, other):
+        return self.id == other.id and self.__class__.__name__ == other.__class__.__name__
+
+    def __hash__(self):
+        return hash(self.__class__.__name__ + str(self.id))
 
 
 class PostRekordboxTagRecord(Base):
@@ -126,6 +138,12 @@ class PostRekordboxTagRecord(Base):
         unique=True
     )
 
+    def __eq__(self, other):
+        return self.id == other.id and self.__class__.__name__ == other.__class__.__name__
+
+    def __hash__(self):
+        return hash(self.__class__.__name__ + str(self.id))
+
 
 class FinalTagRecord(Base):
     """
@@ -170,3 +188,9 @@ class FinalTagRecord(Base):
         index=True,
         unique=True
     )
+
+    def __eq__(self, other):
+        return self.id == other.id and self.__class__.__name__ == other.__class__.__name__
+
+    def __hash__(self):
+        return hash(self.__class__.__name__ + str(self.id))
