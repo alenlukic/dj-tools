@@ -13,50 +13,37 @@ class TrackFeature:
     """ Encapsulates a track feature. """
 
     def __init__(self, track):
-        """
-        Constructor.
-
-        :param track: The track for which to compute a feature.
-        """
-
         self.track = track
         self.feature_file = join(FEATURE_DIR, str(track.id))
         self.feature_name = None
         self.feature_value = None
         self.preprocessed_value = None
         self.postprocessed_value = None
-        self.track_features = {}
+        self.track_features = None
 
     def get_feature(self):
-        """ Return the computed feature value. """
         if self.feature_value is None:
-            self.save()
+            self.compute()
+
         return self.feature_value
 
     def preprocess(self, feature_value):
-        """ Transform feature value prior to serialization. """
         return feature_value
 
     def postprocess(self, feature_value):
-        """ Transform feature value after deserialization. """
         return feature_value
 
     def load(self):
-        """ Load the track's features as a JSON and get the existing feature value, if any. """
-
-        feature_json = load_json_from_file(self.feature_file)
-        self.feature_value = feature_json.get(self.feature_name)
-        if self.feature_value is None:
-            self.compute()
-        if self.feature_value is not None:
-            self.feature_value = self.postprocess(self.feature_value)
-        return feature_json
+        self.track_features = load_json_from_file(self.feature_file)
+        if self.track_features.get(self.feature_name) is not None:
+            self.feature_value = self.postprocess(self.track_features[self.feature_name])
 
     def save(self):
-        """ Save the track's features as a JSON and persist the computed feature value, if any. """
-        self.track_features = self.load()
         if self.feature_value is None:
             return
+
+        if self.track_features is None:
+            self.load()
 
         if exists(self.feature_file):
             copyfile(self.feature_file, join(FEATURE_DIR, '_old_' + str(self.track.id)))
@@ -66,7 +53,6 @@ class TrackFeature:
             json.dump(self.track_features, fp)
 
     def compute(self):
-        """ Compute feature value. """
         pass
 
 
@@ -78,21 +64,19 @@ class SegmentedMeanMelSpectrogram(TrackFeature):
         self.n_mels = n_mels
 
     def preprocess(self, feature_value):
-        """ Transform feature value prior to serialization. """
         if self.preprocessed_value is None:
             self.preprocessed_value = [[np.format_float_scientific(v, precision=3) for v in r] for r in feature_value]
+
         return self.preprocessed_value
 
     def postprocess(self, feature_value):
-        """ Transform feature value after deserialization. """
         if self.postprocessed_value is None:
             self.postprocessed_value = np.array([[float(v) for v in row] for row in feature_value])
+
         return self.postprocessed_value
 
+    # Compute segmented mean Mel spectrogram
     def compute(self):
-        """ Compute the segmented mean Mel spectrogram. """
-
-        # Load samples
         samples, _ = librosa.load(self.track.file_path, SAMPLE_RATE)
         n = len(samples)
 

@@ -1,5 +1,6 @@
 from multiprocessing import Process
 import numpy as np
+import warnings
 
 from src.db import database
 from src.db.entities.feature_value import FeatureValue
@@ -11,9 +12,11 @@ from src.utils.errors import handle_error
 
 def compute_spectrograms(tracks, session):
     for track in tracks:
-        print('Processing %s' % str(track.id))
+        print('Processing track ID %s' % str(track.id))
+
         try:
             smms = SegmentedMeanMelSpectrogram(track, session)
+            smms.compute()
             smms.save()
         except Exception as e:
             handle_error(e)
@@ -22,10 +25,13 @@ def compute_spectrograms(tracks, session):
 
 def run():
     session = database.create_session()
+
     try:
         fv_track_ids = set([fv.track_id for fv in session.query(FeatureValue).all()])
-        tracks_to_process = list(filter(lambda t: t.id not in fv_track_ids, session.query(Track).all()))
-        print('Tracks to process: %d' % len(tracks_to_process))
+        track_ids = set([t.id for t in session.query(Track).all()])
+        tracks_to_process = [tid for tid in track_ids if tid not in fv_track_ids]
+
+        print('Number of tracks to process: %d' % len(tracks_to_process))
 
         chunks = np.array_split(tracks_to_process, NUM_CORES)
         workers = []
@@ -45,4 +51,5 @@ def run():
 
 
 if __name__ == '__main__':
+    warnings.simplefilter('ignore')
     run()
