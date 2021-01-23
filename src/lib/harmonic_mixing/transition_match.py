@@ -13,14 +13,6 @@ class TransitionMatch:
     result_column_header = '   '.join(['Total Score', 'SMMS Score', ' Track'])
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
-        """
-        Initialize this track and playing track's metadata.
-
-        :param metadata: This track's metadata.
-        :param cur_track_md: Playing track's metadata.
-        :param camelot_priority: Priority of the transition.
-        """
-
         self.metadata = metadata
         self.cur_track_md = cur_track_md
         self.camelot_priority = camelot_priority
@@ -28,14 +20,11 @@ class TransitionMatch:
         self.factors = {}
 
     def format(self):
-        """ Format result with score and track's base file name. """
         score = '{:.2f}'.format(self.get_score())
         smms_score = '{:.2f}'.format(100 * self.get_smms_score())
         return ('         ' * (6 - len(score))).join([score, smms_score, self.metadata[TrackDBCols.TITLE]])
 
     def get_score(self):
-        """ Calculate the transition score using multiple weighed subscores. """
-
         if self.score is None:
             if self.cur_track_md[TrackDBCols.TITLE] == self.metadata[TrackDBCols.TITLE]:
                 self.score = 100
@@ -55,8 +44,6 @@ class TransitionMatch:
         return self.score
 
     def get_artist_score(self):
-        """ Returns artist/remixer intersection component of the score. """
-
         def _get_artist_score():
             artist_counts = self.metadata.get(ArtistFields.ARTISTS, {})
             remixer_counts = self.metadata.get(ArtistFields.REMIXERS, {})
@@ -88,8 +75,6 @@ class TransitionMatch:
         return self.factors[MatchFactors.ARTIST]
 
     def get_bpm_score(self):
-        """ Calculates BPM match component of the score. """
-
         def _get_bpm_score():
             bpm = self.metadata.get(TrackDBCols.BPM)
             cur_track_bpm = self.cur_track_md.get(TrackDBCols.BPM)
@@ -138,8 +123,6 @@ class TransitionMatch:
         return self.factors[MatchFactors.BPM]
 
     def get_camelot_priority_score(self):
-        """ Gets camelot priority component of the score. """
-
         def _get_camelot_priority_score():
             if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
                 self.factors[MatchFactors.CAMELOT] = 0.1
@@ -157,9 +140,8 @@ class TransitionMatch:
             self.factors[MatchFactors.CAMELOT] = _get_camelot_priority_score()
         return self.factors[MatchFactors.CAMELOT]
 
+    # Track's energy as calculated by Mixed In Key
     def get_energy_score(self):
-        """ Calculates the energy match component of the score. """
-
         def _get_energy_score():
             energy = self.metadata.get(TrackDBCols.ENERGY)
             cur_track_energy = self.cur_track_md.get(TrackDBCols.ENERGY)
@@ -173,8 +155,6 @@ class TransitionMatch:
         return self.factors[MatchFactors.ENERGY]
 
     def get_freshness_score(self):
-        """ Calculates the freshness component of the score. """
-
         def _get_freshness_score():
             date_added = self.metadata.get(TrackDBCols.DATE_ADDED)
             if date_added is None:
@@ -188,8 +168,6 @@ class TransitionMatch:
         return self.factors[MatchFactors.FRESHNESS]
 
     def get_genre_score(self):
-        """ Returns 1 if genres match and 0 otherwise. """
-
         def _get_genre_score():
             genre = self.metadata.get(TrackDBCols.GENRE)
             cur_track_genre = self.cur_track_md.get(TrackDBCols.GENRE)
@@ -197,6 +175,7 @@ class TransitionMatch:
             if genre is None or cur_track_genre is None:
                 return 0.0
 
+            # TODO: genre-specific hacks, fix
             if (genre == cur_track_genre or
                     ((genre == 'Trance' or genre == 'Classic Trance') and (
                     cur_track_genre == 'Trance' or cur_track_genre == 'Classic Trance'))):
@@ -209,8 +188,6 @@ class TransitionMatch:
         return self.factors[MatchFactors.GENRE]
 
     def get_label_score(self):
-        """ Calculates the label match component of the score. """
-
         def _get_label_score():
             label, label_count = self.metadata.get(TrackDBCols.LABEL, (None, None))
             cur_label, cur_label_count = self.cur_track_md.get(TrackDBCols.LABEL, (None, None))
@@ -224,8 +201,6 @@ class TransitionMatch:
         return self.factors[MatchFactors.LABEL]
 
     def get_smms_score(self):
-        """ Calculates SMMS distance component of the score. """
-
         def _get_smms_score():
             smms_score = self.db_session.query(TransitionMatchRow).filter(
                 TransitionMatchRow.on_deck_id == self.cur_track_md.get(TrackDBCols.ID),
@@ -242,13 +217,6 @@ class TransitionMatch:
         return self.factors[MatchFactors.SMMS_SCORE]
 
     def _get_percent_of_bound_score(self, absolute_diff, cur_track_bpm):
-        """
-        Returns score match between two BPMs relative to key change bounds.
-
-        :param absolute_diff: The absolute difference between the BPMs.
-        :param cur_track_bpm: The current track's BPM.
-        """
-
         relative_diff = abs(absolute_diff) / float(cur_track_bpm)
 
         # Current track's BPM is lower - weigh score of lower BPM tracks slightly less

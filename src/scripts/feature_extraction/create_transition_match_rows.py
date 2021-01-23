@@ -56,7 +56,7 @@ def create_transition_match_smms_rows():
 
             if rows_created % 100 == 0:
                 print('%d rows created' % rows_created)
-                print('Cache info: %s' % str(get_smms_value.cache_info()))
+                print('Cache info: %s\n' % str(get_smms_value.cache_info()))
 
             db_session = database.recreate_session_contingent(db_session)
             if db_session.guarded_add(TransitionMatchRow(**match_row)):
