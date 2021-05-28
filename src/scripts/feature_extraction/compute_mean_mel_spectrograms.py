@@ -28,8 +28,8 @@ def run():
 
     try:
         fv_track_ids = set([fv.track_id for fv in session.query(FeatureValue).all()])
-        track_ids = set([t.id for t in session.query(Track).all()])
-        tracks_to_process = [tid for tid in track_ids if tid not in fv_track_ids]
+        tracks = [t for t in session.query(Track).all()]
+        tracks_to_process = [t for t in tracks if t.id not in fv_track_ids]
 
         print('Number of tracks to process: %d' % len(tracks_to_process))
 
