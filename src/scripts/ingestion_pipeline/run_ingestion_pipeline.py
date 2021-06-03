@@ -1,12 +1,13 @@
 # noinspection PyUnresolvedReferences
 import readline
+import sys
 
 from src.lib.ingestion_pipeline.track_ingestion_pipeline import *
 from src.utils.errors import handle_error
 from src.utils.assistant import print_error
 
 
-def run_pipeline():
+def run_pipeline(step_args):
     """ Runs the track ingestion pipeline. """
 
     steps = {
@@ -15,8 +16,9 @@ def run_pipeline():
         2: (PostRBPipelineStage, TagRecordType.POST_RB.value),
         3: (FinalPipelineStage, TagRecordType.FINAL.value)
     }
-    n = 0
+    to_run = set(steps.keys() if len(step_args) == 0 else step_args)
 
+    n = 0
     print('Running ingestion pipeline. Type \'next\' to proceed to the next step.')
     while True:
         print('\n$ ', end='')
@@ -32,8 +34,9 @@ def run_pipeline():
                 break
 
             if cmd == 'next':
-                (step, arg) = steps[n]
-                step().execute() if arg is None else step(arg).execute()
+                if n in to_run:
+                    (step, arg) = steps[n]
+                    step().execute() if arg is None else step(arg).execute()
                 n += 1
 
             if n == NUM_STEPS:
@@ -45,4 +48,5 @@ def run_pipeline():
 
 
 if __name__ == '__main__':
-    run_pipeline()
+    args = sys.argv
+    run_pipeline([int(s) for s in args[1:]] if len(args) > 1 else [])
