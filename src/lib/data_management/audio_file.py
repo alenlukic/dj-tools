@@ -1,13 +1,13 @@
 from collections import ChainMap
 from os import path, stat
 from time import ctime
-import sys
 
 import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
 from src.definitions.common import IS_UNIX
 from src.utils.data_management import *
+from src.utils.file_operations import get_file_creation_time
 
 
 class AudioFile:
@@ -35,11 +35,6 @@ class AudioFile:
         key = key.capitalize()
         title = dedupe_title(self.generate_title(camelot_code, key, bpm).strip())
 
-        try:
-            creation_time = stat(self.full_path).st_birthtime if IS_UNIX else stat(self.full_path).st_ctime
-        except Exception:
-            creation_time = stat(self.full_path).st_ctime
-
         metadata = {
             TrackDBCols.FILE_PATH.value: self.full_path,
             TrackDBCols.TITLE.value: title,
@@ -49,7 +44,7 @@ class AudioFile:
             TrackDBCols.ENERGY.value: self.parse_energy(),
             TrackDBCols.GENRE.value: transform_genre(self.get_tag(ID3Tag.GENRE, '')),
             TrackDBCols.LABEL.value: transform_label(self.get_tag(ID3Tag.LABEL, '')),
-            TrackDBCols.DATE_ADDED.value: ctime(creation_time)
+            TrackDBCols.DATE_ADDED.value: ctime(get_file_creation_time(self.full_path))
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
         metadata[TrackDBCols.COMMENT.value] = self.generate_comment(metadata)
