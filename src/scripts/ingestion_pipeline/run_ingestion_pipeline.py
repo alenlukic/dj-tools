@@ -7,19 +7,21 @@ from src.utils.errors import handle_error
 from src.utils.assistant import print_error
 
 
-def run_pipeline(step_args):
-    """ Runs the track ingestion pipeline. """
-
-    steps = {
+STEPS = {
         0: (InitialPipelineStage, TagRecordType.INITIAL.value),
         1: (PipelineStage, TagRecordType.POST_MIK.value),
         2: (PostRBPipelineStage, TagRecordType.POST_RB.value),
         3: (FinalPipelineStage, TagRecordType.FINAL.value)
     }
-    to_run = set(steps.keys() if len(step_args) == 0 else step_args)
+
+
+def run_pipeline(step_args):
+    """ Runs the track ingestion pipeline. """
+
+    print('Running ingestion pipeline. Type \'next\' to proceed to the next step.')
 
     n = 0
-    print('Running ingestion pipeline. Type \'next\' to proceed to the next step.')
+    to_run = set(STEPS.keys() if len(step_args) == 0 else step_args)
     while True:
         print('\n$ ', end='')
         try:
@@ -35,8 +37,11 @@ def run_pipeline(step_args):
 
             if cmd == 'next':
                 if n in to_run:
-                    (step, arg) = steps[n]
+                    (step, arg) = STEPS[n]
                     step().execute() if arg is None else step(arg).execute()
+                else:
+                    print('Skipping step %d' % n)
+
                 n += 1
 
             if n == NUM_STEPS:
