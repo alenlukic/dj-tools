@@ -1,11 +1,10 @@
 from collections import ChainMap
-from os import path, stat
+from os import path
 from time import ctime
 
 import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
-from src.definitions.common import IS_UNIX
 from src.utils.data_management import *
 from src.utils.file_operations import get_file_creation_time
 

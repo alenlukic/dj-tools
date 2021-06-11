@@ -1,4 +1,3 @@
-from src.definitions.common import IS_UNIX
 from setuptools import setup, find_packages
 import sys
 
