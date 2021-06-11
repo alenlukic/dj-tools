@@ -1,11 +1,12 @@
 from collections import ChainMap
-from os import path, stat
+from os import path
 from time import ctime
 
 import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
 from src.utils.data_management import *
+from src.utils.file_operations import get_file_creation_time
 
 
 class AudioFile:
@@ -42,7 +43,7 @@ class AudioFile:
             TrackDBCols.ENERGY.value: self.parse_energy(),
             TrackDBCols.GENRE.value: transform_genre(self.get_tag(ID3Tag.GENRE, '')),
             TrackDBCols.LABEL.value: transform_label(self.get_tag(ID3Tag.LABEL, '')),
-            TrackDBCols.DATE_ADDED.value: ctime(stat(self.full_path).st_birthtime)
+            TrackDBCols.DATE_ADDED.value: ctime(get_file_creation_time(self.full_path))
         }
         metadata = {k: v for k, v in metadata.items() if not is_empty(v)}
         metadata[TrackDBCols.COMMENT.value] = self.generate_comment(metadata)
