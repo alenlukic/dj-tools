@@ -1,3 +1,4 @@
+from collections import ChainMap
 from enum import Enum
 import re
 
@@ -153,6 +154,11 @@ CANONICAL_KEY_MAP = {
         'G#min': 'Abm'
     }.items()
 }
+
+CANONICAL_KEY_MAP = ChainMap(
+    CANONICAL_KEY_MAP,
+    { k.replace('#', '♯'): v.replace('#', '♯') for k, v in CANONICAL_KEY_MAP.items() if '#' in k}
+)
 
 CAMELOT_MAP = {
     'abm': '01A',
