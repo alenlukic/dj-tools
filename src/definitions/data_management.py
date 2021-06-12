@@ -157,7 +157,7 @@ CANONICAL_KEY_MAP = {
 
 CANONICAL_KEY_MAP = ChainMap(
     CANONICAL_KEY_MAP,
-    { k.replace('#', '♯'): v.replace('#', '♯') for k, v in CANONICAL_KEY_MAP.items() if '#' in k}
+    { k.replace('#', '♯'): v.replace('#', '♯') for k, v in CANONICAL_KEY_MAP.items() if '#' in k }
 )
 
 CAMELOT_MAP = {
