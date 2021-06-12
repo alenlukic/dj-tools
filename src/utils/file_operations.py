@@ -1,5 +1,6 @@
-from os import chmod, listdir, stat
+from os import chmod, listdir, stat as osstat
 from os.path import isfile, join, splitext
+import stat
 
 from src.definitions.common import IS_UNIX, PROCESSED_MUSIC_DIR
 from src.definitions.file_operations import AUDIO_TYPES
@@ -16,9 +17,9 @@ def get_audio_files(input_dir=PROCESSED_MUSIC_DIR):
 
 def get_file_creation_time(full_path):
     try:
-        return stat(full_path).st_birthtime if IS_UNIX else stat(full_path).st_ctime
+        return osstat(full_path).st_birthtime if IS_UNIX else osstat(full_path).st_ctime
     except Exception:
-        return stat(full_path).st_ctime
+        return osstat(full_path).st_ctime
 
 
 def set_audio_file_permissions(audio_dir=PROCESSED_MUSIC_DIR):
