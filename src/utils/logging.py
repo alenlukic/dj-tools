@@ -33,6 +33,6 @@ def error(message):
     logging.log(logging.ERROR, message)
 
 
-def print_and_log(message, method):
-    print(message)
+def print_and_log(message, method, max_size=None):
+    print(message if max_size is None else message[0:min(len(message), max_size)])
     method(message)

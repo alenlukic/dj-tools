@@ -6,7 +6,7 @@ from src.definitions.data_management import ArtistFields, TrackDBCols
 from src.lib.data_management.audio_file import AudioFile
 from src.utils.common import is_empty
 from src.utils.data_management import load_comment
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 
 
 def find_artist_disparities():
@@ -46,7 +46,7 @@ def find_artist_disparities():
                 print('-------\n')
 
     except Exception as e:
-        handle_error(e, 'Top-level exception occurred while syncing track fields')
+        handle(e, 'Top-level exception occurred while syncing track fields')
         session.rollback()
     finally:
         session.close()

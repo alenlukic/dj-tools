@@ -6,7 +6,7 @@ from src.db.entities.transition_match import TransitionMatch as TransitionMatchR
 from src.definitions.feature_extraction import *
 from src.lib.harmonic_mixing.transition_match_finder import TransitionMatchFinder
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 from src.utils.harmonic_mixing import *
 
 
@@ -63,7 +63,7 @@ def create_transition_match_smms_rows():
                 rows_created += 1
 
     except Exception as e:
-        handle_error(e)
+        handle(e)
 
     finally:
         db_session.close()

@@ -11,7 +11,7 @@ from src.lib.data_management.audio_file import AudioFile
 from src.lib.data_management.data_manager import DataManager
 import src.lib.ingestion_pipeline.tag_record_factory as tag_record_factories
 from src.utils.common import is_empty
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 from src.utils.file_operations import get_audio_files
 
 
@@ -40,7 +40,7 @@ class PipelineStage:
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            handle_error(e)
+            handle(e)
         finally:
             self.session.close()
 
@@ -96,7 +96,7 @@ class InitialPipelineStage(PipelineStage):
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            handle_error(e)
+            handle(e)
         finally:
             self.session.close()
 
@@ -118,7 +118,7 @@ class PostRBPipelineStage(PipelineStage):
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            handle_error(e)
+            handle(e)
         finally:
             self.session.close()
 
@@ -166,7 +166,7 @@ class FinalPipelineStage(PipelineStage):
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            handle_error(e)
+            handle(e)
         finally:
             self.session.close()
 

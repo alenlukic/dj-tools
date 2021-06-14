@@ -2,11 +2,12 @@ import os
 import sys
 import traceback
 
+from src.definitions.error_management import MAX_ERROR_MESSAGE_SIZE
 from src.utils.common import get_banner
 from src.utils.logging import *
 
 
-def handle_error(err, err_message_prefix='Exception occurred', err_log_function=print, print_traceback=True):
+def handle(err, err_message_prefix='Exception occurred', err_log_function=print, print_traceback=True):
     """
     Handles error and prints debug info/stack trace to stdout.
 
@@ -20,7 +21,9 @@ def handle_error(err, err_message_prefix='Exception occurred', err_log_function=
 
     banner = get_banner(err_message_prefix)
     prefix = '\n' + '\n'.join([banner, err_message_prefix, banner]) + '\n'
-    err_log_function('\n'.join([prefix, 'Message:', str(err)]))
+    message = '\n'.join([prefix, 'Message:', str(err)])
+    err_log_function(message[0:min(MAX_ERROR_MESSAGE_SIZE, len(message))])
+
     print_and_log('\n', error)
     print_and_log('\n'.join(['Function: %s' % fname, 'Line: %d' % exc_tb.tb_lineno]), error)
     if print_traceback:

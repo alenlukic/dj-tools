@@ -1,5 +1,6 @@
 from multiprocessing import Process
 import numpy as np
+import sys
 import warnings
 
 from src.db import database
@@ -7,49 +8,65 @@ from src.db.entities.feature_value import FeatureValue
 from src.db.entities.track import Track
 from src.definitions.common import NUM_CORES
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.retry_handler import RetryHandler
 
 
-def compute_spectrograms(tracks, session):
-    for track in tracks:
+def compute_spectrograms(chunk, sesh):
+    for track in chunk:
         print('Processing track ID %s' % str(track.id))
 
         try:
-            smms = SegmentedMeanMelSpectrogram(track, session)
+            smms = SegmentedMeanMelSpectrogram(track, sesh)
             smms.compute()
             smms.save()
         except Exception as e:
-            handle_error(e)
+            handle(e)
+            retry_queue.add_attempt(track.id)
             continue
 
 
-def run():
-    session = database.create_session()
+def run(track_ids):
+    sesh = database.create_session()
 
     try:
-        fv_track_ids = set([fv.track_id for fv in session.query(FeatureValue).all()])
-        track_ids = set([t.id for t in session.query(Track).all()])
-        tracks_to_process = [tid for tid in track_ids if tid not in fv_track_ids]
+        if len(track_ids) > 0:
+            tracks_to_process = [track for track in tracks if track.id in track_ids]
+        else:
+            fv_track_ids = set([fv.track_id for fv in sesh.query(FeatureValue).all()])
+            tracks_to_process = [track for track in tracks if track.id not in fv_track_ids]
 
         print('Number of tracks to process: %d' % len(tracks_to_process))
 
         chunks = np.array_split(tracks_to_process, NUM_CORES)
         workers = []
         for chunk in chunks:
-            worker = Process(target=compute_spectrograms, args=(chunk, session,))
+            worker = Process(target=compute_spectrograms, args=(chunk, sesh,))
             workers.append(worker)
             worker.start()
         for w in workers:
             w.join()
 
     except Exception as e:
-        handle_error(e)
+        handle(e)
         return
 
     finally:
-        session.close()
+        sesh.close()
 
 
 if __name__ == '__main__':
     warnings.simplefilter('ignore')
-    run()
+
+    session = database.create_session()
+    tracks = set([t for t in session.query(Track).all()])
+    session.close()
+    retry_queue = RetryHandler()
+
+    args = sys.argv
+    run(set([int(t) for t in args[1:]]) if len(args) > 1 else set())
+
+    while retry_queue.has_pending_attempts():
+        run(set(retry_queue.get_pending_attempts().keys()))
+
+

@@ -7,7 +7,7 @@ from time import ctime
 from src.definitions.common import *
 from src.definitions.file_operations import *
 from src.definitions.harmonic_mixing import TIMESTAMP_FORMAT
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 from src.utils import logging
 
 
@@ -25,7 +25,7 @@ def get_audio_file_name_map(input_dir):
             if isfile(full_path) and splitext(file_basename)[-1].lower() in AUDIO_TYPES:
                 name_map[file_basename] = full_path
         except Exception as e:
-            handle_error(e, 'Error occured while building audio file maps', logging.error)
+            handle(e, 'Error occured while building audio file maps', logging.error)
             continue
 
     return name_map
@@ -66,7 +66,7 @@ def run_backup():
             elif should_backup_file(source_path, backup_map[source_name]):
                 upsert_map[source_path] = backup_map[source_name]
         except Exception as e:
-            handle_error(e, 'Error occurred during upsert phase of audio files backup', logging.error)
+            handle(e, 'Error occurred during upsert phase of audio files backup', logging.error)
             continue
 
     formatted_upserts = []
@@ -82,7 +82,7 @@ def run_backup():
                 remove(backup_path)
                 formatted_deletions.append(backup_path)
         except Exception as e:
-            handle_error(e, 'Error occurred during delete phase of audio files backup', logging.error)
+            handle(e, 'Error occurred during delete phase of audio files backup', logging.error)
             continue
 
     logging.info('Upserted tracks:')
