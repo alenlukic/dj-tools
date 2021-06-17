@@ -6,7 +6,7 @@ from src.definitions.common import LOG_LOCATION
 logging.basicConfig(filename=LOG_LOCATION)
 
 
-class PrefixLogger:
+class Logger:
     def __init__(self, prefix):
         self.prefix = prefix
 

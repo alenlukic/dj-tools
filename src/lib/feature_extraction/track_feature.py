@@ -1,30 +1,25 @@
-from os.path import exists, join
-import json
 import librosa
 import numpy as np
-from shutil import copyfile
 
 from src.db.entities.feature_value import FeatureValue
 from src.definitions.feature_extraction import *
-from src.utils.feature_extraction import load_json_from_file
 from src.utils.file_operations import get_track_load_target
 
 
 class TrackFeature:
     """ Encapsulates a track feature. """
 
-    def __init__(self, track):
+    def __init__(self, track, db_session):
         self.track = track
-        self.feature_file = join(FEATURE_DIR, str(track.id))
+        self.db_session = db_session
+        self.track_features = db_session.query(FeatureValue).filter_by(track_id=self.track.id).first()
         self.feature_name = None
         self.feature_value = None
         self.preprocessed_value = None
         self.postprocessed_value = None
-        self.track_features = None
 
     def get_feature(self, compute=False):
         if self.feature_value is None and compute:
-            print('%s missing for track %s - computing...' % (self.feature_name, self.track.title))
             self.compute()
 
         return self.feature_value
@@ -36,23 +31,24 @@ class TrackFeature:
         return feature_value
 
     def load(self):
-        self.track_features = load_json_from_file(self.feature_file)
-        if self.track_features.get(self.feature_name) is not None:
-            self.feature_value = self.postprocess(self.track_features[self.feature_name])
+        if self.track_features is not None:
+            self.feature_value = self.postprocess(self.track_features.features.get(self.feature_name))
 
     def save(self):
         if self.feature_value is None:
             return
 
         if self.track_features is None:
-            self.load()
-
-        if exists(self.feature_file):
-            copyfile(self.feature_file, join(FEATURE_DIR, '_old_' + str(self.track.id)))
-
-        with open(self.feature_file, 'w') as fp:
-            self.track_features[self.feature_name] = self.preprocess(self.feature_value)
-            json.dump(self.track_features, fp)
+            fv_row = {
+                'track_id': self.track.id,
+                'features': {
+                    self.feature_name: self.preprocess(self.feature_value)
+                }
+            }
+            self.db_session.guarded_add(FeatureValue(**fv_row))
+        else:
+            self.track_features.features[self.feature_name] = self.preprocess(self.feature_name)
+            self.db_session.commit()
 
     def compute(self):
         pass
@@ -60,8 +56,7 @@ class TrackFeature:
 
 class SegmentedMeanMelSpectrogram(TrackFeature):
     def __init__(self, track, db_session, n_mels=N_MELS):
-        super().__init__(track)
-        self.db_session = db_session
+        super().__init__(track, db_session)
         self.feature_name = Feature.SMMS.value
         self.n_mels = n_mels
 
@@ -82,11 +77,6 @@ class SegmentedMeanMelSpectrogram(TrackFeature):
             self.postprocessed_value = np.array([[float(v) for v in row] for row in feature_value])
 
         return self.postprocessed_value
-
-    def load(self):
-        fv = self.db_session.query(FeatureValue).filter_by(track_id=self.track.id).first()
-        if fv is not None:
-            self.feature_value = self.postprocess(fv.features.get(self.feature_name))
 
     # Compute segmented mean Mel spectrogram
     def compute(self):
@@ -121,13 +111,3 @@ class SegmentedMeanMelSpectrogram(TrackFeature):
             mean_mel_spectrogram.append(np.vectorize(lambda m: m / num_rows)(mel_coeff_means))
 
         self.feature_value = mean_mel_spectrogram
-
-    def save(self):
-        super().save()
-        fv_row = {
-            'track_id': self.track.id,
-            'features': {
-                self.feature_name: self.preprocess(self.feature_value)
-            }
-        }
-        self.db_session.guarded_add(FeatureValue(**fv_row))

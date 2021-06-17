@@ -15,36 +15,33 @@ from src.utils.harmonic_mixing import *
 cache_session = database.create_session()
 
 
-def get_existing_tm_id_pairs():
+def get_existing_match_pairs():
     return set([(tm.on_deck_id, tm.candidate_id) for tm in session.query(TransitionMatchRow).all()])
 
 
-def generate_tm_id_pairs_to_create():
-    def _generate_pairs(matches, relative_key):
-        for match in matches:
-            match_track = track_file_path_map[match.metadata[TrackDBCols.FILE_PATH]]
-            match_id = match_track.id
+def generate_pairs(track_id, matches, relative_key):
+    for match in matches:
+        match_track = track_file_path_map[match.metadata[TrackDBCols.FILE_PATH]]
+        match_id = match_track.id
 
-            if (track_id, match_id) not in existing_id_pairs:
-                pairs_to_create.add((track_id, match_id, relative_key))
-                stage_queue[match_id] = match_track
+        if (track_id, match_id) not in existing_pairs:
+            pairs_to_create.add((track_id, match_id, relative_key))
+            stage_queue[match_id] = match_track
 
-    stage_queue = {}
 
+def generate_match_pairs_to_create():
     for track in tracks:
         track_id = track.id
         (same_key, higher_key, lower_key), _ = tm_finder.get_transition_matches(track, False)
 
-        _generate_pairs(same_key, RelativeKey.SAME.value)
-        _generate_pairs(higher_key, RelativeKey.STEP_DOWN.value)
-        _generate_pairs(lower_key, RelativeKey.STEP_UP.value)
+        generate_pairs(same_key, RelativeKey.SAME.value)
+        generate_pairs(higher_key, RelativeKey.STEP_DOWN.value)
+        generate_pairs(lower_key, RelativeKey.STEP_UP.value)
 
         stage_queue[track_id] = track
 
-    stage_tracks(stage_queue.values())
 
-
-@lru_cache(1024)
+@lru_cache(2048)
 def get_smms_value(track_id):
     smms = SegmentedMeanMelSpectrogram(track_id_map[track_id], cache_session)
     smms.load()
@@ -54,6 +51,7 @@ def get_smms_value(track_id):
 def create_transition_match_smms_rows(sesh, compute_missing):
     db_session = sesh
     num_to_create = len(pairs_to_create)
+    rows_created = 0
 
     try:
         for i, (on_deck_id, candidate_id, relative_key) in enumerate(pairs_to_create):
@@ -76,11 +74,13 @@ def create_transition_match_smms_rows(sesh, compute_missing):
 
                 if i % 100 == 0:
                     print('%d of %d pairs processed' % (i, num_to_create))
+                    print('%d rows created' % rows_created)
                     print('Cache info: %s\n' % str(get_smms_value.cache_info()))
 
                 # noinspection PyShadowingNames, PyUnboundLocalVariable
                 db_session = database.recreate_session_contingent(db_session)
                 db_session.guarded_add(TransitionMatchRow(**match_row))
+                rows_created += 1
 
             except Exception as e:
                 handle(e)
@@ -113,12 +113,14 @@ if __name__ == '__main__':
     tracks = tm_finder.tracks
     track_id_map = {track.id: track for track in tracks}
     track_file_path_map = {track.file_path: track for track in tracks}
+    existing_pairs = get_existing_match_pairs()
 
     # Generate pair IDs to create
-    existing_id_pairs = get_existing_tm_id_pairs()
     pairs_to_create = set()
-    generate_tm_id_pairs_to_create()
-    pairs_to_create = sorted(list(pairs_to_create), key=lambda x: x[0], reverse=True)
+    stage_queue = {}
+    generate_match_pairs_to_create()
+    stage_tracks(stage_queue.values())
 
     # Create DB rows
+    pairs_to_create = sorted(list(pairs_to_create), key=lambda x: x[0], reverse=True)
     create_transition_match_smms_rows(session, args.compute_missing)

@@ -1,7 +1,5 @@
 from enum import Enum
 
-from src.definitions.common import CONFIG
-
 
 class SerializationKeys(Enum):
     TRACK_ID = 'Track ID'
@@ -18,8 +16,6 @@ class RelativeKey(Enum):
 class Feature(Enum):
     SMMS = 'Segmented Mean Mel Spectrogram'
 
-
-FEATURE_DIR = CONFIG['FEATURE_DIR']
 
 SAMPLE_RATE = 44100
 

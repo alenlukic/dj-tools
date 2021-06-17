@@ -9,7 +9,6 @@ from src.db.entities.track import Track
 from src.definitions.common import NUM_CORES
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
 from src.lib.error_management.reporting_handler import handle
-from src.lib.error_management.retry_handler import RetryHandler
 from src.utils.file_operations import stage_tracks
 
 
@@ -25,7 +24,6 @@ def compute_spectrograms(chunk, sesh):
             smms.save()
         except Exception as e:
             handle(e)
-            retry_queue.add_attempt(track.id)
             continue
 
 
@@ -64,14 +62,6 @@ if __name__ == '__main__':
     session = database.create_session()
     tracks = set([t for t in session.query(Track).all()])
     session.close()
-    retry_queue = RetryHandler()
 
     args = sys.argv
     run(set([int(t) for t in args[1:]]) if len(args) > 1 else set())
-
-    while retry_queue.has_pending_attempts():
-        to_retry = set(retry_queue.get_pending_attempts().keys())
-        print('Retrying processing %d tracks' % len(to_retry))
-        run(to_retry)
-
-
