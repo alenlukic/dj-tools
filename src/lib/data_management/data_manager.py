@@ -12,7 +12,7 @@ from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.utils.common import *
 from src.lib.data_management.audio_file import AudioFile
 from src.utils.data_management import *
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 from src.utils.file_operations import get_audio_files
 
 
@@ -49,7 +49,7 @@ class DataManager:
                 try:
                     track = AudioFile(old_path)
                 except Exception as e:
-                    handle_error(e, 'Couldn\'t read ID3 tags for %s' % old_path)
+                    handle(e, 'Couldn\'t read ID3 tags for %s' % old_path)
                     continue
 
                 # Verify requisite ID3 tags exist
@@ -64,7 +64,7 @@ class DataManager:
                     print('\nCopying:\t%s\nto:\t\t%s' % (old_path, new_path))
                     copyfile(old_path, new_path)
                 except Exception as e:
-                    handle_error(e, 'Couldn\'t copy %s to target directory' % new_path)
+                    handle(e, 'Couldn\'t copy %s to target directory' % new_path)
                     continue
 
                 tracks_to_save[new_path] = track
@@ -73,7 +73,7 @@ class DataManager:
             self.insert_tracks(tracks_to_save)
 
         except Exception as e:
-            handle_error(e)
+            handle(e)
 
         finally:
             session.close()
@@ -105,7 +105,7 @@ class DataManager:
                     session.commit()
 
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     session.rollback()
                     continue
 
@@ -123,7 +123,7 @@ class DataManager:
             DataManager.print_database_operation_statuses('Artist track updates', artist_track_updates)
 
         except Exception as e:
-            handle_error(e)
+            handle(e)
             session.rollback()
             raise e
 
@@ -154,7 +154,7 @@ class DataManager:
                     artist_row = session.query(Artist).filter_by(name=a).first()
                     artist_updates[artist_row.id] = DBUpdateType.INSERT.value
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     artist_updates[a] = DBUpdateType.FAILURE.value
                     continue
             else:
@@ -181,7 +181,7 @@ class DataManager:
                 artist_track_row = session.query(ArtistTrack).filter_by(artist_id=artist_id).first()
                 artist_track_updates[artist_track_row.id] = DBUpdateType.INSERT.value
             except Exception as e:
-                handle_error(e)
+                handle(e)
                 artist_track_updates[artist_id] = DBUpdateType.FAILURE.value
                 continue
 
@@ -213,7 +213,7 @@ class DataManager:
                     session.delete(initial_tr)
                     tag_record_deletion_statuses['Initial Record'][track_id] = DBUpdateType.DELETE.value
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     tag_record_deletion_statuses['Initial Record'][track_id] = DBUpdateType.FAILURE.value
                     continue
 
@@ -222,7 +222,7 @@ class DataManager:
                     session.delete(post_mik_tr)
                     tag_record_deletion_statuses['Post-MIK Record'][track_id] = DBUpdateType.DELETE.value
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     tag_record_deletion_statuses['Post-MIK Record'][track_id] = DBUpdateType.FAILURE.value
                     continue
 
@@ -231,7 +231,7 @@ class DataManager:
                     session.delete(post_rb_tr)
                     tag_record_deletion_statuses['Post-RB Record'][track_id] = DBUpdateType.DELETE.value
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     tag_record_deletion_statuses['Post-RB Record'][track_id] = DBUpdateType.FAILURE.value
                     continue
 
@@ -240,7 +240,7 @@ class DataManager:
                     session.delete(final_tr)
                     tag_record_deletion_statuses['Final Record'][track_id] = DBUpdateType.DELETE.value
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     tag_record_deletion_statuses['Final Record'][track_id] = DBUpdateType.FAILURE.value
                     continue
 
@@ -254,7 +254,7 @@ class DataManager:
                     session.delete(track)
                     track_deletion_statuses[track_id] = DBUpdateType.DELETE.value
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     track_deletion_statuses[track_id] = DBUpdateType.FAILURE.value
                     continue
 
@@ -264,7 +264,7 @@ class DataManager:
             session.commit()
 
         except Exception as e:
-            handle_error(e)
+            handle(e)
             print('Session not committed')
 
         finally:
@@ -292,7 +292,7 @@ class DataManager:
                     deletion_statuses[str((track_id, artist_id))] = DBUpdateType.DELETE.value
 
                 except Exception as e:
-                    handle_error(e)
+                    handle(e)
                     deletion_statuses[str((track_id, artist_id))] = DBUpdateType.FAILURE.value
                     continue
 
@@ -320,7 +320,7 @@ class DataManager:
                     update_statuses[aid] = DBUpdateType.UPDATE.value
 
             except Exception as e:
-                handle_error(e)
+                handle(e)
                 update_statuses[aid] = DBUpdateType.FAILURE.value
                 continue
 
@@ -411,7 +411,7 @@ class DataManager:
                     sync_statuses[track.id] = DBUpdateType.NOOP.value
 
             except Exception as e:
-                handle_error(e, 'Unexpected exception syncing fields for %s' % track_pk)
+                handle(e, 'Unexpected exception syncing fields for %s' % track_pk)
                 sync_statuses[track.id] = DBUpdateType.FAILURE.value
 
                 continue
@@ -455,7 +455,7 @@ class DataManager:
                     print('\n'.join(['%s: %s' % (k, v) for k, v in tags_to_update.items()]))
 
             except Exception as e:
-                handle_error(e, 'Unexpected exception syncing tags for %s' % track_pk)
+                handle(e, 'Unexpected exception syncing tags for %s' % track_pk)
                 continue
 
     @staticmethod

@@ -4,7 +4,7 @@ import sys
 from googleapiclient.http import MediaIoBaseDownload
 
 from src.lib.google_drive.google_drive import *
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 from src.utils.logging import *
 
 
@@ -44,7 +44,7 @@ def restore_backup(latest_date):
 
         except Exception as e:
             msg = 'Error occurred while downloading %s' % file_name
-            handle_error(e, msg, print_and_log)
+            handle(e, msg, print_and_log)
             continue
 
         restored.append(file)

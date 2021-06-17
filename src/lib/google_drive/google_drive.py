@@ -10,7 +10,7 @@ from google.auth.transport.requests import Request
 
 from src.definitions.common import CONFIG
 from src.definitions.data_management import GD_TIMESTAMP_FORMAT as TS_FORMAT
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 from src.utils.logging import *
 
 
@@ -122,5 +122,5 @@ class GoogleDrive:
 
             except Exception as e:
                 msg = 'Error occurred getting revision for %s' % gd_resource.get('name')
-                handle_error(e, msg, print_and_log)
+                handle(e, msg, print_and_log)
                 continue

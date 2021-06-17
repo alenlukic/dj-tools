@@ -4,7 +4,7 @@ from src.definitions.harmonic_mixing import *
 from src.definitions.assistant import *
 from src.lib.data_management.data_manager import DataManager
 from src.lib.harmonic_mixing.transition_match import TransitionMatch
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 from src.utils.harmonic_mixing import *
 
 
@@ -19,7 +19,7 @@ class TransitionMatchFinder:
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         self.session = session if session is not None else database.create_session()
         self.max_results = 75
-        self.cutoff_threshold_score = 50.0
+        self.cutoff_threshold_score = 25.0
         self.result_threshold = 20
 
         TransitionMatch.db_session = self.session
@@ -73,7 +73,7 @@ class TransitionMatchFinder:
             return (same_key, higher_key, lower_key), title_mismatch_message
 
         except Exception as e:
-            handle_error(e)
+            handle(e)
 
     def print_transition_matches(self, track):
         """

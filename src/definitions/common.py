@@ -9,4 +9,4 @@ PROCESSED_MUSIC_DIR = CONFIG['PROCESSED_MUSIC_DIR']
 TMP_MUSIC_DIR = CONFIG['TMP_MUSIC_DIR']
 
 IS_UNIX = sys.platform.startswith('darwin') or sys.platform.startswith('linux')
-NUM_CORES = multiprocessing.cpu_count()
+NUM_CORES = CONFIG.get('NUM_CORES', multiprocessing.cpu_count())

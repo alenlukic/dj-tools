@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import session as sezzion, sessionmaker
 
 from src.definitions.common import CONFIG
-from src.utils.errors import handle_error
+from src.lib.error_management.reporting_handler import handle
 
 
 class Database:
@@ -65,7 +65,7 @@ class Database:
                 return True
             except Exception as e:
                 str_entity = str({c.key: getattr(entity, c.key) for c in inspect(entity).mapper.column_attrs})
-                handle_error(e, 'Failed to add %s to DB' % str_entity, print, False)
+                handle(e, 'Failed to add %s to DB' % str_entity, print, False)
                 self.rollback()
                 return False
 
