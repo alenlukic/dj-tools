@@ -10,9 +10,12 @@ from src.definitions.common import NUM_CORES
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
 from src.lib.error_management.reporting_handler import handle
 from src.lib.error_management.retry_handler import RetryHandler
+from src.utils.file_operations import stage_tracks
 
 
 def compute_spectrograms(chunk, sesh):
+    stage_tracks(chunk)
+
     for track in chunk:
         print('Processing track ID %s' % str(track.id))
 
@@ -67,6 +70,8 @@ if __name__ == '__main__':
     run(set([int(t) for t in args[1:]]) if len(args) > 1 else set())
 
     while retry_queue.has_pending_attempts():
-        run(set(retry_queue.get_pending_attempts().keys()))
+        to_retry = set(retry_queue.get_pending_attempts().keys())
+        print('Retrying processing %d tracks' % len(to_retry))
+        run(to_retry)
 
 

@@ -19,7 +19,7 @@ class TransitionMatchFinder:
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         self.session = session if session is not None else database.create_session()
         self.max_results = 75
-        self.cutoff_threshold_score = 50.0
+        self.cutoff_threshold_score = 25.0
         self.result_threshold = 20
 
         TransitionMatch.db_session = self.session

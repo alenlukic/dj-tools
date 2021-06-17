@@ -7,6 +7,7 @@ from shutil import copyfile
 from src.db.entities.feature_value import FeatureValue
 from src.definitions.feature_extraction import *
 from src.utils.feature_extraction import load_json_from_file
+from src.utils.file_operations import get_track_load_target
 
 
 class TrackFeature:
@@ -21,8 +22,9 @@ class TrackFeature:
         self.postprocessed_value = None
         self.track_features = None
 
-    def get_feature(self):
-        if self.feature_value is None:
+    def get_feature(self, compute=False):
+        if self.feature_value is None and compute:
+            print('%s missing for track %s - computing...' % (self.feature_name, self.track.title))
             self.compute()
 
         return self.feature_value
@@ -64,20 +66,32 @@ class SegmentedMeanMelSpectrogram(TrackFeature):
         self.n_mels = n_mels
 
     def preprocess(self, feature_value):
+        if feature_value is None:
+            return None
+
         if self.preprocessed_value is None:
             self.preprocessed_value = [[np.format_float_scientific(v, precision=3) for v in r] for r in feature_value]
 
         return self.preprocessed_value
 
     def postprocess(self, feature_value):
+        if feature_value is None:
+            return None
+
         if self.postprocessed_value is None:
             self.postprocessed_value = np.array([[float(v) for v in row] for row in feature_value])
 
         return self.postprocessed_value
 
+    def load(self):
+        fv = self.db_session.query(FeatureValue).filter_by(track_id=self.track.id).first()
+        if fv is not None:
+            self.feature_value = self.postprocess(fv.features.get(self.feature_name))
+
     # Compute segmented mean Mel spectrogram
     def compute(self):
-        samples, _ = librosa.load(self.track.file_path, SAMPLE_RATE)
+        target_path = get_track_load_target(self.track)
+        samples, _ = librosa.load(target_path, SAMPLE_RATE)
         n = len(samples)
 
         # Create overlapping windows
@@ -88,7 +102,7 @@ class SegmentedMeanMelSpectrogram(TrackFeature):
                 padding = end - n
                 windows.append(np.concatenate((samples[i:n], np.zeros(padding)), axis=None))
             else:
-                windows.append(samples[i:end])
+               windows.append(samples[i:end])
 
         # Calculate Mel spectrogram for each overlapping window
         window_spectrograms = [librosa.feature.melspectrogram(y=w, sr=SAMPLE_RATE, n_mels=self.n_mels) for w in windows]

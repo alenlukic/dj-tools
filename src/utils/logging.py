@@ -6,6 +6,14 @@ from src.definitions.common import LOG_LOCATION
 logging.basicConfig(filename=LOG_LOCATION)
 
 
+class PrefixLogger:
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+    def print(self, message):
+        print('%s %s' % (self.prefix, message))
+
+
 def info(message):
     """
     Log message at info log level.

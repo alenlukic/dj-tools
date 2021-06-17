@@ -16,6 +16,7 @@ def handle(err, err_message_prefix='Exception occurred', err_log_function=print,
     :param err_log_function: (optional) Function to use to log error message.
     :param print_traceback: (optional) Controls whether the stack trace will be printed.
     """
+
     _, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 

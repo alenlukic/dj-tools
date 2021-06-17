@@ -18,6 +18,8 @@ class RetryHandler:
         if key in self.retry_queue:
             return
 
+        print('Adding %s to retry queue' % key)
+
         self.retry_queue[key] = QueuedAttempt(data)
         self.active_items += 1
 
@@ -26,6 +28,9 @@ class RetryHandler:
             self.add_attempt(key, data)
 
     def get_pending_attempts(self):
+        if self.active_items == 0:
+            return {}
+
         to_process = {}
         for key, attempt in self.retry_queue.items():
             if attempt.attempts == self.max_retries:
