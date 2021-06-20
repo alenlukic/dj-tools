@@ -15,15 +15,16 @@ from src.utils.file_operations import stage_tracks
 
 def compute_spectrograms(chunk, transmitter):
     stage_tracks(chunk)
+
     smms_values = []
-
     for track in chunk:
-        print('Computing spectrograms for track %s' % str(track.id))
-
         try:
+            print('Computing spectrograms for track %s' % str(track.id))
+
             smms = SegmentedMeanMelSpectrogram(track)
             smms.compute()
             smms_values.append(smms)
+
         except Exception as e:
             handle(e)
             continue
@@ -56,17 +57,11 @@ def run(track_ids):
             worker.start()
 
         smms_results = [smms for result in [result.recv() for result in smms_aggregator] for smms in result]
-
-        print('Saving SMMS values to DB\n')
-
         for smms in smms_results:
+            track_id = smms.track.id
+            print('Saving feature for track %s to DB' % str(track_id))
             try:
-                track_id = smms.track.id
-
-                print('Saving feature for track %s to DB' % str(track_id))
-
                 feature_value = smms.get_feature()
-
                 if feature_value is None:
                     continue
 
