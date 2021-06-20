@@ -60,7 +60,6 @@ class SegmentedMeanMelSpectrogram(TrackFeature):
 
         return self.postprocessed_value
 
-    # Compute segmented mean Mel spectrogram
     def compute(self):
         target_path = get_track_load_target(self.track)
         samples, _ = librosa.load(target_path, SAMPLE_RATE)

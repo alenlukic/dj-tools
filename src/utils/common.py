@@ -1,6 +1,9 @@
 from datetime import datetime
+from functools import reduce
 from math import log2
+from os.path import join
 
+from src.definitions.common import CONFIG
 from src.definitions.harmonic_mixing import TIMESTAMP_FORMAT
 
 
@@ -22,6 +25,13 @@ def int_transform(value):
 
 def string_transform(value):
     return None if value is value is None else str(value)
+
+
+def get_config_value(path):
+    if len(path) == 0:
+        return None
+
+    return reduce(lambda x, y: x.get(y, {}), path, CONFIG)
 
 
 def get_or_default(source, target, transform=default_transform, default=None):
@@ -60,6 +70,13 @@ def is_empty(value):
             (typ == str and (len(value.strip()) == 0 or value.strip() == '\x00')) or
             ((typ == list or type == tuple) and all([is_empty(e) for e in value])) or
             (typ == dict and all([is_empty(v) for v in value.values()])))
+
+
+def join_config_paths(paths):
+    if len(paths) == 0:
+        return None
+
+    return reduce(lambda x, y: join(get_config_value(x), get_config_value(y)), paths, '')
 
 
 def log2smooth(x):

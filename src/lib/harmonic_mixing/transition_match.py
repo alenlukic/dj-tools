@@ -30,14 +30,14 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-                    (self.get_camelot_priority_score(), 0.22),
-                    (self.get_bpm_score(), 0.2),
-                    (self.get_smms_score(), 0.2),
-                    (self.get_freshness_score(), 0.12),
-                    (self.get_genre_score(), 0.1),
-                    (self.get_label_score(), 0.08),
-                    (self.get_artist_score(), 0.06),
-                    (self.get_energy_score(), 0.02)
+                    (self.get_camelot_priority_score(), MATCH_WEIGHTS[MatchFactors.CAMELOT.name]),
+                    (self.get_bpm_score(), MATCH_WEIGHTS[MatchFactors.BPM.name]),
+                    (self.get_smms_score(), MATCH_WEIGHTS[MatchFactors.SMMS_SCORE.name]),
+                    (self.get_freshness_score(), MATCH_WEIGHTS[MatchFactors.FRESHNESS.name]),
+                    (self.get_genre_score(), MATCH_WEIGHTS[MatchFactors.GENRE.name]),
+                    (self.get_label_score(), MATCH_WEIGHTS[MatchFactors.LABEL.name]),
+                    (self.get_artist_score(), MATCH_WEIGHTS[MatchFactors.ARTIST.name]),
+                    (self.get_energy_score(), MATCH_WEIGHTS[MatchFactors.ENERGY.name]),
                 ]
                 self.score = 100 * sum([score * weight for score, weight in score_weights])
 

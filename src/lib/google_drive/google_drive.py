@@ -8,9 +8,9 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-from src.definitions.common import CONFIG
 from src.definitions.data_management import GD_TIMESTAMP_FORMAT as TS_FORMAT
 from src.lib.error_management.reporting_handler import handle
+from src.utils.common import get_config_value, join_config_paths
 from src.utils.logging import *
 
 
@@ -31,9 +31,10 @@ class GDResource:
         self.gd_resource[attr] = val
 
     def to_json(self):
-        return json.dumps(self, default=lambda obj: self._serializer(obj))
+        return json.dumps(self, default=lambda obj: GDResource._serializer(obj))
 
-    def _serializer(self, obj):
+    @staticmethod
+    def _serializer(obj):
         if obj is None:
             return 'null'
 
@@ -50,10 +51,10 @@ class GoogleDrive:
     def __init__(self):
         # If modifying these scopes, delete the pickle file first
         self.scopes = ['https://www.googleapis.com/auth/drive']
-        self.creds_file = CONFIG['GOOGLE_DRIVE']['CREDENTIALS']
-        self.pickle_file = CONFIG['GOOGLE_DRIVE']['PICKLE']
-        self.backup_dir_id = CONFIG['GOOGLE_DRIVE']['BACKUP_DIR_ID']
-        self.restore_dir = CONFIG['BACKUP_RESTORE_MUSIC_DIR']
+        self.creds_file = get_config_value(['GOOGLE_DRIVE', 'CREDENTIALS'])
+        self.pickle_file = get_config_value(['GOOGLE_DRIVE', 'PICKLE'])
+        self.backup_dir_id = get_config_value(['GOOGLE_DRIVE', 'BACKUP_DIR_ID'])
+        self.restore_dir = join_config_paths([['DATA', 'ROOT'], ['DATA', 'BACKUP_RESTORE_MUSIC_DIR']])
         self.drive = build('drive', 'v3', credentials=self._get_creds())
 
     def _get_creds(self):

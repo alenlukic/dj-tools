@@ -20,6 +20,8 @@ def restore_backup(latest_date):
     get_revisions_args = {'fields': 'revisions(id, modifiedTime)'}
     drive.get_target_revisions(backup_files, get_revisions_args, latest_date)
 
+    os.makedirs(drive.restore_dir, exist_ok=True)
+
     restored = []
     for file in backup_files:
         file_name = file.get('name')

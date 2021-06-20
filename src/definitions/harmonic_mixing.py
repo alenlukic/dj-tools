@@ -1,5 +1,7 @@
 from enum import Enum
 
+from src.definitions.common import CONFIG
+
 
 class CollectionStat(Enum):
     OLDEST = 'Oldest Timestamp'
@@ -30,6 +32,8 @@ class CamelotPriority(Enum):
     MAJOR_MINOR_JUMP = 4
     SAME_KEY = 4
 
+
+MATCH_WEIGHTS = {f.name: CONFIG['TRANSITION_MATCH_WEIGHTS'][f.name] for f in MatchFactors}
 
 SAME_UPPER_BOUND = 0.0293
 SAME_LOWER_BOUND = -0.0284

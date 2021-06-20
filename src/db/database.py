@@ -20,11 +20,12 @@ class Database:
         """ Singleton database class. """
 
         def __init__(self):
-            user = CONFIG['DB_USER']
-            password = CONFIG['DB_PASSWORD']
-            host = CONFIG['DB_HOST']
-            port = CONFIG['DB_PORT']
-            name = CONFIG['DB_NAME']
+            db_config = CONFIG['DB']
+            user = db_config['USER']
+            password = db_config['PASSWORD']
+            host = db_config['HOST']
+            port = db_config['PORT']
+            name = db_config['NAME']
             conn_string = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, name)
             self.engine = create_engine(conn_string)
             self.conn = self.engine.connect()

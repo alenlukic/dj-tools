@@ -60,6 +60,7 @@ def run(track_ids):
         for smms in smms_results:
             track_id = smms.track.id
             print('Saving feature for track %s to DB' % str(track_id))
+
             try:
                 feature_value = smms.get_feature()
                 if feature_value is None:
