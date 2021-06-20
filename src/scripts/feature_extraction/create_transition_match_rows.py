@@ -19,7 +19,7 @@ def get_existing_match_pairs():
     return set([(tm.on_deck_id, tm.candidate_id) for tm in session.query(TransitionMatchRow).all()])
 
 
-def generate_pairs(track_id, matches, relative_key):
+def generate_track_pairs(track_id, matches, relative_key):
     for match in matches:
         match_track = track_file_path_map[match.metadata[TrackDBCols.FILE_PATH]]
         match_id = match_track.id
@@ -29,22 +29,22 @@ def generate_pairs(track_id, matches, relative_key):
             stage_queue[match_id] = match_track
 
 
-def generate_match_pairs_to_create():
+def generate_match_pairs():
     for track in tracks:
         track_id = track.id
         (same_key, higher_key, lower_key), _ = tm_finder.get_transition_matches(track, False)
 
-        generate_pairs(same_key, RelativeKey.SAME.value)
-        generate_pairs(higher_key, RelativeKey.STEP_DOWN.value)
-        generate_pairs(lower_key, RelativeKey.STEP_UP.value)
+        generate_track_pairs(track_id, same_key, RelativeKey.SAME.value)
+        generate_track_pairs(track_id, higher_key, RelativeKey.STEP_DOWN.value)
+        generate_track_pairs(track_id, lower_key, RelativeKey.STEP_UP.value)
 
         stage_queue[track_id] = track
 
 
 @lru_cache(2048)
 def get_smms_value(track_id):
-    smms = SegmentedMeanMelSpectrogram(track_id_map[track_id], cache_session)
-    smms.load()
+    smms = SegmentedMeanMelSpectrogram(track_id_map[track_id])
+    smms.load(cache_session)
     return smms
 
 
@@ -118,7 +118,9 @@ if __name__ == '__main__':
     # Generate pair IDs to create
     pairs_to_create = set()
     stage_queue = {}
-    generate_match_pairs_to_create()
+    generate_match_pairs()
+
+    # Stage tracks
     stage_tracks(stage_queue.values())
 
     # Create DB rows

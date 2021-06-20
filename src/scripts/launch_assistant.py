@@ -1,6 +1,3 @@
-# noinspection PyUnresolvedReferences
-import readline
-
 from src.db import database
 from src.lib.assistant.command import CommandParsingException
 from src.lib.assistant.assistant import Assistant

@@ -53,22 +53,27 @@ class PipelineStage:
 
         tag_records = {}
         for track_file in self.track_files:
-            file_path = join(PROCESSING_DIR, track_file)
-            track = self.session.query(Track).filter_by(file_path=file_path).first()
+            try:
+                file_path = join(PROCESSING_DIR, track_file)
+                track = self.session.query(Track).filter_by(file_path=file_path).first()
 
-            cmd_args = dict(ChainMap(
-                {
-                    'record_type': self.record_type,
-                    'file_path': file_path,
-                    'track_id': track.id,
-                    'session': self.session
-                },
-                self.cmd_overrides
-            ))
-            factory = getattr(tag_record_factories, factory_name)(**cmd_args)
+                cmd_args = dict(ChainMap(
+                    {
+                        'record_type': self.record_type,
+                        'file_path': file_path,
+                        'track_id': track.id,
+                        'session': self.session
+                    },
+                    self.cmd_overrides
+                ))
+                factory = getattr(tag_record_factories, factory_name)(**cmd_args)
 
-            tag_record = factory.create_tag_record()
-            tag_records[track_file] = tag_record
+                tag_record = factory.create_tag_record()
+                tag_records[track_file] = tag_record
+
+            except Exception as e:
+                handle(e, 'Exception occurred processing %s:' % track_file)
+                continue
 
         return tag_records
 
@@ -174,40 +179,50 @@ class FinalPipelineStage(PipelineStage):
         """ Write finalized ID3 tags. """
 
         for track_file, tag_record in tag_records.items():
-            old_path = join(self.source_dir, track_file)
-            new_path = join(self.target_dir, track_file)
-            copyfile(old_path, new_path)
+            try:
+                old_path = join(self.source_dir, track_file)
+                new_path = join(self.target_dir, track_file)
+                copyfile(old_path, new_path)
 
-            audio_file = AudioFile(new_path)
-            audio_file.write_tags({
-                TrackDBCols.BPM.value: float(tag_record.bpm),
-                TrackDBCols.KEY.value: tag_record.key
-            })
+                audio_file = AudioFile(new_path)
+                audio_file.write_tags({
+                    TrackDBCols.BPM.value: float(tag_record.bpm),
+                    TrackDBCols.KEY.value: tag_record.key
+                })
+
+            except Exception as e:
+                handle(e, 'Exception occurred processing %s:' % track_file)
+                continue
 
     def update_track_table(self, tag_records):
         """ Finalize track table entries. """
 
         for track_file, tag_record in tag_records.items():
-            old_path = join(self.target_dir, track_file)
-            _, ext = splitext(old_path)
+            try:
+                old_path = join(self.target_dir, track_file)
+                _, ext = splitext(old_path)
 
-            audio_file = AudioFile(old_path)
-            metadata = audio_file.get_metadata()
+                audio_file = AudioFile(old_path)
+                metadata = audio_file.get_metadata()
 
-            formatted_title = metadata[TrackDBCols.TITLE.value] + ext
-            new_path = join(PROCESSED_MUSIC_DIR, formatted_title)
-            metadata[TrackDBCols.FILE_PATH.value] = new_path
+                formatted_title = metadata[TrackDBCols.TITLE.value] + ext
+                new_path = join(PROCESSED_MUSIC_DIR, formatted_title)
+                metadata[TrackDBCols.FILE_PATH.value] = new_path
 
-            track = self.session.query(Track).filter_by(id=tag_record.track_id).first()
-            metadata[TrackDBCols.DATE_ADDED.value] = track.date_added
+                track = self.session.query(Track).filter_by(id=tag_record.track_id).first()
+                metadata[TrackDBCols.DATE_ADDED.value] = track.date_added
 
-            metadata[TrackDBCols.COMMENT.value] = audio_file.generate_comment(metadata)
-            for col, val in metadata.items():
-                setattr(track, col, val)
+                metadata[TrackDBCols.COMMENT.value] = audio_file.generate_comment(metadata)
+                for col, val in metadata.items():
+                    setattr(track, col, val)
 
-            copyfile(old_path, new_path)
-            audio_file = AudioFile(new_path)
-            audio_file.write_tags(metadata)
+                copyfile(old_path, new_path)
+                audio_file = AudioFile(new_path)
+                audio_file.write_tags(metadata)
+
+            except Exception as e:
+                handle(e, 'Exception occurred processing %s:' % track_file)
+                continue
 
     def print_track_ids(self, tag_records):
         """ Print track IDs as comma-separated string to provide input for SMMS script. """

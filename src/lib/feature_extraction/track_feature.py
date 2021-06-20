@@ -9,11 +9,9 @@ from src.utils.file_operations import get_track_load_target
 class TrackFeature:
     """ Encapsulates a track feature. """
 
-    def __init__(self, track, db_session):
+    def __init__(self, track, feature_name):
         self.track = track
-        self.db_session = db_session
-        self.track_features = db_session.query(FeatureValue).filter_by(track_id=self.track.id).first()
-        self.feature_name = None
+        self.feature_name = feature_name
         self.feature_value = None
         self.preprocessed_value = None
         self.postprocessed_value = None
@@ -30,34 +28,18 @@ class TrackFeature:
     def postprocess(self, feature_value):
         return feature_value
 
-    def load(self):
-        if self.track_features is not None:
-            self.feature_value = self.postprocess(self.track_features.features.get(self.feature_name))
-
-    def save(self):
-        if self.feature_value is None:
-            return
-
-        if self.track_features is None:
-            fv_row = {
-                'track_id': self.track.id,
-                'features': {
-                    self.feature_name: self.preprocess(self.feature_value)
-                }
-            }
-            self.db_session.guarded_add(FeatureValue(**fv_row))
-        else:
-            self.track_features.features[self.feature_name] = self.preprocess(self.feature_name)
-            self.db_session.commit()
+    def load(self, db_session):
+        track_features = db_session.query(FeatureValue).filter_by(track_id=self.track.id).first()
+        if track_features is not None:
+            self.feature_value = self.postprocess(track_features.features.get(self.feature_name))
 
     def compute(self):
         pass
 
 
 class SegmentedMeanMelSpectrogram(TrackFeature):
-    def __init__(self, track, db_session, n_mels=N_MELS):
-        super().__init__(track, db_session)
-        self.feature_name = Feature.SMMS.value
+    def __init__(self, track, n_mels=N_MELS):
+        super().__init__(track, Feature.SMMS.value)
         self.n_mels = n_mels
 
     def preprocess(self, feature_value):
