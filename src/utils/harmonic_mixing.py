@@ -105,4 +105,4 @@ def get_bpm_bound(bpm, bound):
 
 
 def get_max_smms():
-    return get_config_value(['HARMONIC_MIXING', 'MAX_SMMS'])
+    return get_config_value(['HARMONIC_MIXING', '3_SD_SMMS'])

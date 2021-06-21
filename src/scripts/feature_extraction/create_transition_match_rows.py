@@ -50,7 +50,6 @@ def get_smms_value(track_id):
 
 def create_transition_match_smms_rows(sesh, compute_missing):
     db_session = sesh
-    max_smms = get_max_smms()
     num_to_create = len(pairs_to_create)
     rows_created = 0
 
@@ -66,10 +65,6 @@ def create_transition_match_smms_rows(sesh, compute_missing):
                     continue
 
                 mel_score = np.linalg.norm(on_deck_smms - match_smms)
-                if mel_score > max_smms:
-                    update_config(['HARMONIC_MIXING', 'MAX_SMMS'], mel_score)
-                    max_smms = mel_score
-
                 match_row = {
                     'on_deck_id': on_deck_id,
                     'candidate_id': candidate_id,

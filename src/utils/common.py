@@ -5,8 +5,7 @@ from math import log2
 from os.path import join
 from shutil import copyfile
 
-from src.definitions.common import CONFIG
-from src.definitions.harmonic_mixing import TIMESTAMP_FORMAT
+from src.definitions.common import CONFIG, TIMESTAMP_FORMAT
 
 
 def default_transform(value):
@@ -83,19 +82,3 @@ def log2smooth(x, smoother=1):
 def print_progress(batch_name, cur_iteration, batch_size, frequency=100):
     if cur_iteration % frequency == 0:
         print('Processed %d of %d %s' % (cur_iteration, batch_size, batch_name))
-
-
-def update_config(path, new_val):
-    num_segments = len(path)
-    if num_segments == 0:
-        return
-
-    copyfile('config/config.json', 'config/config_old.json')
-
-    update_target = CONFIG
-    for segment in path[0:num_segments - 1]:
-        update_target = update_target[segment]
-
-    update_target[path[-1]] = new_val
-    with open('config/config.json', 'w') as w:
-        json.dump(CONFIG, w, indent=2)
