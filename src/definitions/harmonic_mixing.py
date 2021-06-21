@@ -1,5 +1,7 @@
 from enum import Enum
 
+from src.utils.common import get_config_value
+
 
 class CollectionStat(Enum):
     OLDEST = 'Oldest Timestamp'
@@ -31,11 +33,11 @@ class CamelotPriority(Enum):
     SAME_KEY = 4
 
 
+MATCH_WEIGHTS = {f.name: get_config_value(['HARMONIC_MIXING', 'TRANSITION_MATCH_WEIGHTS', f.name]) for f in MatchFactors}
+
 SAME_UPPER_BOUND = 0.0293
 SAME_LOWER_BOUND = -0.0284
 UP_KEY_LOWER_BOUND = 0.0293
 UP_KEY_UPPER_BOUND = 0.0905
 DOWN_KEY_LOWER_BOUND = -0.083
 DOWN_KEY_UPPER_BOUND = -0.0284
-
-TIMESTAMP_FORMAT = '%a %b %d %H:%M:%S %Y'

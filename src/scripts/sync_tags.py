@@ -6,11 +6,10 @@ from src.lib.error_management.reporting_handler import handle
 
 def sync_tags():
     session = database.create_session()
-    dm = DataManager()
 
     try:
         tracks = session.query(Track).all()
-        dm.sync_track_tags(tracks)
+        DataManager.sync_track_tags(tracks)
         session.commit()
     except Exception as e:
         handle(e, 'Top-level exception occurred while syncing track tags')

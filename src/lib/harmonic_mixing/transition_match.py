@@ -30,14 +30,14 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-                    (self.get_camelot_priority_score(), 0.22),
-                    (self.get_bpm_score(), 0.2),
-                    (self.get_smms_score(), 0.2),
-                    (self.get_freshness_score(), 0.12),
-                    (self.get_genre_score(), 0.1),
-                    (self.get_label_score(), 0.08),
-                    (self.get_artist_score(), 0.06),
-                    (self.get_energy_score(), 0.02)
+                    (self.get_camelot_priority_score(), MATCH_WEIGHTS[MatchFactors.CAMELOT.name]),
+                    (self.get_bpm_score(), MATCH_WEIGHTS[MatchFactors.BPM.name]),
+                    (self.get_smms_score(), MATCH_WEIGHTS[MatchFactors.SMMS_SCORE.name]),
+                    (self.get_freshness_score(), MATCH_WEIGHTS[MatchFactors.FRESHNESS.name]),
+                    (self.get_genre_score(), MATCH_WEIGHTS[MatchFactors.GENRE.name]),
+                    (self.get_label_score(), MATCH_WEIGHTS[MatchFactors.LABEL.name]),
+                    (self.get_artist_score(), MATCH_WEIGHTS[MatchFactors.ARTIST.name]),
+                    (self.get_energy_score(), MATCH_WEIGHTS[MatchFactors.ENERGY.name]),
                 ]
                 self.score = 100 * sum([score * weight for score, weight in score_weights])
 
@@ -215,33 +215,6 @@ class TransitionMatch:
         if MatchFactors.SMMS_SCORE not in self.factors:
             self.factors[MatchFactors.SMMS_SCORE] = _get_smms_score()
         return self.factors[MatchFactors.SMMS_SCORE]
-
-    def _get_percent_of_bound_score(self, absolute_diff, cur_track_bpm):
-        relative_diff = abs(absolute_diff) / float(cur_track_bpm)
-
-        # Current track's BPM is lower - weigh score of lower BPM tracks slightly less
-        if absolute_diff < 0:
-            score = 0.0
-            discount = 0.9
-            if relative_diff <= SAME_UPPER_BOUND:
-                score = float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
-            if relative_diff <= UP_KEY_UPPER_BOUND:
-                # Not sure how to evaluate step up / down - arbitrarily pick middle of the range
-                midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
-                score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
-            return score * discount
-
-        # Current track's BPM is higher
-        abs_same_lower_bound = abs(SAME_LOWER_BOUND)
-        abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
-        abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
-        if relative_diff <= abs_same_lower_bound:
-            return float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
-        if relative_diff <= abs_down_key_lower_bound:
-            midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
-            return float(midpoint - abs(midpoint - relative_diff)) / midpoint
-
-        return 0.0
 
     def __lt__(self, other):
         return ((self.get_score(), self.get_smms_score(), self.get_freshness_score()) <

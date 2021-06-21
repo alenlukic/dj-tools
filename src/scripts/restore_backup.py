@@ -5,6 +5,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 from src.lib.google_drive.google_drive import *
 from src.lib.error_management.reporting_handler import handle
+from src.utils.common import get_config_value
 from src.utils.logging import *
 
 
@@ -19,6 +20,8 @@ def restore_backup(latest_date):
     backup_files = drive.get_files(backup_files_args)
     get_revisions_args = {'fields': 'revisions(id, modifiedTime)'}
     drive.get_target_revisions(backup_files, get_revisions_args, latest_date)
+
+    os.makedirs(drive.restore_dir, exist_ok=True)
 
     restored = []
     for file in backup_files:
@@ -50,7 +53,7 @@ def restore_backup(latest_date):
         restored.append(file)
 
     restored_dict = {rev.get('id'): rf.to_json() for rf in restored}
-    with open('%s/backup_progress.json' % CONFIG['DATA_DIR'], 'w') as f:
+    with open('%s/backup_progress.json' % get_config_value(['DATA', 'ROOT']), 'w') as f:
         json.dump(restored_dict, f, indent=2)
 
 

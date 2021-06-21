@@ -6,44 +6,20 @@ from src.utils.common import is_empty
 
 
 def get_canonical_form(segment, canon):
-    """
-    Get canonical entity form.
-
-    :param segment: Text segment.
-    :param canon: Mapping of aliases to canonical names.
-    """
     return (canon.get(segment, ' '.join([ss.capitalize() for ss in segment.split()])
             if re.match(PAREN_REGEX, segment) is None else segment))
 
 
 def transform_segments(segments, canon):
-    """
-    Get canonical entity forms for all segments.
-
-    :param segments: Text segments.
-    :param canon: Mapping of aliases to canonical names.
-    """
     return [get_canonical_form(seg, canon) for seg in segments]
 
 
 def transform_parens(segment, canon):
-    """
-    Get canonical entity forms for text embedded in parentheses.
-
-    :param segment: Paranthetical segment.
-    :param canon: Mapping of aliases to canonical names.
-    """
     phrase = segment[1:-1]
     return segment.upper() if len(phrase) == 2 else '(' + ' '.join(transform_segments(phrase.split(), canon)) + ')'
 
 
 def dedupe_title(title):
-    """
-    Remove repetitions from the given title.
-
-    :param title: Title to dedupe.
-    """
-
     if title is None:
         return title
 
@@ -56,20 +32,10 @@ def dedupe_title(title):
 
 
 def split_artist_string(artists):
-    """
-    Splits a comma-separated artist string into a list of individual artists.
-
-    :param artists: Artist string to split
-    """
     return [] if is_empty(artists) else [a.strip() for a in artists.split(',') if not is_empty(a)]
 
 
 def transform_artist(artist):
-    """
-    Applies artist-specific transformation rules to standardize artist names across the board.
-
-    :param artist: Artist string to transform.
-    """
 
     if 'Kamaya Painters' in artist:
         return 'Kamaya Painters'
@@ -81,12 +47,6 @@ def transform_artist(artist):
 
 
 def transform_genre(genre):
-    """
-    Applies genre-specific transformation rules to standardize genre names across the board.
-
-    :param genre: Genre string to transform.
-    """
-
     bar_matches = re.findall(BAR_REGEX, genre)
     if len(bar_matches) > 0:
         bar_split = genre.split('|')
@@ -108,12 +68,6 @@ def transform_genre(genre):
 
 
 def transform_label(label):
-    """
-    Applies label-specific transformation rules to standardize label names across the board.
-
-    :param label: Label string to transform.
-    """
-
     parent_label_parens = {'(Armada)', '(Armada Music)', '(Spinnin)'}
     for pl in parent_label_parens:
         if pl in label:
@@ -145,22 +99,10 @@ def transform_label(label):
 
 
 def normalize_tag_text(text):
-    """
-    Normalizes ID3 tag text into ASCII to circumvent persistence issues.
-
-    :param text: Original ID3 tag text.
-    """
     return normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii') if type(text) == str else text
 
 
 def load_comment(comment_string, default=None):
-    """
-    Loads stringified comment as a dict.
-
-    :param comment_string: Comment string to attempt loading.
-    :param default: (optional) Default comment string to load.
-    """
-
     try:
         return literal_eval(comment_string)
     except Exception:
@@ -171,12 +113,6 @@ def load_comment(comment_string, default=None):
 
 
 def extract_unformatted_title(formatted_title):
-    """
-    Extracts unformatted (title only) title from a title enriched with metadata and artist information.
-
-    :param formatted_title: The enriched title.
-    """
-
     md_title_split = MD_COMPOSITE_REGEX.split(formatted_title)
     title = md_title_split[-1].strip()
     title = ' - '.join(title.split(' - ')[1:])

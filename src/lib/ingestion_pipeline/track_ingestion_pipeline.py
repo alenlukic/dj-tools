@@ -19,13 +19,6 @@ class PipelineStage:
     """ Encapsulates the execution of a single stage in the ingestion pipeline. """
 
     def __init__(self, record_type, source_dir=UNPROCESSED_DIR):
-        """
-        Initializer.
-
-        :param record_type: Type corresponding to a database table that will house the produced records.
-        :param source_dir: Directory where tracks to process live.
-        """
-
         self.record_type = record_type
         self.session = database.create_session()
         self.source_dir = source_dir
@@ -33,8 +26,6 @@ class PipelineStage:
         self.cmd_overrides = {}
 
     def execute(self):
-        """ Execute this stage of the pipeline. """
-
         try:
             self.create_tag_records()
             self.session.commit()
@@ -45,8 +36,6 @@ class PipelineStage:
             self.session.close()
 
     def create_tag_records(self):
-        """ Create ID3 metadata records. """
-
         factory_name = TAG_RECORD_FACTORIES.get(self.record_type, None)
         if factory_name is None:
             raise Exception('Did not find a factory for record type %s' % self.record_type)
@@ -82,13 +71,6 @@ class InitialPipelineStage(PipelineStage):
     """ Encapsulates execution of the first step in the pipeline. """
 
     def __init__(self, record_type, source_dir=UNPROCESSED_DIR, target_dir=PROCESSING_DIR):
-        """
-        Initializer.
-
-        :param record_type: Type corresponding to a database table that will house the produced records.
-        :param source_dir: Directory where tracks to process live.
-        :param target_dir: Source directory for next pipeline stage.
-        """
         super().__init__(record_type, source_dir)
         self.target_dir = target_dir
 
@@ -106,19 +88,15 @@ class InitialPipelineStage(PipelineStage):
             self.session.close()
 
     def initialize_tracks_in_database(self):
-        """ Initializes records in the track table. """
-        dm = DataManager()
-        dm.ingest_tracks(self.source_dir, self.target_dir)
+        DataManager.ingest_tracks(self.source_dir, self.target_dir)
 
 
 class PostRBPipelineStage(PipelineStage):
     """ Encapsulates pipeline stage to execute after Rekordbox analysis of new tracks. """
 
     def execute(self):
-        """ Execute this stage of the pipeline. """
-
         try:
-            self.cmd_overrides = {'rb_overrides': self.load_rb_tags()}
+            self.cmd_overrides = {'rb_overrides': PostRBPipelineStage.load_rb_tags()}
             self.create_tag_records()
             self.session.commit()
         except Exception as e:
@@ -127,9 +105,8 @@ class PostRBPipelineStage(PipelineStage):
         finally:
             self.session.close()
 
-    def load_rb_tags(self):
-        """ Load analysis information from file exported by Rekordbox. """
-
+    @staticmethod
+    def load_rb_tags():
         track_tags = {}
         with open(RB_TAG_FILE, 'r', encoding='utf-16', errors='ignore') as f:
             lines = [x.strip() for x in f.readlines() if not is_empty(x)]
@@ -150,24 +127,14 @@ class FinalPipelineStage(PipelineStage):
     """ Encapsulates last pipeline stage, during which records are finalized. """
 
     def __init__(self, record_type, source_dir=PROCESSING_DIR, target_dir=FINALIZED_DIR):
-        """
-        Initializer.
-
-        :param record_type: Type corresponding to a database table that will house the produced records.
-        :param source_dir: Directory where tracks to process live.
-        :param target_dir: Directory where track collection is stored.
-        """
         super().__init__(record_type, source_dir)
         self.target_dir = target_dir
 
     def execute(self):
-        """ Execute this stage of the pipeline. """
-
         try:
             tag_records = self.create_tag_records()
             self.write_tags(tag_records)
             self.update_track_table(tag_records)
-            self.print_track_ids(tag_records)
             self.session.commit()
         except Exception as e:
             self.session.rollback()
@@ -176,8 +143,6 @@ class FinalPipelineStage(PipelineStage):
             self.session.close()
 
     def write_tags(self, tag_records):
-        """ Write finalized ID3 tags. """
-
         for track_file, tag_record in tag_records.items():
             try:
                 old_path = join(self.source_dir, track_file)
@@ -195,8 +160,6 @@ class FinalPipelineStage(PipelineStage):
                 continue
 
     def update_track_table(self, tag_records):
-        """ Finalize track table entries. """
-
         for track_file, tag_record in tag_records.items():
             try:
                 old_path = join(self.target_dir, track_file)
@@ -223,8 +186,3 @@ class FinalPipelineStage(PipelineStage):
             except Exception as e:
                 handle(e, 'Exception occurred processing %s:' % track_file)
                 continue
-
-    def print_track_ids(self, tag_records):
-        """ Print track IDs as comma-separated string to provide input for SMMS script. """
-        print('%s' % ','.join([str(t.id) for t in tag_records.values()]))
-

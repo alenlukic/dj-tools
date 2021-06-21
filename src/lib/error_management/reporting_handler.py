@@ -8,15 +8,6 @@ from src.utils.logging import *
 
 
 def handle(err, err_message_prefix='Exception occurred', err_log_function=print, print_traceback=True):
-    """
-    Handles error and prints debug info/stack trace to stdout.
-
-    :param err: The error to handle.
-    :param err_message_prefix: (optional) Prefix to append to stringified error.
-    :param err_log_function: (optional) Function to use to log error message.
-    :param print_traceback: (optional) Controls whether the stack trace will be printed.
-    """
-
     _, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 

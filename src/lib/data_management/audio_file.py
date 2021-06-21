@@ -1,4 +1,3 @@
-from collections import ChainMap
 from os import path
 from time import ctime
 
@@ -13,12 +12,6 @@ class AudioFile:
     """ Encapsulates an audio file and its metadata. """
 
     def __init__(self, full_path):
-        """
-        Constructor. Reads ID3 tags and generates metadata.
-
-        :param full_path: Qualified path to the file on disk.
-        """
-
         self.full_path = full_path
         self.basename = path.basename(full_path)
         self.id3 = self.read_id3()
@@ -26,11 +19,9 @@ class AudioFile:
         self.metadata = None
 
     def generate_metadata(self):
-        """ Generates audio metadata. """
-
         bpm = self.format_bpm()
         key = self.format_key()
-        camelot_code = self.format_camelot_code(key)
+        camelot_code = AudioFile.format_camelot_code(key)
         key = key.capitalize()
         title = dedupe_title(self.generate_title(camelot_code, key, bpm).strip())
 
@@ -51,12 +42,6 @@ class AudioFile:
         return metadata
 
     def generate_comment(self, metadata):
-        """
-        Generates string comment for metadata.
-
-        :param metadata: Metadata for which to generate comment.
-        """
-
         comment = {k: v for k, v in dict(ChainMap(
             {k: v for k, v in metadata.items()},
             {
@@ -72,36 +57,17 @@ class AudioFile:
     # =====================
 
     def generate_title(self, camelot_code, key, bpm):
-        """
-        Generates track title.
-
-        :param camelot_code: Track's Camelot Code.
-        :param key: Track's key.
-        :param bpm: Track's BPM.
-        """
-
         parsed_title, featured = self.parse_title()
-        title_prefix = self.generate_title_prefix(camelot_code, key, bpm)
+        title_prefix = AudioFile.generate_title_prefix(camelot_code, key, bpm)
         artist_midfix = self.format_artist_string(featured) + ('' if featured is None else ' ft. ' + featured)
 
         return title_prefix + ' ' + artist_midfix + ' - ' + parsed_title
 
-    def generate_title_prefix(self, camelot_code, key, bpm):
-        """
-        Generates title prefix metadata.
-
-        :param camelot_code: Track's Camelot Code.
-        :param key: Track's key.
-        :param bpm: Track's BPM.
-        """
+    @staticmethod
+    def generate_title_prefix(camelot_code, key, bpm):
         return ' - '.join(['[' + camelot_code, key, bpm + ']'])
 
     def format_artist_string(self, featured):
-        """
-        Generate formatted artist string (first segment of artist midfix in track title).
-
-        :param featured: Featured artist on the track (if any).
-        """
         artists = self.get_tag(ID3Tag.ARTIST)
         featured_set = set() if featured is None else {transform_artist(featured)}
         filtered_artists = [transform_artist(a) for a in split_artist_string(artists) if a not in featured_set]
@@ -112,8 +78,6 @@ class AudioFile:
         return separator.join(filtered_artists)
 
     def parse_title(self):
-        """ Parses track title and returns formatted track title and featured artist name, if any. """
-
         title = self.get_tag(ID3Tag.TITLE, '')
         segments = [seg.strip() for seg in title.split(' ') if not is_empty(seg)]
 
@@ -170,8 +134,6 @@ class AudioFile:
     # =======================
 
     def parse_energy(self):
-        """ Parse track energy (if any) from the comment tag. """
-
         try:
             energy = self.get_tag(ID3Tag.ENERGY)
             return int(energy)
@@ -204,8 +166,6 @@ class AudioFile:
         return None
 
     def format_bpm(self):
-        """ Format BPM value as padded 5-digit + decimal point representation. """
-
         bpm = self.get_tag(ID3Tag.BPM, '')
         parts = bpm.split('.')
         whole = parts[0]
@@ -216,11 +176,10 @@ class AudioFile:
         return '.'.join([whole_padded, fractional_padded])
 
     def format_key(self):
-        """ Formats track key as canonical representation. """
         return CANONICAL_KEY_MAP.get(self.get_tag(ID3Tag.KEY, '').lower(), '')
 
-    def format_camelot_code(self, formatted_key):
-        """ Formats Camelot code based on track key. """
+    @staticmethod
+    def format_camelot_code(formatted_key):
         return CAMELOT_MAP.get(formatted_key, '')
 
     # =======
@@ -228,23 +187,14 @@ class AudioFile:
     # =======
 
     def get_basename(self):
-        """ Return file base name. """
         return self.basename
 
     def get_metadata(self):
-        """ Return track's metadata dict. """
         if self.metadata is None:
             self.metadata = self.generate_metadata()
         return self.metadata
 
     def get_tag(self, tag, default=None):
-        """
-        Return specified tag's value.
-
-        :param tag: Tag whose value to return.
-        :param default: Default value to return if tag value not present.
-        """
-
         id3_tag = getattr(tag, 'value', tag)
         tag_values = self.tags.get(id3_tag, [])
 
@@ -257,26 +207,16 @@ class AudioFile:
 
         return default
 
-    def get_tag_synonyms(self, tag):
-        """
-        Return tag's synonyms.
-
-        :param tag: Tag for which to retrieve synonyms.
-        """
+    @staticmethod
+    def get_tag_synonyms(tag):
         return ID3_TAG_SYNONYMS.get(tag, [tag])
 
     def get_synonym_values(self, tag):
-        """
-        Get values for a tag and all its synonyms.
-
-        :param tag: Missing tag.
-        """
         return {k: v for k, v in {
-            syn: self.tags.get(syn, []) for syn in self.get_tag_synonyms(tag)
+            syn: self.tags.get(syn, []) for syn in AudioFile.get_tag_synonyms(tag)
         }.items() if len(v) > 0}
 
     def get_tags(self):
-        """ Gets ID3 tag dict. """
         return self.tags
 
     # ===================
@@ -284,7 +224,6 @@ class AudioFile:
     # ===================
 
     def read_id3(self):
-        """ Read ID3 data from file. """
         id3 = mutagen.File(self.full_path)
         if id3 is None:
             raise Exception('Could not load ID3 data for %s' % self.full_path)
@@ -292,18 +231,9 @@ class AudioFile:
         return id3
 
     def read_tags(self):
-        """ Read relevant tags from ID3 data. """
         return {k: getattr(self.id3.get(k, {}), 'text', []) for k in TRACK_MD_ID3_TAGS}
 
     def write_tag(self, tag, value, save=True):
-        """
-        Write value to specified ID3 tag.
-
-        :param tag: Tag to write to.
-        :param value: Tag value.
-        :param save: Whether tag value should be saved to file immediately.
-        """
-
         text = [normalize_tag_text(value)]
 
         if tag in self.id3.keys():
@@ -329,12 +259,6 @@ class AudioFile:
             self.id3.save()
 
     def write_tags(self, tags_to_write=None):
-        """
-        Writes metadata to ID3 tags and saves to file.
-
-        :param tags_to_write: (optional) Dictionary mapping tag to value which should be written.
-        """
-
         track_metadata = tags_to_write or self.get_metadata()
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
@@ -344,5 +268,4 @@ class AudioFile:
         self.id3.save()
 
     def save_tags(self):
-        """ Save ID3 tag values to file. """
         self.id3.save()

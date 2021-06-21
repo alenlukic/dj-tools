@@ -14,20 +14,18 @@ class TransitionMatchFinder:
     def __init__(self, session=None):
         """ Initializes data manager and track data. """
 
-        self.dm = DataManager()
-        self.tracks = self.dm.load_tracks()
+        self.tracks = DataManager.load_tracks()
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         self.session = session if session is not None else database.create_session()
-        self.max_results = 75
-        self.cutoff_threshold_score = 25.0
-        self.result_threshold = 20
+        self.max_results = get_config_value(['HARMONIC_MIXING', 'MAX_RESULTS'])
+        self.cutoff_threshold_score = get_config_value(['HARMONIC_MIXING', 'SCORE_THRESHOLD'])
+        self.result_threshold = get_config_value(['HARMONIC_MIXING', 'RESULT_THRESHOLD'])
 
         TransitionMatch.db_session = self.session
         TransitionMatch.collection_metadata = self.collection_metadata
 
     def reload_track_data(self):
-        self.dm = DataManager()
-        self.tracks = self.dm.load_tracks()
+        self.tracks = DataManager.load_tracks()
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         TransitionMatch.collection_metadata = self.collection_metadata
 
@@ -67,7 +65,7 @@ class TransitionMatchFinder:
             cur_track_md = cur_track_md[0]
 
             # Generate and rank matches
-            harmonic_codes = self._get_all_harmonic_codes(cur_track_md)
+            harmonic_codes = TransitionMatchFinder._get_all_harmonic_codes(cur_track_md)
             same_key, higher_key, lower_key = self._get_matches_for_code(harmonic_codes, cur_track_md, sort_results)
 
             return (same_key, higher_key, lower_key), title_mismatch_message
@@ -76,10 +74,6 @@ class TransitionMatchFinder:
             handle(e)
 
     def print_transition_matches(self, track):
-        """
-        Prints ranked transition results.
-        """
-
         (same_key, higher_key, lower_key), title_mismatch_message = self.get_transition_matches(track)
 
         self._print_transition_ranks('Higher key (step down)', higher_key)
@@ -87,13 +81,8 @@ class TransitionMatchFinder:
         self._print_transition_ranks('Same key', same_key, 1)
         print(title_mismatch_message)
 
-    def _get_all_harmonic_codes(self, cur_track_md):
-        """
-        Get all the Camelot codes which are harmonic transitions for the given track.
-
-        :param cur_track_md: Current track metadata.
-        """
-
+    @staticmethod
+    def _get_all_harmonic_codes(cur_track_md):
         camelot_code = cur_track_md[TrackDBCols.CAMELOT_CODE]
         code_number = int(camelot_code[0:2])
         code_letter = camelot_code[-1].upper()
@@ -117,15 +106,6 @@ class TransitionMatchFinder:
         ]
 
     def _get_matches(self, bpm, camelot_code, upper_bound, lower_bound):
-        """
-        Calculate BPM ranges and find matching tracks.
-
-        :param bpm: Track BPM
-        :param camelot_code: Full Camelot code
-        :param upper_bound: Max percentage difference between current BPM and higher BPMs
-        :param lower_bound: Max percentage difference between current BPM and lower BPMs
-        """
-
         upper_bpm = get_bpm_bound(bpm, lower_bound)
         lower_bpm = get_bpm_bound(bpm, upper_bound)
 
@@ -138,13 +118,6 @@ class TransitionMatchFinder:
         return results
 
     def _get_matches_for_code(self, harmonic_codes, cur_track_md, sort_results):
-        """
-        Find matches for the given track.
-
-        :param harmonic_codes: List of harmonic Camelot codes and their respective transition priorities.
-        :param cur_track_md: Current track metadata.
-        """
-
         bpm = cur_track_md[TrackDBCols.BPM]
         same_key = []
         higher_key = []
@@ -177,13 +150,6 @@ class TransitionMatchFinder:
         return same_key, higher_key, lower_key
 
     def _print_transition_ranks(self, result_type, results, start_index=0):
-        """
-        Prints ranked transition results.
-
-        :param result_type: The type of result (same key, higher key, or lower key).
-        :param results: Ranked, formatted results.
-        """
-
         print('\n\n\n%s results:\n\n\n' % result_type)
         print(DASHED_LINE)
         print(TransitionMatch.result_column_header)
