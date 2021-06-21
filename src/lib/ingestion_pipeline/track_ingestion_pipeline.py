@@ -58,6 +58,9 @@ class PipelineStage:
                 factory = getattr(tag_record_factories, factory_name)(**cmd_args)
 
                 tag_record = factory.create_tag_record()
+                if tag_record is None:
+                    continue
+
                 tag_records[track_file] = tag_record
 
             except Exception as e:
