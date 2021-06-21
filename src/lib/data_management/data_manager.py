@@ -1,7 +1,4 @@
 from collections import defaultdict
-import json
-from os.path import join
-from shutil import copyfile
 
 from src.db import database
 from src.db.entities.artist import Artist
@@ -19,22 +16,17 @@ from src.utils.file_operations import get_audio_files
 class DataManager:
     """ Encapsulates track database management utilities. """
 
-    def load_tracks(self):
-        """ Loads tracks from the database into memory. """
-
+    @staticmethod
+    def load_tracks():
         session = database.create_session()
         try:
             return session.query(Track).all()
         finally:
             session.close()
 
-    def ingest_tracks(self, input_dir, target_dir=PROCESSED_MUSIC_DIR):
-        """
-        Ingest new tracks - extract tags, format fields, and create track table entries.
-
-        :param input_dir: Directory containing audio files to ingest
-        :param target_dir: Directory where updated audio files should be saved
-        """
+    @staticmethod
+    def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
+        """ Ingest new tracks - extract tags, format fields, and create track table entries. """
 
         session = database.create_session()
 
@@ -70,7 +62,7 @@ class DataManager:
                 tracks_to_save[new_path] = track
 
             # Update database
-            self.insert_tracks(tracks_to_save)
+            DataManager.insert_tracks(tracks_to_save)
 
         except Exception as e:
             handle(e)
@@ -78,13 +70,8 @@ class DataManager:
         finally:
             session.close()
 
-    def insert_tracks(self, tracks):
-        """
-        Inserts new track rows to the database.
-
-        :param tracks: Dictionary mapping track name to its internal model
-        """
-
+    @staticmethod
+    def insert_tracks(tracks):
         session = database.create_session()
 
         try:
@@ -111,13 +98,13 @@ class DataManager:
 
                 # Update artists
                 comment = load_comment(track_metadata.get(TrackDBCols.COMMENT.value), '{}')
-                artist_updates_result = self.update_artists(session, comment)
+                artist_updates_result = DataManager.update_artists(session, comment)
                 artist_updates[title] = artist_updates_result
 
                 # Add artist tracks
                 track_id = session.query(Track).filter_by(file_path=new_track_path).first().id
                 successful_artist_ids = [a for a, s in artist_updates_result.items() if s != DBUpdateType.FAILURE.value]
-                artist_track_updates[title] = self.insert_artist_tracks(session, track_id, successful_artist_ids)
+                artist_track_updates[title] = DataManager.insert_artist_tracks(session, track_id, successful_artist_ids)
 
             DataManager.print_database_operation_statuses('Artist updates', artist_updates)
             DataManager.print_database_operation_statuses('Artist track updates', artist_track_updates)
@@ -130,14 +117,8 @@ class DataManager:
         finally:
             session.close()
 
-    def update_artists(self, session, track_comment_metadata):
-        """
-        Update artists after ingesting new track.
-
-        :param session: Open DB session
-        :param track_comment_metadata: Dictionary containing relevant track metadata, stored in the ID3 comment field
-        """
-
+    @staticmethod
+    def update_artists(session, track_comment_metadata):
         artists = track_comment_metadata.get(ArtistFields.ARTISTS.value)
         remixers = track_comment_metadata.get(ArtistFields.REMIXERS.value)
         all_artists = split_artist_string(artists) + split_artist_string(remixers)
@@ -163,15 +144,8 @@ class DataManager:
 
         return artist_updates
 
-    def insert_artist_tracks(self, session, track_id, artist_ids):
-        """
-        Add artist tracks after ingesting new track.
-
-        :param session: Open DB session
-        :param track_id: The new track's ID in the database
-        :param artist_ids: Artist IDs for artists associated with this track
-        """
-
+    @staticmethod
+    def insert_artist_tracks(session, track_id, artist_ids):
         artist_track_updates = {}
         for artist_id in artist_ids:
             try:
@@ -187,22 +161,17 @@ class DataManager:
 
         return artist_track_updates
 
-    def delete_tracks(self, track_ids):
-        """
-        Safely delete tracks.
-
-        :param track_ids: IDs of tracks to delete
-        """
-
+    @staticmethod
+    def delete_tracks(track_ids):
         session = database.create_session()
 
         try:
             # Delete entries from artist_track tables first
-            deletion_statuses, artist_ids_to_update = self.delete_artist_tracks(session, track_ids)
+            deletion_statuses, artist_ids_to_update = DataManager.delete_artist_tracks(session, track_ids)
             DataManager.print_database_operation_statuses('Artist track deletion statuses', deletion_statuses)
 
             # Then, update artist track count column
-            update_statuses = self.update_artist_counts(session, artist_ids_to_update)
+            update_statuses = DataManager.update_artist_counts(session, artist_ids_to_update)
             DataManager.print_database_operation_statuses('Artist track count update statuses', update_statuses)
 
             # Then, remove references from the ingestion pipeline tables
@@ -270,14 +239,8 @@ class DataManager:
         finally:
             session.close()
 
-    def delete_artist_tracks(self, session, track_ids):
-        """
-        Delete artist track entries associated with set of track IDs to be deleted.
-
-        :param session: Current database session
-        :param track_ids: IDs of tracks to delete
-        """
-
+    @staticmethod
+    def delete_artist_tracks(session, track_ids):
         deletion_statuses = {}
         artist_ids_to_update = defaultdict(int)
 
@@ -298,14 +261,8 @@ class DataManager:
 
         return deletion_statuses, artist_ids_to_update
 
-    def update_artist_counts(self, session, artist_ids_to_update):
-        """
-        Update artist counts to reflect deleted tracks.
-
-        :param session: Current database session
-        :param artist_ids_to_update: IDs of artists whose counts should be updated
-        """
-
+    @staticmethod
+    def update_artist_counts(session, artist_ids_to_update):
         update_statuses = {}
 
         for aid, update_count in artist_ids_to_update.items():
@@ -326,13 +283,8 @@ class DataManager:
 
         return update_statuses
 
-    def sync_track_fields(self, tracks):
-        """
-        Sync track field values in DB and comments. Prefer DB values when available.
-
-        :param tracks: Set of tracks for which to sync fields.
-        """
-
+    @staticmethod
+    def sync_track_fields(tracks):
         sync_statuses = {}
         update_msg = 'Updating %s field \'%s\' using %s value: %s -> %s'
 
@@ -418,13 +370,8 @@ class DataManager:
 
         return sync_statuses
 
-    def sync_track_tags(self, tracks):
-        """
-        Sync track field values in DB/comments to ID3 tags.
-
-        :param tracks: Set of tracks for which to sync fields.
-        """
-
+    @staticmethod
+    def sync_track_tags(tracks):
         for track in tracks:
             af = AudioFile(track.file_path)
             track_pk = track.get_id_title_identifier()
@@ -460,13 +407,6 @@ class DataManager:
 
     @staticmethod
     def print_database_operation_statuses(prefix, updates):
-        """
-        Print status of attempted database operations.
-
-        :param prefix: Message to print before update statuses
-        :param updates: Mapping of unique identifier (primary key-like) to status of associated DB op
-        """
-
         banner = get_banner(prefix)
         print('\n%s' % banner)
         print(prefix)

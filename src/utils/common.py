@@ -1,7 +1,9 @@
 from datetime import datetime
 from functools import reduce
+import json
 from math import log2
 from os.path import join
+from shutil import copyfile
 
 from src.definitions.common import CONFIG
 from src.definitions.harmonic_mixing import TIMESTAMP_FORMAT
@@ -48,10 +50,6 @@ def get_or_default(source, target, transform=default_transform, default=None):
 
 
 def get_banner(message):
-    """
-    Returns a 'banner' of repeated '=' characters of length equivalent to given message or 120 - whichever is smaller.
-    :param message: Message on whch to base banner length
-    """
     return '=' * min(120, len(message))
 
 
@@ -61,8 +59,6 @@ def is_empty(value):
 
     None, empty string, whitespace-only string, empty list/tuple, list/tuple with all empty elements,
     empty dictionary, dictionary with all empty elements
-
-    :param value: Value to check.
     """
 
     typ = type(value)
@@ -76,26 +72,30 @@ def join_config_paths(paths):
     if len(paths) == 0:
         return None
 
-    return reduce(lambda x, y: join(get_config_value(x), get_config_value(y)), paths, '')
+    return reduce(lambda x, y: join(get_config_value(x), get_config_value(y)), paths[1:], paths[0])
 
 
-def log2smooth(x):
-    """
-    Returns value of the log2 function applied to the input with a smoothing adjustment of 1.
-
-    :param x: Value on which to apply the log2 function.
-    """
-    return log2(x + 1)
+def log2smooth(x, smoother=1):
+    """ Returns value of the log2 function applied to the input with a smoothing adjustment. """
+    return log2(x + smoother)
 
 
 def print_progress(batch_name, cur_iteration, batch_size, frequency=100):
-    """
-    Prints iteration progress for some batched task.
-
-    :param batch_name: Descriptive name of batch task
-    :param cur_iteration: The current iteration
-    :param batch_size: Total batch size
-    :param frequency: How frequently to output progress
-    """
     if cur_iteration % frequency == 0:
         print('Processed %d of %d %s' % (cur_iteration, batch_size, batch_name))
+
+
+def update_config(path, new_val):
+    num_segments = len(path)
+    if num_segments == 0:
+        return
+
+    copyfile('config/config.json', 'config/config_old.json')
+
+    update_target = CONFIG
+    for segment in path[0:num_segments - 1]:
+        update_target = update_target[segment]
+
+    update_target[path[-1]] = new_val
+    with open('config/config.json', 'w') as w:
+        json.dump(CONFIG, w, indent=2)

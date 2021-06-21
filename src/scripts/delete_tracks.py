@@ -15,5 +15,4 @@ if __name__ == '__main__':
     else:
         track_ids_to_delete = set([int(x) for x in id_args])
 
-    dm = DataManager()
-    dm.delete_tracks(track_ids_to_delete)
+    DataManager.delete_tracks(track_ids_to_delete)

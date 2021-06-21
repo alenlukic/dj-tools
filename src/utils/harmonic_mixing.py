@@ -8,20 +8,10 @@ from src.utils.data_management import load_comment, split_artist_string
 
 
 def flip_camelot_letter(camelot_letter):
-    """
-    Flip Camelot letter, i.e. A -> B and vice-versa.
-
-    :param camelot_letter: The alphabetic portion of the Camelot code to format.
-    """
     return 'A' if camelot_letter == 'B' else 'B'
 
 
 def format_camelot_number(camelot_number):
-    """
-    Convert 0 to 12, and add leading 0 if needed, to the Camelot code number.
-
-    :param camelot_number: The numerical portion of the Camelot code to format.
-    """
     camelot_number = 12 if camelot_number == 0 else camelot_number
     return str(camelot_number) if camelot_number >= 10 else '0' + str(camelot_number)
 
@@ -34,14 +24,13 @@ def generate_artist_counts(artist_counts, track_md_dict):
 
 
 def generate_camelot_map(tracks):
-    """
-    Generate and return map of camelot code -> BPM -> set of tracks, along with collection metadata.
+    """ Generate and return map of camelot code -> BPM -> set of tracks, along with collection metadata. """
 
-    :param tracks: Set of all tracks in the DB.
-    """
-
-    # TODO: update CollectionStat.SMMS_MAX generation
-    collection_md = {CollectionStat.NEWEST: -1, CollectionStat.OLDEST: float('inf'), CollectionStat.SMMS_MAX: 461.53}
+    collection_md = {
+        CollectionStat.NEWEST: -1,
+        CollectionStat.OLDEST: float('inf'),
+        CollectionStat.SMMS_MAX: get_max_smms()
+    }
     label_counts = defaultdict(int)
     artist_counts = defaultdict(int)
     camelot_map = defaultdict(lambda: defaultdict(list))
@@ -112,10 +101,8 @@ def generate_camelot_map(tracks):
 
 
 def get_bpm_bound(bpm, bound):
-    """
-    Get BPM bound.
-
-    :param bpm: Track BPM.
-    :param bound: Percentage difference between current BPM and higher/lower BPMs.
-    """
     return bpm / (1 + bound)
+
+
+def get_max_smms():
+    return get_config_value(['HARMONIC_MIXING', 'MAX_SMMS'])

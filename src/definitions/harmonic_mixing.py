@@ -1,6 +1,6 @@
 from enum import Enum
 
-from src.definitions.common import CONFIG
+from src.utils.common import get_config_value
 
 
 class CollectionStat(Enum):
@@ -33,7 +33,7 @@ class CamelotPriority(Enum):
     SAME_KEY = 4
 
 
-MATCH_WEIGHTS = {f.name: CONFIG['TRANSITION_MATCH_WEIGHTS'][f.name] for f in MatchFactors}
+MATCH_WEIGHTS = {f.name: get_config_value(['HARMONIC_MIXING', 'TRANSITION_MATCH_WEIGHTS', f.name]) for f in MatchFactors}
 
 SAME_UPPER_BOUND = 0.0293
 SAME_LOWER_BOUND = -0.0284
