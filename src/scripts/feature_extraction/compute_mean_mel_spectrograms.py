@@ -13,7 +13,7 @@ from src.lib.error_management.reporting_handler import handle
 from src.utils.file_operations import stage_tracks
 
 
-def compute_spectrograms(chunk, transmitter):
+def compute_spectrograms(chunk, result_transmitter):
     stage_tracks(chunk)
 
     smms_values = []
@@ -29,9 +29,9 @@ def compute_spectrograms(chunk, transmitter):
             handle(e)
             continue
 
-    print('Process %d thread done' % getpid())
+    print('\nProcess %d thread done\n' % getpid())
 
-    transmitter.send(smms_values)
+    result_transmitter.send(smms_values)
 
 def run(track_ids):
     try:
@@ -41,9 +41,10 @@ def run(track_ids):
             fv_track_ids = set([fv.track_id for fv in session.query(FeatureValue).all()])
             tracks_to_process = [track for track in tracks if track.id not in fv_track_ids]
 
-        print('Computing SMMS feature for %d tracks\n' % len(tracks_to_process))
+        num_tracks = len(tracks_to_process)
+        print('Computing SMMS feature for %d tracks\n' % num_tracks)
 
-        chunks = np.array_split(tracks_to_process, NUM_CORES)
+        chunks = np.array_split(tracks_to_process, min(NUM_CORES, num_tracks))
         workers = []
         smms_aggregator = []
 
@@ -59,7 +60,7 @@ def run(track_ids):
         smms_results = [smms for result in [result.recv() for result in smms_aggregator] for smms in result]
         for smms in smms_results:
             track_id = smms.track.id
-            print('Saving feature for track %s to DB' % str(track_id))
+            print('Saving track %s\'s SMMS value to DB' % str(track_id))
 
             try:
                 feature_value = smms.get_feature()
