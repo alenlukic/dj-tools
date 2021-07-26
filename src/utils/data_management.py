@@ -118,3 +118,11 @@ def extract_unformatted_title(formatted_title):
     title = ' - '.join(title.split(' - ')[1:])
 
     return title
+
+
+def format_track_title(unformatted_title):
+    formatted_title = unformatted_title
+    for c in SPECIAL_FILENAME_CHARS:
+        formatted_title = formatted_title.replace(c, '_')
+
+    return formatted_title
