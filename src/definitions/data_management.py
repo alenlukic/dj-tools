@@ -224,3 +224,5 @@ MD_COMPOSITE_REGEX = re.compile(r'\[\d{2}[AB]\s-\s[A-Za-z#]{1,3}\s-\s\d{1,3}\.\d
 PAREN_REGEX = re.compile(r'\(.*\)')
 
 GD_TIMESTAMP_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
+SPECIAL_FILENAME_CHARS = {'<', '>', ':', '"', '/', '\\', '|', '?', '*'}

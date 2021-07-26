@@ -41,7 +41,7 @@ def generate_match_pairs():
         stage_queue[track_id] = track
 
 
-@lru_cache(2048)
+@lru_cache(get_config_value(['FEATURE_EXTRACTION', 'SMMS_CACHE_SIZE']))
 def get_smms_value(track_id):
     smms = SegmentedMeanMelSpectrogram(track_id_map[track_id])
     smms.load(cache_session)

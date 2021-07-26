@@ -12,6 +12,7 @@ from src.lib.data_management.data_manager import DataManager
 import src.lib.ingestion_pipeline.tag_record_factory as tag_record_factories
 from src.utils.common import is_empty
 from src.lib.error_management.reporting_handler import handle
+from src.utils.data_management import format_track_title
 from src.utils.file_operations import get_audio_files
 
 
@@ -171,7 +172,7 @@ class FinalPipelineStage(PipelineStage):
                 audio_file = AudioFile(old_path)
                 metadata = audio_file.get_metadata()
 
-                formatted_title = metadata[TrackDBCols.TITLE.value] + ext
+                formatted_title = format_track_title(metadata[TrackDBCols.TITLE.value]) + ext
                 new_path = join(PROCESSED_MUSIC_DIR, formatted_title)
                 metadata[TrackDBCols.FILE_PATH.value] = new_path
 
