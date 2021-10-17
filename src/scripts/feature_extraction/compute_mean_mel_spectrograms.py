@@ -29,7 +29,7 @@ def compute_spectrograms(chunk, result_transmitter):
             handle(e)
             continue
 
-    print('\nProcess %d thread done\n' % getpid())
+    print('Worker %d done\n' % getpid())
 
     result_transmitter.send(smms_values)
 
@@ -60,7 +60,7 @@ def run(track_ids):
         smms_results = [smms for result in [result.recv() for result in smms_aggregator] for smms in result]
         for smms in smms_results:
             track_id = smms.track.id
-            print('Saving track %s\'s SMMS value to DB' % str(track_id))
+            print('Saving SMMS value for track %s to DB' % str(track_id))
 
             try:
                 feature_value = smms.get_feature()

@@ -3,7 +3,7 @@ import numpy as np
 
 from src.db.entities.feature_value import FeatureValue
 from src.definitions.feature_extraction import *
-from src.utils.file_operations import get_track_load_target
+from src.utils.file_operations import get_track_load_path
 
 
 class TrackFeature:
@@ -61,7 +61,7 @@ class SegmentedMeanMelSpectrogram(TrackFeature):
         return self.postprocessed_value
 
     def compute(self):
-        target_path = get_track_load_target(self.track)
+        target_path = get_track_load_path(self.track)
         samples, _ = librosa.load(target_path, SAMPLE_RATE)
         n = len(samples)
 

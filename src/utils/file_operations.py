@@ -1,9 +1,19 @@
-from os import listdir, stat as osstat
+from os import listdir, remove, stat as osstat
 from os.path import basename, isfile, join, splitext
 from shutil import copyfile
 
 from src.definitions.common import IS_UNIX, PROCESSED_MUSIC_DIR
 from src.definitions.file_operations import AUDIO_TYPES, FILE_STAGING_DIR
+
+
+def delete_track_files(track):
+    file_path = track.file_path
+    if isfile(file_path):
+        remove(file_path)
+
+    staging_path = join(FILE_STAGING_DIR, basename(file_path))
+    if isfile(staging_path):
+        remove(staging_path)
 
 
 def get_audio_files(input_dir=PROCESSED_MUSIC_DIR):
@@ -17,7 +27,7 @@ def get_file_creation_time(full_path):
         return osstat(full_path).st_ctime
 
 
-def get_track_load_target(track):
+def get_track_load_path(track):
     if FILE_STAGING_DIR is None:
         return track.file_path
 

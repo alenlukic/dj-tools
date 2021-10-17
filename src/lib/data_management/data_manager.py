@@ -1,16 +1,19 @@
 from collections import defaultdict
+from sqlalchemy import or_
 
 from src.db import database
 from src.db.entities.artist import Artist
 from src.db.entities.artist_track import ArtistTrack
+from src.db.entities.feature_value import FeatureValue
 from src.db.entities.tag_record import InitialTagRecord, PostMIKTagRecord, PostRekordboxTagRecord, FinalTagRecord
 from src.db.entities.track import Track
+from src.db.entities.transition_match import TransitionMatch
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.utils.common import *
 from src.lib.data_management.audio_file import AudioFile
-from src.utils.data_management import *
 from src.lib.error_management.reporting_handler import handle
-from src.utils.file_operations import get_audio_files
+from src.utils.common import *
+from src.utils.data_management import *
+from src.utils.file_operations import delete_track_files, get_audio_files
 
 
 class DataManager:
@@ -166,21 +169,21 @@ class DataManager:
         session = database.create_session()
 
         try:
-            # Delete entries from artist_track tables first
+            # Delete entries from artist_track tables
             deletion_statuses, artist_ids_to_update = DataManager.delete_artist_tracks(session, track_ids)
             DataManager.print_database_operation_statuses('Artist track deletion statuses', deletion_statuses)
 
-            # Then, update artist track count column
+            # Update artist track count column
             update_statuses = DataManager.update_artist_counts(session, artist_ids_to_update)
             DataManager.print_database_operation_statuses('Artist track count update statuses', update_statuses)
 
-            # Then, remove references from the ingestion pipeline tables
+            # Remove references from the ingestion pipeline tables
             tag_record_deletion_statuses = defaultdict(lambda: {})
             for track_id in track_ids:
                 try:
                     initial_tr = session.query(InitialTagRecord).filter_by(track_id=track_id).first()
-                    session.delete(initial_tr)
-                    tag_record_deletion_statuses['Initial Record'][track_id] = DBUpdateType.DELETE.value
+                    tag_record_deletion_statuses['Initial Record'][track_id] = DataManager._get_deletion_status(
+                        session, initial_tr)
                 except Exception as e:
                     handle(e)
                     tag_record_deletion_statuses['Initial Record'][track_id] = DBUpdateType.FAILURE.value
@@ -188,8 +191,8 @@ class DataManager:
 
                 try:
                     post_mik_tr = session.query(PostMIKTagRecord).filter_by(track_id=track_id).first()
-                    session.delete(post_mik_tr)
-                    tag_record_deletion_statuses['Post-MIK Record'][track_id] = DBUpdateType.DELETE.value
+                    tag_record_deletion_statuses['Post-MIK Record'][track_id] = DataManager._get_deletion_status(
+                        session, post_mik_tr)
                 except Exception as e:
                     handle(e)
                     tag_record_deletion_statuses['Post-MIK Record'][track_id] = DBUpdateType.FAILURE.value
@@ -197,8 +200,8 @@ class DataManager:
 
                 try:
                     post_rb_tr = session.query(PostRekordboxTagRecord).filter_by(track_id=track_id).first()
-                    session.delete(post_rb_tr)
-                    tag_record_deletion_statuses['Post-RB Record'][track_id] = DBUpdateType.DELETE.value
+                    tag_record_deletion_statuses['Post-RB Record'][track_id] = DataManager._get_deletion_status(
+                        session, post_rb_tr)
                 except Exception as e:
                     handle(e)
                     tag_record_deletion_statuses['Post-RB Record'][track_id] = DBUpdateType.FAILURE.value
@@ -206,8 +209,8 @@ class DataManager:
 
                 try:
                     final_tr = session.query(FinalTagRecord).filter_by(track_id=track_id).first()
-                    session.delete(final_tr)
-                    tag_record_deletion_statuses['Final Record'][track_id] = DBUpdateType.DELETE.value
+                    tag_record_deletion_statuses['Final Record'][track_id] = DataManager._get_deletion_status(
+                        session, final_tr)
                 except Exception as e:
                     handle(e)
                     tag_record_deletion_statuses['Final Record'][track_id] = DBUpdateType.FAILURE.value
@@ -215,17 +218,28 @@ class DataManager:
 
             DataManager.print_database_operation_statuses('Tag record update statuses', tag_record_deletion_statuses)
 
-            # Finally, delete the tracks themselves
+            # Delete transition match data
+            tm_deletion_statuses = DataManager.delete_transition_matches(session, track_ids)
+            DataManager.print_database_operation_statuses('Transition match deletion statuses', tm_deletion_statuses)
+
+            # Delete feature value data
+            fv_deletion_statuses = DataManager.delete_feature_values(session, track_ids)
+            DataManager.print_database_operation_statuses('Feature value deletion statuses', fv_deletion_statuses)
+
+
+            # Delete the tracks themselves
             track_deletion_statuses = {}
             for track_id in track_ids:
                 try:
                     track = session.query(Track).filter_by(id=track_id).first()
                     session.delete(track)
+                    delete_track_files(track)
                     track_deletion_statuses[track_id] = DBUpdateType.DELETE.value
                 except Exception as e:
                     handle(e)
                     track_deletion_statuses[track_id] = DBUpdateType.FAILURE.value
                     continue
+
 
             DataManager.print_database_operation_statuses('Track deletion statuses', track_deletion_statuses)
 
@@ -253,13 +267,52 @@ class DataManager:
                     session.delete(at)
                     artist_ids_to_update[artist_id] += 1
                     deletion_statuses[str((track_id, artist_id))] = DBUpdateType.DELETE.value
-
                 except Exception as e:
                     handle(e)
                     deletion_statuses[str((track_id, artist_id))] = DBUpdateType.FAILURE.value
                     continue
 
         return deletion_statuses, artist_ids_to_update
+
+    @staticmethod
+    def delete_feature_values(session, track_ids):
+        deletion_statuses = {}
+
+        for track_id in track_ids:
+            feature_values = session.query(FeatureValue).filter_by(track_id=track_id).first()
+
+            try:
+                deletion_statuses[str(track_id)] = DataManager._get_deletion_status(session, feature_values)
+            except Exception as e:
+                handle(e)
+                deletion_statuses[str(track_id)] = DBUpdateType.FAILURE.value
+                continue
+
+        return deletion_statuses
+
+    @staticmethod
+    def delete_transition_matches(session, track_ids):
+        deletion_statuses = {}
+        deletion_queue = set()
+
+        for track_id in track_ids:
+            matches = session.query(TransitionMatch)\
+                .filter(or_(TransitionMatch.on_deck_id == track_id, TransitionMatch.candidate_id == track_id)).all()
+
+            for match in matches:
+                deletion_queue.add((match.on_deck_id, match.candidate_id))
+
+        for (on_deck_id, candidate_id) in deletion_queue:
+            match = session.query(TransitionMatch).filter_by(on_deck_id=on_deck_id, candidate_id=candidate_id).first()
+
+            try:
+                deletion_statuses[str((on_deck_id, candidate_id))] = DataManager._get_deletion_status(session, match)
+            except Exception as e:
+                handle(e)
+                deletion_statuses[str((on_deck_id, candidate_id))] = DBUpdateType.FAILURE.value
+                continue
+
+        return deletion_statuses
 
     @staticmethod
     def update_artist_counts(session, artist_ids_to_update):
@@ -271,8 +324,7 @@ class DataManager:
                 artist.track_count -= update_count
 
                 if artist.track_count == 0:
-                    session.delete(artist)
-                    update_statuses[aid] = DBUpdateType.DELETE.value
+                    update_statuses[aid] = DataManager._get_deletion_status(session, artist)
                 else:
                     update_statuses[aid] = DBUpdateType.UPDATE.value
 
@@ -412,3 +464,8 @@ class DataManager:
         print(prefix)
         print(banner)
         print('%s' % json.dumps(updates, indent=1))
+
+    @staticmethod
+    def _get_deletion_status(session, entity):
+        return DBUpdateType.DELETE.value if session.safe_delete(entity) is True else DBUpdateType.NOOP.value
+

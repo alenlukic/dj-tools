@@ -74,6 +74,12 @@ class Database:
             if not self.dry_run:
                 self.session.delete(entity)
 
+        def safe_delete(self, entity):
+            if entity is not None:
+                self.delete(entity)
+                return True
+            return False
+
         def commit(self):
             if not self.dry_run:
                 self.session.commit()
