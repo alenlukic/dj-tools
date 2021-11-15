@@ -54,6 +54,9 @@ def create_transition_match_smms_rows(sesh, compute_missing):
     rows_created = 0
 
     try:
+        total_hits = 0
+        total_misses = 0
+
         for i, (on_deck_id, candidate_id, relative_key) in enumerate(pairs_to_create):
             try:
                 on_deck_smms = get_smms_value(on_deck_id).get_feature(compute_missing)
@@ -72,10 +75,20 @@ def create_transition_match_smms_rows(sesh, compute_missing):
                     'relative_key': relative_key
                 }
 
-                if i % 100 == 0:
+                if i % 200 == 0:
+                    cache_info = get_smms_value.cache_info()
+                    hits, misses = cache_info.hits, cache_info.misses
+                    milestone_hits = hits - total_hits
+                    milestone_misses = misses - total_misses
+                    milestone_hit_rate = str(float(milestone_hits / (milestone_hits + milestone_misses)))
+
+                    total_hits = hits
+                    total_misses = misses
+                    avg_hit_rate = str(float(hits / (hits + misses)))
+
                     print('%d of %d pairs processed' % (i, num_to_create))
                     print('%d rows created' % rows_created)
-                    print('Cache info: %s\n' % str(get_smms_value.cache_info()))
+                    print('Cache hit rate (last milestone : average): %s : %s \n' % (milestone_hit_rate, avg_hit_rate))
 
                 # noinspection PyShadowingNames, PyUnboundLocalVariable
                 db_session = database.recreate_session_contingent(db_session)
