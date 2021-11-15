@@ -7,11 +7,11 @@ from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import TrackDBCols
 from src.definitions.ingestion_pipeline import *
-from src.lib.data_management.audio_file import AudioFile
-from src.lib.data_management.data_manager import DataManager
+from src.lib.data_management.definitions.audio_file import AudioFile
+from src.lib.data_management.service import ingest_tracks
 import src.lib.ingestion_pipeline.tag_record_factory as tag_record_factories
 from src.utils.common import is_empty
-from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.service import handle
 from src.utils.data_management import format_track_title
 from src.utils.file_operations import get_audio_files
 
@@ -92,7 +92,7 @@ class InitialPipelineStage(PipelineStage):
             self.session.close()
 
     def initialize_tracks_in_database(self):
-        DataManager.ingest_tracks(self.source_dir, self.target_dir)
+        ingest_tracks(self.source_dir, self.target_dir)
 
 
 class PostRBPipelineStage(PipelineStage):

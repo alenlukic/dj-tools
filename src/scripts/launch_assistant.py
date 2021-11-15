@@ -1,7 +1,7 @@
 from src.db import database
-from src.lib.assistant.command import CommandParsingException
-from src.lib.assistant.assistant import Assistant
-from src.lib.error_management.reporting_handler import handle
+from src.lib.assistant.definitions.command import CommandParsingException
+from src.lib.assistant.service import Assistant
+from src.lib.error_management.service import handle
 from src.utils.assistant import print_error
 
 

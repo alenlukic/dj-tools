@@ -3,8 +3,8 @@ import sys
 
 from googleapiclient.http import MediaIoBaseDownload
 
-from src.lib.google_drive.google_drive import *
-from src.lib.error_management.reporting_handler import handle
+from src.lib.google_drive.service import *
+from src.lib.error_management.service import handle
 from src.utils.common import get_config_value
 from src.utils.logging import *
 

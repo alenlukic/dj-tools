@@ -9,7 +9,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 from src.definitions.data_management import GD_TIMESTAMP_FORMAT as TS_FORMAT
-from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.service import handle
 from src.utils.common import get_config_value, join_config_paths
 from src.utils.logging import *
 

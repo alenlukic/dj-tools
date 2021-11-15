@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import session as sezzion, sessionmaker
 
 from src.definitions.common import CONFIG
-from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.service import handle
 
 
 class Database:
@@ -73,6 +73,12 @@ class Database:
         def delete(self, entity):
             if not self.dry_run:
                 self.session.delete(entity)
+
+        def safe_delete(self, entity):
+            if entity is not None:
+                self.delete(entity)
+                return True
+            return False
 
         def commit(self):
             if not self.dry_run:

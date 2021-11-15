@@ -3,10 +3,10 @@ from src.db.entities.artist import Artist
 from src.db.entities.artist_track import ArtistTrack
 from src.db.entities.track import Track
 from src.definitions.data_management import ArtistFields, TrackDBCols
-from src.lib.data_management.audio_file import AudioFile
+from src.lib.data_management.definitions.audio_file import AudioFile
 from src.utils.common import is_empty
 from src.utils.data_management import load_comment
-from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.service import handle
 
 
 def find_artist_disparities():

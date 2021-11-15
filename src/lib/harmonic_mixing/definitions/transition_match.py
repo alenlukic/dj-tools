@@ -7,7 +7,6 @@ from src.utils.common import log2smooth
 
 class TransitionMatch:
     """ Wrapper for a track with a harmonic transition from the current track. """
-
     collection_metadata = None
     db_session = None
     result_column_header = '   '.join(['Total Score', 'SMMS Score', ' Track'])
@@ -175,11 +174,13 @@ class TransitionMatch:
             if genre is None or cur_track_genre is None:
                 return 0.0
 
-            # TODO: genre-specific hacks, fix
-            if (genre == cur_track_genre or
-                    ((genre == 'Trance' or genre == 'Classic Trance') and (
-                    cur_track_genre == 'Trance' or cur_track_genre == 'Classic Trance'))):
+            if genre == cur_track_genre:
                 return 1.0
+
+            # TODO: genre-specific hacks, fix
+            trance_genres = {'Trance', 'Classic Trance'}
+            if genre in trance_genres and cur_track_genre in trance_genres:
+                return 0.5
 
             return 0.0
 

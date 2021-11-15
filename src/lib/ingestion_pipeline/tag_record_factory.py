@@ -3,8 +3,8 @@ from collections import defaultdict
 import src.db.entities.tag_record as tag_records
 from src.definitions.ingestion_pipeline import TAG_COLUMNS
 from src.definitions.data_management import ID3Tag, CANONICAL_KEY_MAP
-from src.lib.data_management.audio_file import AudioFile
-from src.lib.error_management.reporting_handler import handle
+from src.lib.data_management.definitions.audio_file import AudioFile
+from src.lib.error_management.service import handle
 
 
 class TagRecordFactory:
