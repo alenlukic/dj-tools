@@ -2,8 +2,8 @@ from collections import ChainMap
 import re
 
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.lib.assistant.command import Command
-from src.lib.assistant.command_argument import CommandArgument
+from src.lib.assistant.definitions.command import Command
+from src.lib.assistant.definitions.command_argument import CommandArgument
 
 
 EXIT = 'exit'

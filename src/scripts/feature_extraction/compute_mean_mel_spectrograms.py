@@ -9,7 +9,7 @@ from src.db.entities.feature_value import FeatureValue
 from src.db.entities.track import Track
 from src.definitions.common import NUM_CORES
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
-from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.service import handle
 from src.utils.file_operations import stage_tracks
 
 

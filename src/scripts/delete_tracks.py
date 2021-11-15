@@ -1,6 +1,6 @@
 import sys
 
-from src.lib.data_management.data_manager import DataManager
+from src.lib.data_management.service import delete_tracks
 
 
 if __name__ == '__main__':
@@ -15,4 +15,4 @@ if __name__ == '__main__':
     else:
         track_ids_to_delete = set([int(x) for x in id_args])
 
-    DataManager.delete_tracks(track_ids_to_delete)
+    delete_tracks(track_ids_to_delete)

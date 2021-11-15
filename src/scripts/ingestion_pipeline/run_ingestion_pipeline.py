@@ -3,7 +3,7 @@ import readline
 import sys
 
 from src.lib.ingestion_pipeline.track_ingestion_pipeline import *
-from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.service import handle
 from src.utils.assistant import print_error
 
 

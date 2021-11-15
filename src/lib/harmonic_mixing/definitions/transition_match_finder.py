@@ -2,9 +2,9 @@ from src.db import database
 from src.db.entities.track import Track
 from src.definitions.harmonic_mixing import *
 from src.definitions.assistant import *
-from src.lib.data_management.data_manager import DataManager
-from src.lib.harmonic_mixing.transition_match import TransitionMatch
-from src.lib.error_management.reporting_handler import handle
+from src.lib.data_management.service import load_tracks
+from src.lib.harmonic_mixing.definitions.transition_match import TransitionMatch
+from src.lib.error_management.service import handle
 from src.utils.harmonic_mixing import *
 
 
@@ -12,9 +12,7 @@ class TransitionMatchFinder:
     """ Encapsulates functionality for finding transition matches. """
 
     def __init__(self, session=None):
-        """ Initializes data manager and track data. """
-
-        self.tracks = DataManager.load_tracks()
+        self.tracks = load_tracks()
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         self.session = session if session is not None else database.create_session()
         self.max_results = get_config_value(['HARMONIC_MIXING', 'MAX_RESULTS'])
@@ -25,15 +23,11 @@ class TransitionMatchFinder:
         TransitionMatch.collection_metadata = self.collection_metadata
 
     def reload_track_data(self):
-        self.tracks = DataManager.load_tracks()
+        self.tracks = load_tracks()
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         TransitionMatch.collection_metadata = self.collection_metadata
 
     def get_transition_matches(self, track, sort_results=True):
-        """
-        Gets transition matches for the given track.
-        """
-
         try:
             db_row = track if isinstance(track, Track) else self.session.query(Track).filter_by(title=track).first()
             title_mismatch_message = ''
@@ -51,7 +45,6 @@ class TransitionMatchFinder:
             title = db_row.title
             bpm = float(db_row.bpm)
             camelot_code = db_row.camelot_code
-
             if bpm is None:
                 raise Exception('Did not find a BPM for %s.' % title)
             if camelot_code is None:
@@ -123,7 +116,6 @@ class TransitionMatchFinder:
         higher_key = []
         lower_key = []
 
-        # Find all the matches
         for code_number, code_letter, priority in harmonic_codes:
             camelot_code = format_camelot_number(code_number) + code_letter
             hk_code = format_camelot_number((code_number + 7) % 12) + code_letter
@@ -142,7 +134,6 @@ class TransitionMatchFinder:
                 lower_key.append(match)
 
         if sort_results:
-            # Rank and format results
             same_key = sorted(same_key, reverse=True)
             higher_key = sorted(higher_key, reverse=True)
             lower_key = sorted(lower_key, reverse=True)

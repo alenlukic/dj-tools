@@ -4,6 +4,7 @@ from time import ctime
 import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
+from src.definitions.data_management import *
 from src.utils.data_management import *
 from src.utils.file_operations import get_file_creation_time
 
@@ -72,7 +73,7 @@ class AudioFile:
         featured_set = set() if featured is None else {transform_artist(featured)}
         filtered_artists = [transform_artist(a) for a in split_artist_string(artists) if a not in featured_set]
 
-        # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity.
+        # If any artist names contain "&" then we want to use "and" to separate artist names in the title, for clarity
         # TODO: handle artist aliases
         separator = ' and ' if any('&' in artist for artist in filtered_artists) else ' & '
         return separator.join(filtered_artists)
@@ -96,7 +97,7 @@ class AudioFile:
                 in_parens = False
 
             # Replace all instances of 'feat.' with 'ft.' inside the parenthetical phrase indicating mix type.
-            # Ex: "(Hydroid feat. Santiago Nino Mix)" becomes "(Hydroid ft. Santiago Nino Mix)."
+            # Ex: "(Hydroid feat. Santiago Nino Mix)" becomes "(Hydroid ft. Santiago Nino Mix)"
             segment_lowercase = segment.lower()
             if segment_lowercase == 'feat.' or segment_lowercase == 'ft.':
                 if in_parens:

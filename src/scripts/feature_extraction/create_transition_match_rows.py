@@ -5,9 +5,9 @@ import numpy as np
 from src.db import database
 from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
 from src.definitions.feature_extraction import *
-from src.lib.harmonic_mixing.transition_match_finder import TransitionMatchFinder
+from src.lib.harmonic_mixing.definitions.transition_match_finder import TransitionMatchFinder
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
-from src.lib.error_management.reporting_handler import handle
+from src.lib.error_management.service import handle
 from src.utils.file_operations import stage_tracks
 from src.utils.harmonic_mixing import *
 

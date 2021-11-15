@@ -1,7 +1,7 @@
 from src.db import database
 from src.db.entities.track import Track
-from src.lib.data_management.data_manager import DataManager
-from src.lib.error_management.reporting_handler import handle
+from src.lib.data_management.service import sync_track_tags
+from src.lib.error_management.service import handle
 
 
 def sync_tags():
@@ -9,7 +9,7 @@ def sync_tags():
 
     try:
         tracks = session.query(Track).all()
-        DataManager.sync_track_tags(tracks)
+        sync_track_tags(tracks)
         session.commit()
     except Exception as e:
         handle(e, 'Top-level exception occurred while syncing track tags')
