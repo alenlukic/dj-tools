@@ -75,7 +75,7 @@ def create_transition_match_smms_rows(sesh, compute_missing):
                     'relative_key': relative_key
                 }
 
-                if i % 200 == 0:
+                if i % 500 == 0:
                     cache_info = get_smms_value.cache_info()
                     hits, misses = cache_info.hits, cache_info.misses
                     milestone_hits = hits - total_hits
