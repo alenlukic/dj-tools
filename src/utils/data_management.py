@@ -1,7 +1,7 @@
 from ast import literal_eval
 from unicodedata import normalize
 
-from src.definitions.data_management.service import *
+from src.definitions.data_management import *
 from src.utils.common import is_empty
 
 
