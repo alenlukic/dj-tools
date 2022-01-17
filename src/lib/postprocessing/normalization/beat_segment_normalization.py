@@ -36,4 +36,5 @@ while True:
         print("%f" % o.get_last_s())
         onsets.append(o.get_last())
     total_frames += read
-    if read < hop_s: break
+    if read < hop_s:
+        break
