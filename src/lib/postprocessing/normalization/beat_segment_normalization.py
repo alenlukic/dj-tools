@@ -1,7 +1,7 @@
 """
 1. Run beat tracking procedure over entire audio file
 2. Create segments based on a threshold distance between beats (e.g. > 1 second)
-3. Apply normalization across window segments with exponential backoff (e.g. assuming n total segments, normalize
+3. Apply normalization across window segments (exact approach TBD - perhaps exponential backoff, e.g. assuming n total segments, normalize
 first across all n segments, then n / 2, n / 4, ... n / log2(n))
 """
 
