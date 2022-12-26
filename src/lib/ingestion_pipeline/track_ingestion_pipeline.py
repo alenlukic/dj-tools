@@ -177,6 +177,7 @@ class FinalPipelineStage(PipelineStage):
                 metadata[TrackDBCols.FILE_PATH.value] = new_path
 
                 track = self.session.query(Track).filter_by(id=tag_record.track_id).first()
+                print(tag_record.track_id)
                 metadata[TrackDBCols.DATE_ADDED.value] = track.date_added
 
                 metadata[TrackDBCols.COMMENT.value] = audio_file.generate_comment(metadata)

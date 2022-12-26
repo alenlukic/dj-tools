@@ -41,11 +41,6 @@ def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
                 handle(e, 'Couldn\'t read ID3 tags for %s' % old_path)
                 continue
 
-            id3_data = track.get_tags()
-            if not REQUIRED_ID3_TAGS.issubset(set(id3_data.keys())):
-                print('Can\'t ingest %s due to missing requisite ID3 tags' % old_path)
-                continue
-
             new_path = join(target_dir, f)
             try:
                 print('\nCopying:\t%s\nto:\t\t%s' % (old_path, new_path))

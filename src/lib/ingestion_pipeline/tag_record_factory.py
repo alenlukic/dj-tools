@@ -104,7 +104,8 @@ class FinalRecordFactory(TagRecordFactory):
     def _get_final_bpm(initial_record, mik_record, rb_record):
         bpm_dict = defaultdict(int)
         for record in [initial_record, mik_record, rb_record]:
-            bpm_dict[float(record.bpm)] += 1
+            if record.bpm is not None:
+                bpm_dict[float(record.bpm)] += 1
 
         reverse_bpm_dict = defaultdict(list)
         for k, v in bpm_dict.items():
@@ -118,13 +119,15 @@ class FinalRecordFactory(TagRecordFactory):
 
     @staticmethod
     def _get_final_key(initial_record, mik_record, rb_record):
-        initial_record_key = CANONICAL_KEY_MAP.get(initial_record.key.lower()).capitalize()
+        initial_record_key = CANONICAL_KEY_MAP.get(initial_record.key.lower()).capitalize() if initial_record.key is not None else ''
         mik_record_keys = [CANONICAL_KEY_MAP.get(mik_key.lower(), '').capitalize() for mik_key in mik_record.key.split('/')]
         rb_record_key = CANONICAL_KEY_MAP.get(rb_record.key.lower()).capitalize()
 
         key_dict = defaultdict(int)
-        key_dict[initial_record_key] += 1
+        if initial_record_key is not '':
+            key_dict[initial_record_key] += 1
         key_dict[rb_record_key] += 1
+
         for mik_record_key in mik_record_keys:
             if mik_record_key == '':
                 continue

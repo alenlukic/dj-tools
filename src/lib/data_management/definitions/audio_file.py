@@ -15,7 +15,7 @@ class AudioFile:
     def __init__(self, full_path):
         self.full_path = full_path
         self.basename = path.basename(full_path)
-        self.id3 = self.read_id3()
+        self.id3 = mutagen.File(self.full_path)
         self.tags = self.read_tags()
         self.metadata = None
 
@@ -23,13 +23,12 @@ class AudioFile:
         bpm = self.format_bpm()
         key = self.format_key()
         camelot_code = AudioFile.format_camelot_code(key)
-        key = key.capitalize()
-        title = dedupe_title(self.generate_title(camelot_code, key, bpm).strip())
+        title = dedupe_title(self.generate_title(camelot_code, key, bpm))
 
         metadata = {
             TrackDBCols.FILE_PATH.value: self.full_path,
             TrackDBCols.TITLE.value: title,
-            TrackDBCols.BPM.value: float(bpm),
+            TrackDBCols.BPM.value: None if bpm is None else float(bpm),
             TrackDBCols.KEY.value: key,
             TrackDBCols.CAMELOT_CODE.value: camelot_code,
             TrackDBCols.ENERGY.value: self.parse_energy(),
@@ -62,11 +61,14 @@ class AudioFile:
         title_prefix = AudioFile.generate_title_prefix(camelot_code, key, bpm)
         artist_midfix = self.format_artist_string(featured) + ('' if featured is None else ' ft. ' + featured)
 
-        return title_prefix + ' ' + artist_midfix + ' - ' + parsed_title
+        return (title_prefix + artist_midfix + ' - ' + parsed_title).strip()
 
     @staticmethod
     def generate_title_prefix(camelot_code, key, bpm):
-        return ' - '.join(['[' + camelot_code, key, bpm + ']'])
+        if camelot_code is None or key is None or bpm is None:
+            return ''
+
+        return ' - '.join(['[' + camelot_code, key, bpm + ']']) + ' '
 
     def format_artist_string(self, featured):
         artists = self.get_tag(ID3Tag.ARTIST)
@@ -167,7 +169,10 @@ class AudioFile:
         return None
 
     def format_bpm(self):
-        bpm = self.get_tag(ID3Tag.BPM, '')
+        bpm = self.get_tag(ID3Tag.BPM)
+        if bpm is None:
+            return None
+
         parts = bpm.split('.')
         whole = parts[0]
         fractional = parts[1] if len(parts) > 1 else '00'
@@ -177,11 +182,16 @@ class AudioFile:
         return '.'.join([whole_padded, fractional_padded])
 
     def format_key(self):
-        return CANONICAL_KEY_MAP.get(self.get_tag(ID3Tag.KEY, '').lower(), '')
+        key = self.get_tag(ID3Tag.KEY)
+        if key is None:
+            return None
+
+        canonical_key = CANONICAL_KEY_MAP.get(key.lower())
+        return None if canonical_key is None else canonical_key.capitalize()
 
     @staticmethod
     def format_camelot_code(formatted_key):
-        return CAMELOT_MAP.get(formatted_key, '')
+        return None if formatted_key is None else CAMELOT_MAP.get(formatted_key.lower())
 
     # =======
     # Getters
@@ -224,49 +234,55 @@ class AudioFile:
     # ID3-related methods
     # ===================
 
-    def read_id3(self):
-        id3 = mutagen.File(self.full_path)
-        if id3 is None:
+    def get_id3(self):
+        if self.id3 is not None:
+            return self.id3
+
+        self.id3 = mutagen.File(self.full_path)
+        if self.id3 is None:
             raise Exception('Could not load ID3 data for %s' % self.full_path)
 
-        return id3
+        return self.id3
 
     def read_tags(self):
-        return {k: getattr(self.id3.get(k, {}), 'text', []) for k in TRACK_MD_ID3_TAGS}
+        return {k: getattr(self.get_id3().get(k, {}), 'text', []) for k in TRACK_MD_ID3_TAGS}
 
     def write_tag(self, tag, value, save=True):
+        id3 = self.get_id3()
         text = [normalize_tag_text(value)]
 
-        if tag in self.id3.keys():
-            self.id3[tag].text = text
+        if tag in id3.keys():
+            id3[tag].text = text
 
         elif tag in TRACK_MD_ID3_TAGS:
             if tag == ID3Tag.TITLE.value:
-                self.id3[tag] = TIT2(text=text)
+                id3[tag] = TIT2(text=text)
             elif tag == ID3Tag.GENRE.value:
-                self.id3[tag] = TCON(text=text)
+                id3[tag] = TCON(text=text)
             elif tag == ID3Tag.BPM.value:
-                self.id3[tag] = TBPM(text=text)
+                id3[tag] = TBPM(text=text)
             elif tag == ID3Tag.KEY.value:
-                self.id3[tag] = TKEY(text=text)
+                id3[tag] = TKEY(text=text)
             elif tag == ID3Tag.LABEL.value:
-                self.id3[tag] = TPUB(text=text)
+                id3[tag] = TPUB(text=text)
             elif tag == ID3Tag.COMMENT.value or tag == ID3Tag.COMMENT_ENG.value or tag == ID3Tag.COMMENT_XXX.value:
-                self.id3[ID3Tag.COMMENT.value] = COMM(text=text)
-                self.id3[ID3Tag.COMMENT_ENG.value] = COMM(text=text)
-                self.id3[ID3Tag.COMMENT_XXX.value] = COMM(text=text)
+                id3[ID3Tag.COMMENT.value] = COMM(text=text)
+                id3[ID3Tag.COMMENT_ENG.value] = COMM(text=text)
+                id3[ID3Tag.COMMENT_XXX.value] = COMM(text=text)
 
         if save:
-            self.id3.save()
+            self.save_tags()
 
     def write_tags(self, tags_to_write=None):
         track_metadata = tags_to_write or self.get_metadata()
+
         for k, v in track_metadata.items():
             mk = METADATA_KEY_TO_ID3.get(k)
             synonyms = set([mk] + list(self.get_synonym_values(mk).keys()))
             for syn in synonyms:
                 self.write_tag(syn, v, False)
-        self.id3.save()
+
+        self.save_tags()
 
     def save_tags(self):
         self.id3.save()
