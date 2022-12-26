@@ -124,7 +124,7 @@ class FinalRecordFactory(TagRecordFactory):
 
         key_dict = defaultdict(int)
         for key in filter(lambda rk: rk is not None, [initial_record_key] + mik_record_keys + [rb_record_key]):
-            key_dict[key] += 1
+            key_dict[key.capitalize()] += 1
 
         reverse_key_dict = defaultdict(list)
         for k, v in key_dict.items():
