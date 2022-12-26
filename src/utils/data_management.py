@@ -1,5 +1,6 @@
 from ast import literal_eval
 from unicodedata import normalize
+import re
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
@@ -113,6 +114,9 @@ def load_comment(comment_string, default=None):
 
 
 def extract_unformatted_title(formatted_title):
+    if re.match(MD_COMPOSITE_REGEX, formatted_title) is None:
+        return formatted_title
+
     md_title_split = MD_COMPOSITE_REGEX.split(formatted_title)
     title = md_title_split[-1].strip()
     title = ' - '.join(title.split(' - ')[1:])

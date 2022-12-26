@@ -20,6 +20,10 @@ def get_audio_files(input_dir=PROCESSED_MUSIC_DIR):
     return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() in AUDIO_TYPES]
 
 
+def get_flac_files(input_dir):
+    return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() == '.flac']
+
+
 def get_file_creation_time(full_path):
     try:
         return osstat(full_path).st_birthtime if IS_UNIX else osstat(full_path).st_ctime
