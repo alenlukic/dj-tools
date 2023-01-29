@@ -10,13 +10,12 @@ from src.lib.error_management.service import handle
 class TagRecordFactory:
     """ Create an ID3 tag record for use in the ingestion pipeline. """
 
-    def __init__(self, record_type, file_path, track_id, session):
-        self.file_path = file_path
+    def __init__(self, record_type, file_name, file_dir, track_id, session):
         self.track_id = track_id
         self.session = session
         self.tag_record = None
         self.TagRecordEntity = getattr(tag_records, record_type)
-        self.audio_file = AudioFile(self.file_path)
+        self.audio_file = AudioFile(file_name, file_dir)
         self.row = self.create_row()
 
     def create_tag_record(self):
@@ -71,8 +70,8 @@ class PostMIKRecordFactory(TagRecordFactory):
 class PostRBRecordFactory(TagRecordFactory):
     """ Create an ID3 tag record after Rekordbox analysis. """
 
-    def __init__(self, record_type, file_path, track_id, session, rb_overrides):
-        super().__init__(record_type, file_path, track_id, session)
+    def __init__(self, record_type, file_name, track_id, session, rb_overrides):
+        super().__init__(record_type, file_name, track_id, session)
         self.rb_overrides = rb_overrides
 
     def update_row(self):

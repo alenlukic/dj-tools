@@ -44,13 +44,13 @@ class PipelineStage:
         tag_records = {}
         for track_file in self.track_files:
             try:
-                file_path = join(PROCESSING_DIR, track_file)
-                track = self.session.query(Track).filter_by(file_path=file_path).first()
+                track = self.session.query(Track).filter_by(file_path=track_file).first()
 
                 cmd_args = dict(ChainMap(
                     {
                         'record_type': self.record_type,
-                        'file_path': file_path,
+                        'file_name': track_file,
+                        'file_dir': PROCESSING_DIR,
                         'track_id': track.id,
                         'session': self.session
                     },
@@ -153,7 +153,7 @@ class FinalPipelineStage(PipelineStage):
                 new_path = join(self.target_dir, track_file)
                 copyfile(old_path, new_path)
 
-                audio_file = AudioFile(new_path)
+                audio_file = AudioFile(track_file, self.target_dir)
                 audio_file.write_tags({
                     TrackDBCols.BPM.value: float(tag_record.bpm),
                     TrackDBCols.KEY.value: tag_record.key
@@ -169,7 +169,7 @@ class FinalPipelineStage(PipelineStage):
                 old_path = join(self.target_dir, track_file)
                 _, ext = splitext(old_path)
 
-                audio_file = AudioFile(old_path)
+                audio_file = AudioFile(track_file, self.target_dir)
                 metadata = audio_file.get_metadata()
 
                 formatted_title = format_track_title(metadata[TrackDBCols.TITLE.value]) + ext
@@ -184,7 +184,7 @@ class FinalPipelineStage(PipelineStage):
                     setattr(track, col, val)
 
                 copyfile(old_path, new_path)
-                audio_file = AudioFile(new_path)
+                audio_file = AudioFile(formatted_title)
                 audio_file.write_tags(metadata)
 
             except Exception as e:

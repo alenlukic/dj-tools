@@ -17,12 +17,13 @@ from src.utils.data_management import *
 from src.utils.file_operations import delete_track_files, get_audio_files
 
 
-def load_tracks():
-    session = database.create_session()
+def load_tracks(sesh=None):
+    session = sesh or database.create_session()
     try:
         return session.query(Track).all()
     finally:
-        session.close()
+        if sesh is None:
+            session.close()
 
 
 def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
@@ -36,7 +37,7 @@ def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
             old_path = join(input_dir, f)
 
             try:
-                track = AudioFile(old_path)
+                track = AudioFile(f, old_path)
             except Exception as e:
                 handle(e, 'Couldn\'t read ID3 tags for %s' % old_path)
                 continue

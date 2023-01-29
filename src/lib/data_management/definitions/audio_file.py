@@ -4,6 +4,7 @@ from time import ctime
 import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
+from src.definitions.common import PROCESSED_MUSIC_DIR
 from src.definitions.data_management import *
 from src.utils.data_management import *
 from src.utils.file_operations import get_file_creation_time
@@ -12,9 +13,9 @@ from src.utils.file_operations import get_file_creation_time
 class AudioFile:
     """ Encapsulates an audio file and its metadata. """
 
-    def __init__(self, full_path):
-        self.full_path = full_path
-        self.basename = path.basename(full_path)
+    def __init__(self, track_name, track_directory=PROCESSED_MUSIC_DIR):
+        self.full_path = path.join(track_directory, track_name)
+        self.basename = track_name
         self.id3 = mutagen.File(self.full_path)
         self.tags = self.read_tags()
         self.metadata = None
@@ -26,7 +27,7 @@ class AudioFile:
         title = dedupe_title(self.generate_title(camelot_code, key, bpm))
 
         metadata = {
-            TrackDBCols.FILE_PATH.value: self.full_path,
+            TrackDBCols.FILE_PATH.value: self.basename,
             TrackDBCols.TITLE.value: title,
             TrackDBCols.BPM.value: None if bpm is None else float(bpm),
             TrackDBCols.KEY.value: key,
