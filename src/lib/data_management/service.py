@@ -37,7 +37,7 @@ def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
             old_path = join(input_dir, f)
 
             try:
-                track = AudioFile(f, old_path)
+                track = AudioFile(f, input_dir)
             except Exception as e:
                 handle(e, 'Couldn\'t read ID3 tags for %s' % old_path)
                 continue
