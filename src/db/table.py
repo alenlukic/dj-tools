@@ -2,8 +2,7 @@ from sqlalchemy import Table
 
 
 class DBTable:
-    """ Specifies configuration for a sqlalchemy Table. """
-
+    """ Encapsulates a database table. """
     def __init__(self, name, metadata, columns):
         self.table = Table(name, metadata)
         for col in columns:

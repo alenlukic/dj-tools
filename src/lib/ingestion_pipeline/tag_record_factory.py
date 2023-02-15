@@ -8,8 +8,6 @@ from src.lib.error_management.service import handle
 
 
 class TagRecordFactory:
-    """ Create an ID3 tag record for use in the ingestion pipeline. """
-
     def __init__(self, record_type, file_name, file_dir, track_id, session):
         self.track_id = track_id
         self.session = session
@@ -47,50 +45,40 @@ class TagRecordFactory:
 
 
 class InitialRecordFactory(TagRecordFactory):
-    """ Create initial ID3 record. """
-
     def update_row(self):
         del self.row[ID3Tag.ENERGY.name.lower()]
 
 
 class PostMIKRecordFactory(TagRecordFactory):
-    """ Create an ID3 tag record after MIK analysis. """
-
     def update_row(self):
-        """ Parse out key and BPM after MIK analysis. """
-
         mik_comment = self.audio_file.get_tag(ID3Tag.COMMENT_ENG)
-        if mik_comment is not None:
-            key_bpm = [e.strip() for e in mik_comment.split(' - ')]
-            if len(key_bpm) == 2:
-                self.row[ID3Tag.BPM.name.lower()] = float(key_bpm[1])
-                self.row[ID3Tag.KEY.name.lower()] = key_bpm[0]
+        if mik_comment is None:
+            return
+
+        key_bpm = [e.strip() for e in mik_comment.split(' - ')]
+        if len(key_bpm) == 2:
+            self.row[ID3Tag.BPM.name.lower()] = float(key_bpm[1])
+            self.row[ID3Tag.KEY.name.lower()] = key_bpm[0]
 
 
 class PostRBRecordFactory(TagRecordFactory):
-    """ Create an ID3 tag record after Rekordbox analysis. """
-
-    def __init__(self, record_type, file_name, track_id, session, rb_overrides):
-        super().__init__(record_type, file_name, track_id, session)
+    def __init__(self, record_type, file_name, file_dir, track_id, session, rb_overrides):
+        super().__init__(record_type, file_name, file_dir, track_id, session)
         self.rb_overrides = rb_overrides
 
     def update_row(self):
-        """ Update row with metadata from Rekordbox export. """
         title = self.row[ID3Tag.TITLE.name.lower()]
         for k, v in self.rb_overrides[title].items():
             self.row[k] = v
 
 
 class FinalRecordFactory(TagRecordFactory):
-    """ Create final consolidated ID3 tag record. """
-
     def update_row(self):
-        """ Consolidate information from the other analyses. """
-
         track_id = self.track_id
         initial_record = self.session.query(tag_records.InitialTagRecord).filter_by(track_id=track_id).first()
         post_mik_record = self.session.query(tag_records.PostMIKTagRecord).filter_by(track_id=track_id).first()
         post_rb_record = self.session.query(tag_records.PostRekordboxTagRecord).filter_by(track_id=track_id).first()
+
         self.row = {
             'track_id': track_id,
             'title': initial_record.title,

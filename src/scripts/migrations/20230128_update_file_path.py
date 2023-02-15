@@ -3,6 +3,7 @@ import src.lib.data_management.service as data_service
 from src.lib.error_management.service import handle
 
 def migrate():
+    # TODO: finish
     session = database.create_session()
     tracks = data_service.load_tracks(session)
 

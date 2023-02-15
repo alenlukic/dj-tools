@@ -14,7 +14,7 @@ from src.utils.common import get_config_value, join_config_paths
 from src.utils.logging import *
 
 
-class GDResource:
+class DriveResource:
     def __init__(self, gd_resource):
         self.gd_resource = gd_resource
 
@@ -31,7 +31,7 @@ class GDResource:
         self.gd_resource[attr] = val
 
     def to_json(self):
-        return json.dumps(self, default=lambda obj: GDResource._serializer(obj))
+        return json.dumps(self, default=lambda obj: DriveResource._serializer(obj))
 
     @staticmethod
     def _serializer(obj):
@@ -79,7 +79,7 @@ class GoogleDrive:
         request = self.drive.files().list(**query_args)
         results = request.execute()
 
-        files = [GDResource(r) for r in results.get('files', [])]
+        files = [DriveResource(r) for r in results.get('files', [])]
         num_files = len(files)
         print_and_log('Retrieved %d files (%d total)' % (num_files, num_files), info)
 
@@ -105,7 +105,7 @@ class GoogleDrive:
 
             print_and_log('Retrieved %d files (%d total)' % (num_results, total_files), info)
 
-            files.extend([GDResource(r) for r in result_files])
+            files.extend([DriveResource(r) for r in result_files])
             cur_token = results.get('nextPageToken')
 
         return files
@@ -119,7 +119,7 @@ class GoogleDrive:
                 revs = [{'id': r['id'], 'modifiedTime': datetime.strptime(
                     r['modifiedTime'], TS_FORMAT)} for r in results]
                 revs = sorted([r for r in revs if r['modifiedTime'] <= latest_date], key=lambda x: x['modifiedTime'])
-                gd_resource.set('revision', GDResource(revs[-1]))
+                gd_resource.set('revision', DriveResource(revs[-1]))
 
             except Exception as e:
                 msg = 'Error occurred getting revision for %s' % gd_resource.get('name')

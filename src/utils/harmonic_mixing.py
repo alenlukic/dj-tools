@@ -24,8 +24,6 @@ def generate_artist_counts(artist_counts, track_md_dict):
 
 
 def generate_camelot_map(tracks):
-    """ Generate and return map of camelot code -> BPM -> set of tracks, along with collection metadata. """
-
     collection_md = {
         CollectionStat.NEWEST: -1,
         CollectionStat.OLDEST: float('inf'),

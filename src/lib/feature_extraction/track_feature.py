@@ -38,7 +38,7 @@ class TrackFeature:
 
 
 class SegmentedMeanMelSpectrogram(TrackFeature):
-    def __init__(self, track, n_mels=N_MELS):
+    def __init__(self, track, n_mels=NUM_MELS):
         super().__init__(track, Feature.SMMS.value)
         self.n_mels = n_mels
 

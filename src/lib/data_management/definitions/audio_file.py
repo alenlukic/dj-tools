@@ -14,7 +14,7 @@ class AudioFile:
     """ Encapsulates an audio file and its metadata. """
 
     def __init__(self, track_name, track_directory=PROCESSED_MUSIC_DIR):
-        # TODO: rm this hack once file_path values have been migrated in DB
+        # TODO: rm full_path hack once file_path values have been migrated in DB
         self.full_path = path.join(track_directory, track_name) if track_directory not in track_name else track_name
         self.basename = path.basename(track_name)
         self.id3 = mutagen.File(self.full_path)

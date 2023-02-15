@@ -6,8 +6,6 @@ from src.utils.assistant import print_error
 
 
 def run_assistant():
-    """ Accepts user input in an infinite loop until termination. """
-
     assistant = Assistant()
     print('Assistant is now online.')
 

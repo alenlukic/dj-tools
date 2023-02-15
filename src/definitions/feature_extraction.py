@@ -19,7 +19,7 @@ class Feature(Enum):
 
 SAMPLE_RATE = 44100
 
-N_MELS = 128
+NUM_MELS = 128
 
 WINDOW_SIZE = int(SAMPLE_RATE / 2)
 

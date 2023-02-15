@@ -2,8 +2,7 @@ from sqlalchemy import Column, ForeignKey, Sequence
 
 
 class DBColumn:
-    """ Specifies configuration for a sqlalchemy Column. """
-
+    """ Encapsulates a database table column. """
     def __init__(self, name, pg_type):
         self.name = name
         self.type_ = pg_type

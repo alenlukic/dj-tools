@@ -1,16 +1,6 @@
 class Command:
     """ Encapsulates a mixing assistant command. """
-
     def __init__(self, cmd, description, function, aliases={}, arguments=[]):
-        """
-        Initialize command with description, execution function, and any aliases or and/or required arguments.
-
-        :param cmd: Command name.
-        :param description: Command description.
-        :param function: Mixing assistant function used to execute command.
-        :param aliases: Command aliases (if any).
-        :param arguments: Command arguments (if any).
-        """
         self.cmd = cmd
         self.description = description
         self.function = function
@@ -32,8 +22,6 @@ class Command:
         return sorted(self.arguments)
 
     def print_usage(self):
-        """ Prints a well-formatted usage string for this command. """
-
         arg_summary = '' if self.num_args == 0 else (' [%s]' % ' '.join([a.get_name() for a in self.arguments]))
         arg_detail = '' if self.num_args == 0 else ('\n  Arguments:\n\t%s' % '\n\t'.join(
             [a.print() for a in self.arguments]))
@@ -44,5 +32,4 @@ class Command:
 
 
 class CommandParsingException(Exception):
-    """ Exception class for command parsing errors. """
     pass

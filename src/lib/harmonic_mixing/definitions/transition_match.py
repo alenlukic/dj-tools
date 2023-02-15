@@ -6,7 +6,7 @@ from src.utils.common import log2smooth
 
 
 class TransitionMatch:
-    """ Wrapper for a track with a harmonic transition from the current track. """
+    """ Encapsulates a transition match from current track to next track. """
     collection_metadata = None
     db_session = None
     result_column_header = '   '.join(['Total Score', 'SMMS Score', ' Track'])
@@ -80,7 +80,6 @@ class TransitionMatch:
             if bpm is None or cur_track_bpm is None:
                 return 0.0
 
-            # Exact match
             absolute_diff = cur_track_bpm - bpm
             if absolute_diff == 0:
                 return 1.0
@@ -93,13 +92,12 @@ class TransitionMatch:
                     return score
 
                 if relative_diff <= UP_KEY_UPPER_BOUND:
-                    # Not sure how to evaluate step up / down - arbitrarily picking range midpoint for now
+                    # TODO: Not sure how to evaluate step up / down - using range midpoint for now
                     midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
                     return float(midpoint - abs(midpoint - relative_diff)) / midpoint
 
                 return 0.0
 
-            # Current track's BPM is higher
             abs_same_lower_bound = abs(SAME_LOWER_BOUND)
             abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
             abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)

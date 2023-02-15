@@ -17,8 +17,6 @@ from src.utils.file_operations import get_audio_files
 
 
 class PipelineStage:
-    """ Encapsulates the execution of a single stage in the ingestion pipeline. """
-
     def __init__(self, record_type, source_dir=UNPROCESSED_DIR):
         self.record_type = record_type
         self.session = database.create_session()
@@ -44,7 +42,8 @@ class PipelineStage:
         tag_records = {}
         for track_file in self.track_files:
             try:
-                track = self.session.query(Track).filter_by(file_path=track_file).first()
+                file_path = join(PROCESSING_DIR, track_file)
+                track = self.session.query(Track).filter_by(file_path=file_path).first()
 
                 cmd_args = dict(ChainMap(
                     {
@@ -72,15 +71,11 @@ class PipelineStage:
 
 
 class InitialPipelineStage(PipelineStage):
-    """ Encapsulates execution of the first step in the pipeline. """
-
     def __init__(self, record_type, source_dir=UNPROCESSED_DIR, target_dir=PROCESSING_DIR):
         super().__init__(record_type, source_dir)
         self.target_dir = target_dir
 
     def execute(self):
-        """ Execute this stage of the pipeline. """
-
         try:
             self.initialize_tracks_in_database()
             self.create_tag_records()
@@ -96,8 +91,6 @@ class InitialPipelineStage(PipelineStage):
 
 
 class PostRBPipelineStage(PipelineStage):
-    """ Encapsulates pipeline stage to execute after Rekordbox analysis of new tracks. """
-
     def execute(self):
         try:
             self.cmd_overrides = {'rb_overrides': PostRBPipelineStage.load_rb_tags()}
@@ -112,6 +105,7 @@ class PostRBPipelineStage(PipelineStage):
     @staticmethod
     def load_rb_tags():
         track_tags = {}
+
         with open(RB_TAG_FILE, 'r', encoding='utf-16', errors='ignore') as f:
             lines = [x.strip() for x in f.readlines() if not is_empty(x)]
             for i, line in enumerate(lines):
@@ -128,8 +122,6 @@ class PostRBPipelineStage(PipelineStage):
 
 
 class FinalPipelineStage(PipelineStage):
-    """ Encapsulates last pipeline stage, during which records are finalized. """
-
     def __init__(self, record_type, source_dir=PROCESSING_DIR, target_dir=FINALIZED_DIR):
         super().__init__(record_type, source_dir)
         self.target_dir = target_dir
