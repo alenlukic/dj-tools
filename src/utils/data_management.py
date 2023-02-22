@@ -1,10 +1,11 @@
 from ast import literal_eval
 from unicodedata import normalize
-import re
 
 from src.definitions.data_management import *
 from src.utils.common import is_empty
 
+
+# TODO: move hard-coded stuff in this file to config
 
 def get_canonical_form(segment, canon):
     return (canon.get(segment, ' '.join([ss.capitalize() for ss in segment.split()])
@@ -37,7 +38,6 @@ def split_artist_string(artists):
 
 
 def transform_artist(artist):
-
     if 'Kamaya Painters' in artist:
         return 'Kamaya Painters'
 
@@ -97,7 +97,6 @@ def transform_label(label):
         transformed_segments = pre_segments + parens + post_segments
 
     return ' '.join([seg.strip() for seg in transformed_segments])
-
 
 def normalize_tag_text(text):
     return normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii') if type(text) == str else text

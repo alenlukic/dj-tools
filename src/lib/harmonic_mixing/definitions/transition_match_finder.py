@@ -10,7 +10,6 @@ from src.utils.harmonic_mixing import *
 
 class TransitionMatchFinder:
     """ Encapsulates functionality for finding transition matches. """
-
     def __init__(self, session=None):
         self.tracks = load_tracks()
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)

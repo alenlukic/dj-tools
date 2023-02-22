@@ -1,9 +1,7 @@
 from datetime import datetime
 from functools import reduce
-import json
 from math import log2
 from os.path import join
-from shutil import copyfile
 
 from src.definitions.common import CONFIG, TIMESTAMP_FORMAT
 
@@ -36,14 +34,6 @@ def get_config_value(path):
 
 
 def get_or_default(source, target, transform=default_transform, default=None):
-    """
-    Transformed and return desired value.
-
-    :param source: Source object.
-    :param target: Attribute name to get.
-    :param transform: Function to transform the value.
-    :param default: Default value.
-    """
     value = getattr(source, target, default)
     return transform(value)
 
@@ -75,7 +65,6 @@ def join_config_paths(paths):
 
 
 def log2smooth(x, smoother=1):
-    """ Returns value of the log2 function applied to the input with a smoothing adjustment. """
     return log2(x + smoother)
 
 

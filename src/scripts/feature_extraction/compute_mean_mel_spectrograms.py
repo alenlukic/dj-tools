@@ -29,7 +29,7 @@ def compute_spectrograms(chunk, result_transmitter):
             handle(e)
             continue
 
-    print('Worker %d done\n' % getpid())
+    print('<<< Worker %d done >>>' % getpid())
 
     result_transmitter.send(smms_values)
 

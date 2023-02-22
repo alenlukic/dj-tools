@@ -9,16 +9,13 @@ from src.lib.error_management.service import handle
 
 
 class Database:
-    """ Encapsulates interface to DB for storing collection data. """
-
+    """ Encapsulates the database. Currently assumes Postgres. """
     Base = None
     BoundSessionInstantiator = None
     db = None
     dry_run = False
 
     class __Database:
-        """ Singleton database class. """
-
         def __init__(self):
             db_config = CONFIG['DB']
             user = db_config['USER']
@@ -42,8 +39,6 @@ class Database:
             self.BoundSessionInstantiator = sessionmaker(bind=self.engine)
 
     class __Session:
-        """ Session wrapper. Used to enable dry run functionality during testing. """
-
         def __init__(self, session, dry_run=False, session_limit=10):
             self.session = session
             self.dry_run = dry_run
@@ -64,6 +59,7 @@ class Database:
                 self.add(entity)
                 self.commit()
                 return True
+
             except Exception as e:
                 str_entity = str({c.key: getattr(entity, c.key) for c in inspect(entity).mapper.column_attrs})
                 handle(e, 'Failed to add %s to DB' % str_entity, print, False)
@@ -78,6 +74,7 @@ class Database:
             if entity is not None:
                 self.delete(entity)
                 return True
+
             return False
 
         def commit(self):

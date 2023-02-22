@@ -22,6 +22,7 @@ def normalize_segment(original_audio, normalized_audio, audio_len_millis, pos, u
     return normalized_audio[0:start].append(effects.normalize(segment), 0)
 
 def apply_sliding_normalization(original_audio, window_len):
+    # TODO: performance is garbage, attempt improvements
     normalized_audio = AudioSegment.empty()
     audio_len_millis = len(original_audio)
     overlap_len = int(window_len / OVERLAP_COEFFICIENT)

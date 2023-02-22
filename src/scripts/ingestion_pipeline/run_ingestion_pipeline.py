@@ -16,14 +16,13 @@ STEPS = {
 
 
 def run_pipeline(step_args):
-    """ Runs the track ingestion pipeline. """
-
     print('Running ingestion pipeline. Type \'next\' to proceed to the next step.')
 
     n = 0
     to_run = set(STEPS.keys() if len(step_args) == 0 else step_args)
     while True:
         print('\n$ ', end='')
+
         try:
             cmd = input().lower()
 
@@ -47,6 +46,7 @@ def run_pipeline(step_args):
             if n == NUM_STEPS:
                 print('Pipeline ran successfully.')
                 break
+
         except Exception as e:
             handle(e, 'An unexpected exception occurred:', print_error)
             break

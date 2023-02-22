@@ -9,12 +9,6 @@ from src.utils.assistant import *
 
 
 def parse_user_input(user_input):
-    """
-    Parses user input and returns command name and arguments to execute.
-
-    :param user_input: Raw text input.
-    """
-
     stripped_input = user_input.strip()
     if is_empty(stripped_input):
         return
@@ -36,20 +30,13 @@ def parse_user_input(user_input):
 
 
 class Assistant:
-    """" CLI assistant functions."""
+    """" Encapsulates the CLI mixing assistant. """
 
     def __init__(self):
-        """ Initialize the assistant. """
         self.session = database.create_session()
         self.transition_match_finder = TransitionMatchFinder(self.session)
 
     def execute(self, user_input):
-        """
-        Parses and validates user input and executes corresponding command.
-
-        :param user_input: Raw user input.
-        """
-
         cmd_name, args = parse_user_input(user_input)
         command = COMMANDS[cmd_name]
         num_args = len(args)
@@ -65,17 +52,9 @@ class Assistant:
         return getattr(self, cmd_function)(**cmd_args)
 
     def print_transition_matches(self, track_title):
-        """
-        Prints transition matches for the given track.
-
-        :param track_title - Formatted track title (with metadata)
-        """
-
         self.transition_match_finder.print_transition_matches(track_title)
 
     def reload_track_data(self):
-        """ Reloads tracks from the audio directory and regenerates Camelot map and metadata. """
-
         self.transition_match_finder.reload_track_data()
         print('Track data reloaded.')
 
