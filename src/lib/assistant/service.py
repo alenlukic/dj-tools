@@ -57,3 +57,8 @@ class Assistant:
     def reload_track_data(self):
         self.transition_match_finder.reload_track_data()
         print('Track data reloaded.')
+
+    def shutdown(self):
+        """ Exits the CLI. """
+        print('Goodbye.')
+        exit()

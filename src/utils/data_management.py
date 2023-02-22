@@ -98,7 +98,6 @@ def transform_label(label):
 
     return ' '.join([seg.strip() for seg in transformed_segments])
 
-
 def normalize_tag_text(text):
     return normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii') if type(text) == str else text
 
