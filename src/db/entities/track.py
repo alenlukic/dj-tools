@@ -1,5 +1,4 @@
-from sqlalchemy import Column, Integer, Sequence
-
+from sqlalchemy import Column, Integer, Numeric, Sequence, String
 from src.db import metadata
 from src.db import Base
 
@@ -10,8 +9,25 @@ class Track(Base):
 
     id = Column(Integer, Sequence('track_seq', metadata=metadata), primary_key=True, index=True, unique=True)
 
+    file_name = Column('file_name', String(256), primary_key=True, index=True, unique=True, nullable=False)
+
+    title = Column('title', String(256), index=True, nullable=False)
+
+    bpm = Column('bpm', Numeric(5, 2), index=True)
+
+    key = Column('key', String(4), index=True)
+
+    camelot_code = Column('camelot_code', String(4), index=True)
+
+    energy = Column('energy', Integer, index=True)
+
+    genre = Column('genre', String(64), index=True)
+
+    label = Column('label', String(128), index=True)
+
+    comment = Column('comment', String(1024))
+
     def get_id_title_identifier(self):
-        """ Returns identifier for this track in [id] [title] format. """
         return '%d %s' % (self.id, self.title)
 
     def __eq__(self, other):

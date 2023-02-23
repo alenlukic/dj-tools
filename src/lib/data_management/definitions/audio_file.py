@@ -28,7 +28,7 @@ class AudioFile:
         title = dedupe_title(self.generate_title(camelot_code, key, bpm))
 
         metadata = {
-            TrackDBCols.FILE_PATH.value: self.basename,
+            TrackDBCols.FILE_NAME.value: self.basename,
             TrackDBCols.TITLE.value: title,
             TrackDBCols.BPM.value: None if bpm is None else float(bpm),
             TrackDBCols.KEY.value: key,

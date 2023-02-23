@@ -40,15 +40,14 @@ class PipelineStage:
             raise Exception('Did not find a factory for record type %s' % self.record_type)
 
         tag_records = {}
-        for track_file in self.track_files:
+        for track_file_name in self.track_files:
             try:
-                file_path = join(PROCESSING_DIR, track_file)
-                track = self.session.query(Track).filter_by(file_path=file_path).first()
+                track = self.session.query(Track).filter_by(file_name=track_file_name).first()
 
                 cmd_args = dict(ChainMap(
                     {
                         'record_type': self.record_type,
-                        'file_name': track_file,
+                        'file_name': track_file_name,
                         'file_dir': PROCESSING_DIR,
                         'track_id': track.id,
                         'session': self.session
@@ -61,10 +60,10 @@ class PipelineStage:
                 if tag_record is None:
                     continue
 
-                tag_records[track_file] = tag_record
+                tag_records[track_file_name] = tag_record
 
             except Exception as e:
-                handle(e, 'Exception occurred processing %s:' % track_file)
+                handle(e, 'Exception occurred processing %s:' % track_file_name)
                 continue
 
         return tag_records
@@ -166,7 +165,7 @@ class FinalPipelineStage(PipelineStage):
 
                 formatted_title = format_track_title(metadata[TrackDBCols.TITLE.value]) + ext
                 new_path = join(PROCESSED_MUSIC_DIR, formatted_title)
-                metadata[TrackDBCols.FILE_PATH.value] = new_path
+                metadata[TrackDBCols.FILE_NAME.value] = new_path
 
                 track = self.session.query(Track).filter_by(id=tag_record.track_id).first()
                 metadata[TrackDBCols.DATE_ADDED.value] = track.date_added

@@ -35,9 +35,9 @@ def generate_camelot_map(tracks):
 
     track_mds = []
     for track in tracks:
-        file_path = track.file_path
+        file_name = track.file_name
         comment = track.comment
-        track_comment = load_comment(comment or AudioFile(file_path).get_metadata().get(TrackDBCols.COMMENT.value))
+        track_comment = load_comment(comment or AudioFile(file_name).get_metadata().get(TrackDBCols.COMMENT.value))
 
         # Increment artist/remixer counts
         artists = split_artist_string(track_comment.get(ArtistFields.ARTISTS.value, ''))
@@ -52,7 +52,7 @@ def generate_camelot_map(tracks):
         # Create track metadata dict and add to index
         track_mds.append({k: v for k, v in {
             TrackDBCols.ID: track.id,
-            TrackDBCols.FILE_PATH: file_path,
+            TrackDBCols.FILE_NAME: file_name,
             TrackDBCols.TITLE: track.title,
             TrackDBCols.BPM: get_or_default(track, 'bpm', float_transform),
             TrackDBCols.KEY: track.key,

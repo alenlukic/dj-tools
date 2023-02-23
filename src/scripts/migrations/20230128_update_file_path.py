@@ -1,4 +1,5 @@
 from src.db import database
+from src.db.entities.track import Track
 import src.lib.data_management.service as data_service
 from src.lib.error_management.service import handle
 
@@ -16,6 +17,8 @@ def migrate():
             handle(e, 'Error trying to update file_path for %s' % track.file_path)
             continue
 
-
 if __name__ == '__main__':
-    migrate()
+    try:
+        migrate()
+    finally:
+        database.close_all_sessions()

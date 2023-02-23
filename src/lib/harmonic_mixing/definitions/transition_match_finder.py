@@ -32,11 +32,11 @@ class TransitionMatchFinder:
             title_mismatch_message = ''
 
             if db_row is None:
-                db_row = self.session.query(Track).filter(Track.file_path.like('%{}%'.format(track))).first()
+                db_row = self.session.query(Track).filter(Track.file_name.like('%{}%'.format(track))).first()
 
                 if db_row is not None:
-                    path = db_row.file_path
-                    title_mismatch_message = '\n\nWarning: found %s in path %s (but not title)' % (track, path)
+                    file_name = db_row.file_name
+                    title_mismatch_message = '\n\nWarning: found %s in file name %s (but not title)' % (track, file_name)
                 else:
                     raise Exception('%s not found in database.' % track)
 
