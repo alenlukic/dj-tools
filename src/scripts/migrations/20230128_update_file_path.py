@@ -10,12 +10,16 @@ def migrate():
     for track in tracks:
         try:
             file_name = track.file_path.split('/')[-1]
-            track.file_path = file_name
-            session.commit()
+            print(file_name)
+            # track.file_path = file_name
+            # session.commit()
         except Exception as e:
             handle(e, 'Error trying to update file_path for %s' % track.file_path)
             continue
 
 
 if __name__ == '__main__':
-    migrate()
+    try:
+        migrate()
+    finally:
+        database.close_all_sessions()
