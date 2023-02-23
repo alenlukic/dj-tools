@@ -29,7 +29,7 @@ class ID3Tag(Enum):
 
 class TrackDBCols(Enum):
     ID = 'id'
-    FILE_PATH = 'file_path'
+    FILE_NAME = 'file_name'
     TITLE = 'title'
     BPM = 'bpm'
     KEY = 'key'

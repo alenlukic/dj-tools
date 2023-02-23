@@ -220,4 +220,4 @@ class TransitionMatch:
                 (other.get_score(), self.get_smms_score(), other.get_freshness_score()))
 
     def __hash__(self):
-        return hash(self.metadata[TrackDBCols.FILE_PATH])
+        return hash(self.metadata[TrackDBCols.FILE_NAME])

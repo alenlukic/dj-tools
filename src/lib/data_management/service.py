@@ -34,16 +34,16 @@ def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
         input_files = get_audio_files(input_dir)
         tracks_to_save = {}
 
-        for f in input_files:
-            old_path = join(input_dir, f)
+        for file_name in input_files:
+            old_path = join(input_dir, file_name)
 
             try:
-                track = AudioFile(f, input_dir)
+                track = AudioFile(file_name, input_dir)
             except Exception as e:
                 handle(e, 'Couldn\'t read ID3 tags for %s' % old_path)
                 continue
 
-            new_path = join(target_dir, f)
+            new_path = join(target_dir, file_name)
             try:
                 print('\nCopying:\t%s\nto:\t\t%s' % (old_path, new_path))
                 copyfile(old_path, new_path)
@@ -51,7 +51,7 @@ def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
                 handle(e, 'Couldn\'t copy %s to target directory' % new_path)
                 continue
 
-            tracks_to_save[new_path] = track
+            tracks_to_save[file_name] = track
 
         insert_tracks(tracks_to_save)
 
@@ -69,11 +69,11 @@ def insert_tracks(tracks):
         artist_updates = {}
         artist_track_updates = {}
 
-        for new_track_path, track in tracks.items():
+        for file_name, track in tracks.items():
             # Create new row
             track_metadata = track.get_metadata()
             db_row = {k: v for k, v in track_metadata.items() if k in ALL_TRACK_DB_COLS}
-            db_row[TrackDBCols.FILE_PATH.value] = new_track_path
+            db_row[TrackDBCols.FILE_NAME.value] = file_name
             title = extract_unformatted_title(db_row[TrackDBCols.TITLE.value])
             db_row[TrackDBCols.TITLE.value] = title
 
@@ -93,7 +93,7 @@ def insert_tracks(tracks):
             artist_updates[title] = artist_updates_result
 
             # Add artist tracks
-            track_id = session.query(Track).filter_by(file_path=new_track_path).first().id
+            track_id = session.query(Track).filter_by(file_name=file_name).first().id
             successful_artist_ids = [a for a, s in artist_updates_result.items() if s != DBUpdateType.FAILURE.value]
             artist_track_updates[title] = insert_artist_tracks(session, track_id, successful_artist_ids)
 
@@ -327,7 +327,7 @@ def sync_track_fields(tracks):
     update_msg = 'Updating %s field \'%s\' using %s value: %s -> %s'
 
     for track in tracks:
-        af = AudioFile(track.file_path)
+        af = AudioFile(track.file_name)
         track_pk = track.get_id_title_identifier()
         log_buffer = []
 
@@ -411,7 +411,7 @@ def sync_track_fields(tracks):
 
 def sync_track_tags(tracks):
     for track in tracks:
-        af = AudioFile(track.file_path)
+        af = AudioFile(track.file_name)
         track_pk = track.get_id_title_identifier()
 
         try:

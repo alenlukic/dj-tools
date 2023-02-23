@@ -18,7 +18,7 @@ def find_artist_disparities():
             track_comment = track.comment
             if track_comment is None:
                 try:
-                    track_model = AudioFile(track.file_path)
+                    track_model = AudioFile(track.file_name)
                     track_metadata = track_model.get_metadata()
                     track_comment = track_metadata.get(TrackDBCols.COMMENT.value, '{}')
                 except Exception:

@@ -9,7 +9,7 @@ class Track(Base):
 
     id = Column(Integer, Sequence('track_seq', metadata=metadata), primary_key=True, index=True, unique=True)
 
-    file_path = Column('file_path', String(256), primary_key=True, index=True, unique=True, nullable=False)
+    file_name = Column('file_name', String(256), primary_key=True, index=True, unique=True, nullable=False)
 
     title = Column('title', String(256), index=True, nullable=False)
 

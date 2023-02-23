@@ -21,7 +21,7 @@ def get_existing_match_pairs():
 
 def generate_track_pairs(track_id, matches, relative_key):
     for match in matches:
-        match_track = track_file_path_map[match.metadata[TrackDBCols.FILE_PATH]]
+        match_track = track_file_name_map[match.metadata[TrackDBCols.FILE_NAME]]
         match_id = match_track.id
 
         if (track_id, match_id) not in existing_pairs:
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # Load track data
     tracks = tm_finder.tracks
     track_id_map = {track.id: track for track in tracks}
-    track_file_path_map = {track.file_path: track for track in tracks}
+    track_file_name_map = {track.file_name: track for track in tracks}
     existing_pairs = get_existing_match_pairs()
 
     # Generate pair IDs to create

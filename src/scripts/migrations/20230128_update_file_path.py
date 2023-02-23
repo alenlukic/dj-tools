@@ -1,4 +1,5 @@
 from src.db import database
+from src.db.entities.track import Track
 import src.lib.data_management.service as data_service
 from src.lib.error_management.service import handle
 
@@ -10,13 +11,11 @@ def migrate():
     for track in tracks:
         try:
             file_name = track.file_path.split('/')[-1]
-            print(file_name)
-            # track.file_path = file_name
-            # session.commit()
+            track.file_path = file_name
+            session.commit()
         except Exception as e:
             handle(e, 'Error trying to update file_path for %s' % track.file_path)
             continue
-
 
 if __name__ == '__main__':
     try:

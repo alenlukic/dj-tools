@@ -6,12 +6,14 @@ from src.definitions.common import IS_UNIX, PROCESSED_MUSIC_DIR
 from src.definitions.file_operations import AUDIO_TYPES, FILE_STAGING_DIR
 
 
-def delete_track_files(track):
-    file_path = track.file_path
+def delete_track_files(track, track_directory=PROCESSED_MUSIC_DIR):
+    file_name = track.file_name
+    file_path = join(track_directory, file_name)
+
     if isfile(file_path):
         remove(file_path)
 
-    staging_path = join(FILE_STAGING_DIR, basename(file_path))
+    staging_path = join(FILE_STAGING_DIR, file_name)
     if isfile(staging_path):
         remove(staging_path)
 
@@ -32,26 +34,28 @@ def get_file_creation_time(full_path):
 
 
 def get_track_load_path(track):
-    if FILE_STAGING_DIR is None:
-        return track.file_path
+    file_path = join(PROCESSED_MUSIC_DIR, track.file_name)
 
-    if not isfile(track.file_path):
+    if FILE_STAGING_DIR is None:
+        return file_path
+
+    if not isfile(file_path):
         stage_tracks([track])
 
-    return join(FILE_STAGING_DIR, basename(track.file_path))
+    return join(FILE_STAGING_DIR, file_path)
 
 
 def stage_tracks(tracks):
     if FILE_STAGING_DIR is None:
         return
 
-    for track_path in [t.file_path for t in tracks]:
-        if not isfile(track_path):
+    for track_name in [t.file_name for t in tracks]:
+        file_path = join(PROCESSED_MUSIC_DIR, track_name)
+        if not isfile(file_path):
             continue
 
-        base_name = basename(track_path)
-        staged_path = join(FILE_STAGING_DIR, base_name)
+        staged_path = join(FILE_STAGING_DIR, track_name)
         if isfile(staged_path):
             continue
 
-        copyfile(track_path, staged_path)
+        copyfile(file_path, staged_path)
