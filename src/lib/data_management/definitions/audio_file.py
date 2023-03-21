@@ -14,9 +14,8 @@ class AudioFile:
     """ Encapsulates an audio file and its metadata. """
 
     def __init__(self, track_name, track_directory=PROCESSED_MUSIC_DIR):
-        # TODO: rm full_path hack once file_path values have been migrated in DB
-        self.full_path = path.join(track_directory, track_name) if track_directory not in track_name else track_name
-        self.basename = path.basename(track_name)
+        self.full_path = path.join(track_directory, track_name)
+        self.file_name = path.basename(track_name)
         self.id3 = mutagen.File(self.full_path)
         self.tags = self.read_tags()
         self.metadata = None
@@ -28,7 +27,7 @@ class AudioFile:
         title = dedupe_title(self.generate_title(camelot_code, key, bpm))
 
         metadata = {
-            TrackDBCols.FILE_NAME.value: self.basename,
+            TrackDBCols.FILE_NAME.value: self.file_name,
             TrackDBCols.TITLE.value: title,
             TrackDBCols.BPM.value: None if bpm is None else float(bpm),
             TrackDBCols.KEY.value: key,
@@ -200,7 +199,7 @@ class AudioFile:
     # =======
 
     def get_basename(self):
-        return self.basename
+        return self.file_name
 
     def get_metadata(self):
         if self.metadata is None:

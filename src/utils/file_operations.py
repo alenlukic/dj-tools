@@ -1,5 +1,5 @@
 from os import listdir, remove, stat as osstat
-from os.path import basename, isfile, join, splitext
+from os.path import isfile, join, splitext
 from shutil import copyfile
 
 from src.definitions.common import IS_UNIX, PROCESSED_MUSIC_DIR
