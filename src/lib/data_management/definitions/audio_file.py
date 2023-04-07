@@ -128,7 +128,7 @@ class AudioFile:
             if ')' in segment:
                 in_parens = False
 
-        # Get rid of the "(Original Mix)" and "(Extended Mix)" redundant suffixes.
+        # Get rid of the "(Original Mix)" and "(Extended Mix)" redundant suffixes
         formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')
 
         return formatted_title, featured
