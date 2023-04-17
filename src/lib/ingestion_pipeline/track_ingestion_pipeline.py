@@ -165,7 +165,7 @@ class FinalPipelineStage(PipelineStage):
 
                 formatted_title = format_track_title(metadata[TrackDBCols.TITLE.value]) + ext
                 new_path = join(PROCESSED_MUSIC_DIR, formatted_title)
-                metadata[TrackDBCols.FILE_NAME.value] = new_path
+                metadata[TrackDBCols.FILE_NAME.value] = formatted_title
 
                 track = self.session.query(Track).filter_by(id=tag_record.track_id).first()
                 metadata[TrackDBCols.DATE_ADDED.value] = track.date_added
