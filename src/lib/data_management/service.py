@@ -15,16 +15,12 @@ from src.lib.data_management.definitions.audio_file import AudioFile
 from src.lib.error_management.service import handle
 from src.utils.common import *
 from src.utils.data_management import *
+from src.utils.db import invoke_with_session
 from src.utils.file_operations import delete_track_files, get_audio_files
 
 
 def load_tracks(sesh=None):
-    session = sesh or database.create_session()
-    try:
-        return session.query(Track).all()
-    finally:
-        if sesh is None:
-            session.close()
+    return invoke_with_session(lambda s: s.query(Track).all(), sesh)
 
 
 def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
