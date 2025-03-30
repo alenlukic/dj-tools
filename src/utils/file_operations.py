@@ -26,6 +26,11 @@ def get_flac_files(input_dir):
     return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() == '.flac']
 
 
+def get_lossless_files(input_dir):
+    lossless_exts = {'.flac', '.wav'}
+    return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() in lossless_exts]
+
+
 def get_file_creation_time(full_path):
     try:
         return osstat(full_path).st_birthtime if IS_UNIX else osstat(full_path).st_ctime

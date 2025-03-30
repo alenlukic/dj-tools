@@ -13,6 +13,36 @@ from src.lib.error_management.service import handle
 from src.utils.file_operations import stage_tracks
 
 
+def test_function_one(arg_1, arg_2):
+    if arg_1 == arg_2:
+        print('yep, they are equal')
+    else:
+        print('no, they are not equal')
+
+    """
+    i am writing a test python comment to assess the ergonomics of this setup
+    
+    it looks like bringing the keyboard toward the front of the desk (i.e. closer to me) helped a bit
+    
+    horizontally, it looks like having the left side of the keyboard end at my mid-left leg is a good spot
+    
+    also, slowing down typing speed just a little bit helps - what is the rush?
+    
+    noice noice noice
+    
+    
+    journaling in the IDE
+    
+    lights are flowin'
+    
+    definitely better positioned when the desk is at 27.5 inches high though
+    
+    
+    fingers feel a bit tingly now, so should prob try again tomrrow
+    
+    keyboard positioning observation is still relevant
+    """
+
 def compute_spectrograms(chunk, result_transmitter):
     stage_tracks(chunk)
 

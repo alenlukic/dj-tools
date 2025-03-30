@@ -129,7 +129,10 @@ class AudioFile:
                 in_parens = False
 
         # Get rid of the "(Original Mix)" and "(Extended Mix)" redundant suffixes.
-        formatted_title = ' '.join(filtered_segments).replace('(Original Mix)', '').replace('(Extended Mix)', '')
+        formatted_title = ' '.join(filtered_segments)\
+            .replace('(Original Mix)', '')\
+            .replace('(Extended Mix)', '')\
+            .replace(' - 24bits', '')
 
         return formatted_title, featured
 
