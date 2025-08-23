@@ -1,5 +1,4 @@
 # noinspection PyUnresolvedReferences
-import readline
 import sys
 
 from src.lib.ingestion_pipeline.track_ingestion_pipeline import *
