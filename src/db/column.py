@@ -2,7 +2,8 @@ from sqlalchemy import Column, ForeignKey, Sequence
 
 
 class DBColumn:
-    """ Encapsulates a database table column. """
+    """Encapsulates a database table column."""
+
     def __init__(self, name, pg_type):
         self.name = name
         self.type_ = pg_type
@@ -13,14 +14,19 @@ class DBColumn:
         self.unique = None
 
     def create(self, metadata=None, table_name=None):
-        args = {'name': self.name, 'type_': self.type_, 'primary_key': self.primary_key,
-                'nullable': self.nullable, 'index': self.index}
+        args = {
+            "name": self.name,
+            "type_": self.type_,
+            "primary_key": self.primary_key,
+            "nullable": self.nullable,
+            "index": self.index,
+        }
         if self.unique is not None:
-            args['unique'] = self.unique
+            args["unique"] = self.unique
 
         extra_args = []
         if not (metadata is None or table_name is None):
-            extra_args.append(Sequence(table_name + '_seq', metadata=metadata))
+            extra_args.append(Sequence(table_name + "_seq", metadata=metadata))
         if self.foreign_key is not None:
             extra_args.append(ForeignKey(self.foreign_key))
 

@@ -19,7 +19,7 @@ def compute_spectrograms(chunk, result_transmitter):
     smms_values = []
     for track in chunk:
         try:
-            print('Computing spectrograms for track %s' % str(track.id))
+            print("Computing spectrograms for track %s" % str(track.id))
 
             smms = SegmentedMeanMelSpectrogram(track)
             smms.compute()
@@ -29,20 +29,25 @@ def compute_spectrograms(chunk, result_transmitter):
             handle(e)
             continue
 
-    print('<<< Worker %d done >>>' % getpid())
+    print("<<< Worker %d done >>>" % getpid())
 
     result_transmitter.send(smms_values)
+
 
 def run(track_ids):
     try:
         if len(track_ids) > 0:
             tracks_to_process = [track for track in tracks if track.id in track_ids]
         else:
-            fv_track_ids = set([fv.track_id for fv in session.query(FeatureValue).all()])
-            tracks_to_process = [track for track in tracks if track.id not in fv_track_ids]
+            fv_track_ids = set(
+                [fv.track_id for fv in session.query(FeatureValue).all()]
+            )
+            tracks_to_process = [
+                track for track in tracks if track.id not in fv_track_ids
+            ]
 
         num_tracks = len(tracks_to_process)
-        print('Computing SMMS feature for %d tracks\n' % num_tracks)
+        print("Computing SMMS feature for %d tracks\n" % num_tracks)
 
         chunks = np.array_split(tracks_to_process, min(NUM_CORES, num_tracks))
         workers = []
@@ -52,15 +57,25 @@ def run(track_ids):
             receiver, transmitter = Pipe()
             smms_aggregator.append(receiver)
 
-            worker = Process(target=compute_spectrograms, args=(chunk, transmitter,))
+            worker = Process(
+                target=compute_spectrograms,
+                args=(
+                    chunk,
+                    transmitter,
+                ),
+            )
             worker.daemon = True
             workers.append(worker)
             worker.start()
 
-        smms_results = [smms for result in [result.recv() for result in smms_aggregator] for smms in result]
+        smms_results = [
+            smms
+            for result in [result.recv() for result in smms_aggregator]
+            for smms in result
+        ]
         for smms in smms_results:
             track_id = smms.track.id
-            print('Saving SMMS value for track %s to DB' % str(track_id))
+            print("Saving SMMS value for track %s to DB" % str(track_id))
 
             try:
                 feature_value = smms.get_feature()
@@ -68,10 +83,8 @@ def run(track_ids):
                     continue
 
                 fv_row = {
-                    'track_id': track_id,
-                    'features': {
-                        smms.feature_name: smms.preprocess(feature_value)
-                    }
+                    "track_id": track_id,
+                    "features": {smms.feature_name: smms.preprocess(feature_value)},
                 }
                 session.guarded_add(FeatureValue(**fv_row))
 
@@ -88,8 +101,8 @@ def run(track_ids):
         session.close()
 
 
-if __name__ == '__main__':
-    warnings.simplefilter('ignore')
+if __name__ == "__main__":
+    warnings.simplefilter("ignore")
 
     session = database.create_session()
     tracks = set([t for t in session.query(Track).all()])

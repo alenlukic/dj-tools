@@ -9,7 +9,8 @@ from src.lib.error_management.service import handle
 
 
 class Database:
-    """ Encapsulates the database. Currently assumes Postgres. """
+    """Encapsulates the database. Currently assumes Postgres."""
+
     Base = None
     BoundSessionInstantiator = None
     db = None
@@ -17,13 +18,19 @@ class Database:
 
     class __Database:
         def __init__(self):
-            db_config = CONFIG['DB']
-            user = db_config['USER']
-            password = db_config['PASSWORD']
-            host = db_config['HOST']
-            port = db_config['PORT']
-            name = db_config['NAME']
-            conn_string = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, name)
+            db_config = CONFIG["DB"]
+            user = db_config["USER"]
+            password = db_config["PASSWORD"]
+            host = db_config["HOST"]
+            port = db_config["PORT"]
+            name = db_config["NAME"]
+            conn_string = "postgresql+psycopg2://%s:%s@%s:%s/%s" % (
+                user,
+                password,
+                host,
+                port,
+                name,
+            )
             self.engine = create_engine(conn_string)
             self.conn = self.engine.connect()
             self.metadata = MetaData(self.engine, reflect=True)
@@ -61,8 +68,13 @@ class Database:
                 return True
 
             except Exception as e:
-                str_entity = str({c.key: getattr(entity, c.key) for c in inspect(entity).mapper.column_attrs})
-                handle(e, 'Failed to add %s to DB' % str_entity, print, False)
+                str_entity = str(
+                    {
+                        c.key: getattr(entity, c.key)
+                        for c in inspect(entity).mapper.column_attrs
+                    }
+                )
+                handle(e, "Failed to add %s to DB" % str_entity, print, False)
                 self.rollback()
                 return False
 
@@ -125,7 +137,7 @@ class Database:
 
     def create_session(self, session_limit=10):
         if self.dry_run:
-            logging.warning('Creating DB session in dry run mode')
+            logging.warning("Creating DB session in dry run mode")
         session = self.BoundSessionInstantiator()
         return Database.__Session(session, self.dry_run, session_limit)
 
@@ -151,5 +163,8 @@ class Database:
     # DB update methods
     # =================
 
-    def add_column(self, table_name, column_name, column_type='varchar'):
-        self.engine.execute('ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s' % (table_name, column_name, column_type))
+    def add_column(self, table_name, column_name, column_type="varchar"):
+        self.engine.execute(
+            "ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s"
+            % (table_name, column_name, column_type)
+        )

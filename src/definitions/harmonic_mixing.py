@@ -4,23 +4,23 @@ from src.utils.common import get_config_value
 
 
 class CollectionStat(Enum):
-    OLDEST = 'Oldest Timestamp'
-    NEWEST = 'Newest Timestamp'
-    TIME_RANGE = 'Time Range'
-    LABEL_COUNTS = 'Label Counts'
-    ARTIST_COUNTS = 'Artist Counts'
-    SMMS_MAX = 'SMMS Max'
+    OLDEST = "Oldest Timestamp"
+    NEWEST = "Newest Timestamp"
+    TIME_RANGE = "Time Range"
+    LABEL_COUNTS = "Label Counts"
+    ARTIST_COUNTS = "Artist Counts"
+    SMMS_MAX = "SMMS Max"
 
 
 class MatchFactors(Enum):
-    ARTIST = 'Artist'
-    BPM = 'BPM'
-    CAMELOT = 'Camelot'
-    ENERGY = 'Energy'
-    FRESHNESS = 'Freshness'
-    GENRE = 'Genre'
-    LABEL = 'Label'
-    SMMS_SCORE = 'SMMS Score'
+    ARTIST = "Artist"
+    BPM = "BPM"
+    CAMELOT = "Camelot"
+    ENERGY = "Energy"
+    FRESHNESS = "Freshness"
+    GENRE = "Genre"
+    LABEL = "Label"
+    SMMS_SCORE = "SMMS Score"
 
 
 # How harmonic a particular key transition is (higher = more harmonic)
@@ -33,7 +33,10 @@ class CamelotPriority(Enum):
     SAME_KEY = 4
 
 
-MATCH_WEIGHTS = {f.name: get_config_value(['HARMONIC_MIXING', 'TRANSITION_MATCH_WEIGHTS', f.name]) for f in MatchFactors}
+MATCH_WEIGHTS = {
+    f.name: get_config_value(["HARMONIC_MIXING", "TRANSITION_MATCH_WEIGHTS", f.name])
+    for f in MatchFactors
+}
 
 SAME_UPPER_BOUND = 0.0293
 SAME_LOWER_BOUND = -0.0284

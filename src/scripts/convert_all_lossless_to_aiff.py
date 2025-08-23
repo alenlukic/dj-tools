@@ -12,7 +12,7 @@ def convert_lossless_to_aiff(input_dir):
     for ll in lossless_files:
         track_name = splitext(ll)[0].strip()
         input_name = join(sanitized_input_dir, ll)
-        output_name = join(sanitized_input_dir, track_name + '.aiff')
+        output_name = join(sanitized_input_dir, track_name + ".aiff")
 
         print(input_name, output_name)
 
@@ -23,5 +23,5 @@ def convert_lossless_to_aiff(input_dir):
         system(command)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     convert_lossless_to_aiff(sys.argv[1])

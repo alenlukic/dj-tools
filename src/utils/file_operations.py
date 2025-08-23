@@ -19,16 +19,28 @@ def delete_track_files(track, track_directory=PROCESSED_MUSIC_DIR):
 
 
 def get_audio_files(input_dir=PROCESSED_MUSIC_DIR):
-    return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() in AUDIO_TYPES]
+    return [
+        f
+        for f in listdir(input_dir)
+        if isfile(join(input_dir, f)) and splitext(f)[-1].lower() in AUDIO_TYPES
+    ]
 
 
 def get_flac_files(input_dir):
-    return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() == '.flac']
+    return [
+        f
+        for f in listdir(input_dir)
+        if isfile(join(input_dir, f)) and splitext(f)[-1].lower() == ".flac"
+    ]
 
 
 def get_lossless_files(input_dir):
-    lossless_exts = {'.flac', '.wav'}
-    return [f for f in listdir(input_dir) if isfile(join(input_dir, f)) and splitext(f)[-1].lower() in lossless_exts]
+    lossless_exts = {".flac", ".wav"}
+    return [
+        f
+        for f in listdir(input_dir)
+        if isfile(join(input_dir, f)) and splitext(f)[-1].lower() in lossless_exts
+    ]
 
 
 def get_file_creation_time(full_path):

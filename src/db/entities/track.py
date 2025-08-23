@@ -4,34 +4,49 @@ from src.db import Base
 
 
 class Track(Base):
-    __tablename__ = 'track'
-    __table_args__ = {'extend_existing': True}
+    __tablename__ = "track"
+    __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, Sequence('track_seq', metadata=metadata), primary_key=True, index=True, unique=True)
+    id = Column(
+        Integer,
+        Sequence("track_seq", metadata=metadata),
+        primary_key=True,
+        index=True,
+        unique=True,
+    )
 
-    file_name = Column('file_name', String(256), primary_key=True, index=True, unique=True, nullable=False)
+    file_name = Column(
+        "file_name",
+        String(256),
+        primary_key=True,
+        index=True,
+        unique=True,
+        nullable=False,
+    )
 
-    title = Column('title', String(256), index=True, nullable=False)
+    title = Column("title", String(256), index=True, nullable=False)
 
-    bpm = Column('bpm', Numeric(5, 2), index=True)
+    bpm = Column("bpm", Numeric(5, 2), index=True)
 
-    key = Column('key', String(4), index=True)
+    key = Column("key", String(4), index=True)
 
-    camelot_code = Column('camelot_code', String(4), index=True)
+    camelot_code = Column("camelot_code", String(4), index=True)
 
-    energy = Column('energy', Integer, index=True)
+    energy = Column("energy", Integer, index=True)
 
-    genre = Column('genre', String(64), index=True)
+    genre = Column("genre", String(64), index=True)
 
-    label = Column('label', String(128), index=True)
+    label = Column("label", String(128), index=True)
 
-    comment = Column('comment', String(1024))
+    comment = Column("comment", String(1024))
 
     def get_id_title_identifier(self):
-        return '%d %s' % (self.id, self.title)
+        return "%d %s" % (self.id, self.title)
 
     def __eq__(self, other):
-        return self.id == other.id and self.__class__.__name__ == other.__class__.__name__
+        return (
+            self.id == other.id and self.__class__.__name__ == other.__class__.__name__
+        )
 
     def __hash__(self):
         return hash(self.__class__.__name__ + str(self.id))
