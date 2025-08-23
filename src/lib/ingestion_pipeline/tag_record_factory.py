@@ -90,7 +90,7 @@ class FinalRecordFactory(TagRecordFactory):
     @staticmethod
     def _get_final_bpm(initial_record, mik_record, rb_record):
         bpm_dict = defaultdict(int)
-        for record in filter(lambda r: r.bpm is not None, [initial_record, mik_record, rb_record]):
+        for record in filter(lambda r: r is not None and r.bpm is not None, [initial_record, mik_record, rb_record]):
             bpm_dict[float(record.bpm)] += 1
 
         reverse_bpm_dict = defaultdict(list)
@@ -105,9 +105,9 @@ class FinalRecordFactory(TagRecordFactory):
 
     @staticmethod
     def _get_final_key(initial_record, mik_record, rb_record):
-        initial_record_key = None if initial_record.key is None else CANONICAL_KEY_MAP.get(initial_record.key.lower())
-        mik_record_keys = [CANONICAL_KEY_MAP.get(mik_key.lower()) for mik_key in mik_record.key.split('/')]
-        rb_record_key = CANONICAL_KEY_MAP.get(rb_record.key.lower())
+        initial_record_key = None if (initial_record is None or initial_record.key is None) else CANONICAL_KEY_MAP.get(initial_record.key.lower())
+        mik_record_keys = [CANONICAL_KEY_MAP.get(mik_key.lower()) for mik_key in mik_record.key.split('/')] if (mik_record is not None and mik_record.key is not None) else []
+        rb_record_key = CANONICAL_KEY_MAP.get(rb_record.key.lower()) if (rb_record is not None and rb_record.key is not None) else None
 
         key_dict = defaultdict(int)
         for key in filter(lambda rk: rk is not None, [initial_record_key] + mik_record_keys + [rb_record_key]):
