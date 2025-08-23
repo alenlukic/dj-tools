@@ -20,37 +20,47 @@ def find_artist_disparities():
                 try:
                     track_model = AudioFile(track.file_name)
                     track_metadata = track_model.get_metadata()
-                    track_comment = track_metadata.get(TrackDBCols.COMMENT.value, '{}')
+                    track_comment = track_metadata.get(TrackDBCols.COMMENT.value, "{}")
                 except Exception:
-                    track_comment = '{}'
+                    track_comment = "{}"
             track_comment = load_comment(track_comment)
 
             # Extract artist names from comment
-            artist_str = track_comment.get(ArtistFields.ARTISTS.value, '')
-            remixer_str = track_comment.get(ArtistFields.REMIXERS.value, '')
-            comment_artists = set([ca for ca in [a.strip() for a in artist_str.split(',')] +
-                                   [r.strip() for r in remixer_str.split(',')] if not is_empty(ca)])
+            artist_str = track_comment.get(ArtistFields.ARTISTS.value, "")
+            remixer_str = track_comment.get(ArtistFields.REMIXERS.value, "")
+            comment_artists = set(
+                [
+                    ca
+                    for ca in [a.strip() for a in artist_str.split(",")]
+                    + [r.strip() for r in remixer_str.split(",")]
+                    if not is_empty(ca)
+                ]
+            )
 
             # Get artist names in DB
-            artist_tracks = session.query(ArtistTrack).filter_by(track_id=track.id).all()
+            artist_tracks = (
+                session.query(ArtistTrack).filter_by(track_id=track.id).all()
+            )
             artist_rows = set()
             for artist_track in artist_tracks:
-                artist_row = session.query(Artist).filter_by(id=artist_track.artist_id).first()
+                artist_row = (
+                    session.query(Artist).filter_by(id=artist_track.artist_id).first()
+                )
                 artist_rows.add(artist_row.name)
 
             # Find diff between comment and DB entries
             if len(comment_artists.difference(artist_rows)) > 0:
-                print('Artist disparity for track %s' % track.title)
-                print('Comment artist entry: %s' % str(comment_artists))
-                print('DB artist entries: %s' % str(artist_rows))
-                print('-------\n')
+                print("Artist disparity for track %s" % track.title)
+                print("Comment artist entry: %s" % str(comment_artists))
+                print("DB artist entries: %s" % str(artist_rows))
+                print("-------\n")
 
     except Exception as e:
-        handle(e, 'Top-level exception occurred while syncing track fields')
+        handle(e, "Top-level exception occurred while syncing track fields")
         session.rollback()
     finally:
         session.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     find_artist_disparities()

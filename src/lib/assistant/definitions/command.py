@@ -1,5 +1,6 @@
 class Command:
-    """ Encapsulates a mixing assistant command. """
+    """Encapsulates a mixing assistant command."""
+
     def __init__(self, cmd, description, function, aliases={}, arguments=[]):
         self.cmd = cmd
         self.description = description
@@ -22,13 +23,33 @@ class Command:
         return sorted(self.arguments)
 
     def print_usage(self):
-        arg_summary = '' if self.num_args == 0 else (' [%s]' % ' '.join([a.get_name() for a in self.arguments]))
-        arg_detail = '' if self.num_args == 0 else ('\n  Arguments:\n\t%s' % '\n\t'.join(
-            [a.print() for a in self.arguments]))
-        aliases = '' if self.num_aliases == 0 else ('\n  Command aliases: %s' % ', '.join(self.aliases))
-        description = ' - %s' % self.description
+        arg_summary = (
+            ""
+            if self.num_args == 0
+            else (" [%s]" % " ".join([a.get_name() for a in self.arguments]))
+        )
+        arg_detail = (
+            ""
+            if self.num_args == 0
+            else (
+                "\n  Arguments:\n\t%s"
+                % "\n\t".join([a.print() for a in self.arguments])
+            )
+        )
+        aliases = (
+            ""
+            if self.num_aliases == 0
+            else ("\n  Command aliases: %s" % ", ".join(self.aliases))
+        )
+        description = " - %s" % self.description
 
-        return '%s%s%s%s%s\n' % (self.cmd, arg_summary, description, aliases, arg_detail)
+        return "%s%s%s%s%s\n" % (
+            self.cmd,
+            arg_summary,
+            description,
+            aliases,
+            arg_detail,
+        )
 
 
 class CommandParsingException(Exception):

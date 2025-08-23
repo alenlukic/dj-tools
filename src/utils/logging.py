@@ -11,7 +11,7 @@ class Logger:
         self.prefix = prefix
 
     def print(self, message):
-        print('%s %s' % (self.prefix, message))
+        print("%s %s" % (self.prefix, message))
 
 
 def info(message):
@@ -27,5 +27,5 @@ def error(message):
 
 
 def print_and_log(message, method, max_size=None):
-    print(message if max_size is None else message[0:min(len(message), max_size)])
+    print(message if max_size is None else message[0 : min(len(message), max_size)])
     method(message)

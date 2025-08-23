@@ -2,19 +2,19 @@ from enum import Enum
 
 
 class SerializationKeys(Enum):
-    TRACK_ID = 'Track ID'
-    TRACK_TITLE = 'Track Title'
-    SAMPLES = 'Samples'
+    TRACK_ID = "Track ID"
+    TRACK_TITLE = "Track Title"
+    SAMPLES = "Samples"
 
 
 class RelativeKey(Enum):
-    SAME = 'Same'
-    STEP_DOWN = 'Step Down'
-    STEP_UP = 'Step Up'
+    SAME = "Same"
+    STEP_DOWN = "Step Down"
+    STEP_UP = "Step Up"
 
 
 class Feature(Enum):
-    SMMS = 'Segmented Mean Mel Spectrogram'
+    SMMS = "Segmented Mean Mel Spectrogram"
 
 
 SAMPLE_RATE = 44100

@@ -12,11 +12,11 @@ def sync_tags():
         sync_track_tags(tracks)
         session.commit()
     except Exception as e:
-        handle(e, 'Top-level exception occurred while syncing track tags')
+        handle(e, "Top-level exception occurred while syncing track tags")
         session.rollback()
     finally:
         session.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sync_tags()
