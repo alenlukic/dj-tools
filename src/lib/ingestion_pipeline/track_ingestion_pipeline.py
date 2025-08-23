@@ -155,6 +155,7 @@ class FinalPipelineStage(PipelineStage):
                 continue
 
     def update_track_table(self, tag_records):
+        processed_successfully = set()
         for track_file, tag_record in tag_records.items():
             try:
                 old_path = join(self.target_dir, track_file)
@@ -178,6 +179,11 @@ class FinalPipelineStage(PipelineStage):
                 audio_file = AudioFile(formatted_title)
                 audio_file.write_tags(metadata)
 
+                processed_successfully.add(tag_record.track_id)
+
             except Exception as e:
                 handle(e, 'Exception occurred processing %s:' % track_file)
                 continue
+
+        for track_id in processed_successfully:
+            print(track_id)
