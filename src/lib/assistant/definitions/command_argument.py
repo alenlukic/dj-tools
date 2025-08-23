@@ -1,5 +1,6 @@
 class CommandArgument:
-    """ Encapsulates a mixing assistant command argument. """
+    """Encapsulates a mixing assistant command argument."""
+
     def __init__(self, name, typ, description, position, example, required=True):
         self.name = name
         self.typ = typ
@@ -24,8 +25,13 @@ class CommandArgument:
         return self.example
 
     def print(self):
-        return '%s (%s): %s (example: %s)%s' % (self.name, self.typ, self.description, self.example,
-                                                '' if self.required else ' (optional)')
+        return "%s (%s): %s (example: %s)%s" % (
+            self.name,
+            self.typ,
+            self.description,
+            self.example,
+            "" if self.required else " (optional)",
+        )
 
     def __lt__(self, other):
         return self.position < other.position

@@ -3,7 +3,9 @@ from sys import exit
 from src.db import database
 from src.definitions.assistant import *
 from src.lib.assistant.definitions.command import CommandParsingException
-from src.lib.harmonic_mixing.definitions.transition_match_finder import TransitionMatchFinder
+from src.lib.harmonic_mixing.definitions.transition_match_finder import (
+    TransitionMatchFinder,
+)
 from src.utils.harmonic_mixing import *
 from src.utils.assistant import *
 
@@ -14,23 +16,23 @@ def parse_user_input(user_input):
         return
 
     segments = [seg.strip() for seg in stripped_input.split()]
-    if stripped_input[0] == '[':
+    if stripped_input[0] == "[":
         cmd_alias = MATCH
         segments = [MATCH] + segments
     else:
         cmd_alias = segments[0].lower()
 
     if cmd_alias not in ALL_ALIASES:
-        raise CommandParsingException('%s is not a valid command.' % cmd_alias)
+        raise CommandParsingException("%s is not a valid command." % cmd_alias)
 
     cmd_name = ALIAS_MAPPING.get(cmd_alias, cmd_alias)
-    args = [' '.join(segments[1:])] if cmd_name == MATCH else segments[1:]
+    args = [" ".join(segments[1:])] if cmd_name == MATCH else segments[1:]
 
     return cmd_name, args
 
 
 class Assistant:
-    """" Encapsulates the CLI mixing assistant. """
+    """ " Encapsulates the CLI mixing assistant."""
 
     def __init__(self):
         self.session = database.create_session()
@@ -44,11 +46,16 @@ class Assistant:
         num_expected_args = len([arg for arg in expected_args if arg.required])
 
         if num_args != num_expected_args:
-            formatted_args = '' if num_args == 0 else ' - got: %s' % ' '.join(args)
-            raise CommandParsingException('%s expects %d arguments%s.' % (cmd_name, num_expected_args, formatted_args))
+            formatted_args = "" if num_args == 0 else " - got: %s" % " ".join(args)
+            raise CommandParsingException(
+                "%s expects %d arguments%s."
+                % (cmd_name, num_expected_args, formatted_args)
+            )
 
         cmd_function = command.get_function()
-        cmd_args = {expected_args[i].get_name(): args[i].strip() for i in range(num_args)}
+        cmd_args = {
+            expected_args[i].get_name(): args[i].strip() for i in range(num_args)
+        }
         return getattr(self, cmd_function)(**cmd_args)
 
     def print_transition_matches(self, track_title):
@@ -56,9 +63,9 @@ class Assistant:
 
     def reload_track_data(self):
         self.transition_match_finder.reload_track_data()
-        print('Track data reloaded.')
+        print("Track data reloaded.")
 
     def shutdown(self):
-        """ Exits the CLI. """
-        print('Goodbye.')
+        """Exits the CLI."""
+        print("Goodbye.")
         exit()

@@ -5,7 +5,9 @@ import numpy as np
 from src.db import database
 from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
 from src.definitions.feature_extraction import *
-from src.lib.harmonic_mixing.definitions.transition_match_finder import TransitionMatchFinder
+from src.lib.harmonic_mixing.definitions.transition_match_finder import (
+    TransitionMatchFinder,
+)
 from src.lib.feature_extraction.track_feature import SegmentedMeanMelSpectrogram
 from src.lib.error_management.service import handle
 from src.utils.file_operations import stage_tracks
@@ -16,7 +18,12 @@ cache_session = database.create_session()
 
 
 def get_existing_match_pairs():
-    return set([(tm.on_deck_id, tm.candidate_id) for tm in session.query(TransitionMatchRow).all()])
+    return set(
+        [
+            (tm.on_deck_id, tm.candidate_id)
+            for tm in session.query(TransitionMatchRow).all()
+        ]
+    )
 
 
 def generate_track_pairs(track_id, matches, relative_key):
@@ -32,7 +39,9 @@ def generate_track_pairs(track_id, matches, relative_key):
 def generate_match_pairs():
     for track in tracks:
         track_id = track.id
-        (same_key, higher_key, lower_key), _ = tm_finder.get_transition_matches(track, False)
+        (same_key, higher_key, lower_key), _ = tm_finder.get_transition_matches(
+            track, False
+        )
 
         generate_track_pairs(track_id, same_key, RelativeKey.SAME.value)
         generate_track_pairs(track_id, higher_key, RelativeKey.STEP_DOWN.value)
@@ -41,7 +50,7 @@ def generate_match_pairs():
         stage_queue[track_id] = track
 
 
-@lru_cache(get_config_value(['FEATURE_EXTRACTION', 'SMMS_CACHE_SIZE']))
+@lru_cache(get_config_value(["FEATURE_EXTRACTION", "SMMS_CACHE_SIZE"]))
 def get_smms_value(track_id):
     smms = SegmentedMeanMelSpectrogram(track_id_map[track_id])
     smms.load(cache_session)
@@ -69,10 +78,10 @@ def create_transition_match_smms_rows(sesh, compute_missing):
 
                 mel_score = np.linalg.norm(on_deck_smms - match_smms)
                 match_row = {
-                    'on_deck_id': on_deck_id,
-                    'candidate_id': candidate_id,
-                    'match_factors': {Feature.SMMS.value: mel_score},
-                    'relative_key': relative_key
+                    "on_deck_id": on_deck_id,
+                    "candidate_id": candidate_id,
+                    "match_factors": {Feature.SMMS.value: mel_score},
+                    "relative_key": relative_key,
                 }
 
                 if i % 500 == 0:
@@ -80,15 +89,20 @@ def create_transition_match_smms_rows(sesh, compute_missing):
                     hits, misses = cache_info.hits, cache_info.misses
                     milestone_hits = hits - total_hits
                     milestone_misses = misses - total_misses
-                    milestone_hit_rate = str(float(milestone_hits / (milestone_hits + milestone_misses)))
+                    milestone_hit_rate = str(
+                        float(milestone_hits / (milestone_hits + milestone_misses))
+                    )
 
                     total_hits = hits
                     total_misses = misses
                     avg_hit_rate = str(float(hits / (hits + misses)))
 
-                    print('%d of %d pairs processed' % (i, num_to_create))
-                    print('%d rows created' % rows_created)
-                    print('Cache hit rate (last milestone : average): %s : %s \n' % (milestone_hit_rate, avg_hit_rate))
+                    print("%d of %d pairs processed" % (i, num_to_create))
+                    print("%d rows created" % rows_created)
+                    print(
+                        "Cache hit rate (last milestone : average): %s : %s \n"
+                        % (milestone_hit_rate, avg_hit_rate)
+                    )
 
                 # noinspection PyShadowingNames, PyUnboundLocalVariable
                 db_session = database.recreate_session_contingent(db_session)
@@ -108,14 +122,22 @@ def create_transition_match_smms_rows(sesh, compute_missing):
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Compute mean Mel spectrogram features.')
-    parser.add_argument('--compute-missing', '-c', action='store_true', dest='compute_missing', default=False,
-                        help='Attempt to compute missing feature values')
+    parser = argparse.ArgumentParser(
+        description="Compute mean Mel spectrogram features."
+    )
+    parser.add_argument(
+        "--compute-missing",
+        "-c",
+        action="store_true",
+        dest="compute_missing",
+        default=False,
+        help="Attempt to compute missing feature values",
+    )
 
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = get_args()
 
     # Load session data

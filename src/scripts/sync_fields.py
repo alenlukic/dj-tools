@@ -12,11 +12,11 @@ def sync_fields():
         sync_track_fields(tracks)
         session.commit()
     except Exception as e:
-        handle(e, 'Top-level exception occurred while syncing track fields')
+        handle(e, "Top-level exception occurred while syncing track fields")
         session.rollback()
     finally:
         session.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sync_fields()

@@ -6,10 +6,11 @@ from src.utils.common import log2smooth
 
 
 class TransitionMatch:
-    """ Encapsulates a transition match from current track to next track. """
+    """Encapsulates a transition match from current track to next track."""
+
     collection_metadata = None
     db_session = None
-    result_column_header = '   '.join(['Total Score', 'SMMS Score', ' Track'])
+    result_column_header = "   ".join(["Total Score", "SMMS Score", " Track"])
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
         self.metadata = metadata
@@ -19,9 +20,11 @@ class TransitionMatch:
         self.factors = {}
 
     def format(self):
-        score = '{:.2f}'.format(self.get_score())
-        smms_score = '{:.2f}'.format(100 * self.get_smms_score())
-        return ('         ' * (6 - len(score))).join([score, smms_score, self.metadata[TrackDBCols.TITLE]])
+        score = "{:.2f}".format(self.get_score())
+        smms_score = "{:.2f}".format(100 * self.get_smms_score())
+        return ("         " * (6 - len(score))).join(
+            [score, smms_score, self.metadata[TrackDBCols.TITLE]]
+        )
 
     def get_score(self):
         if self.score is None:
@@ -29,16 +32,27 @@ class TransitionMatch:
                 self.score = 100
             else:
                 score_weights = [
-                    (self.get_camelot_priority_score(), MATCH_WEIGHTS[MatchFactors.CAMELOT.name]),
+                    (
+                        self.get_camelot_priority_score(),
+                        MATCH_WEIGHTS[MatchFactors.CAMELOT.name],
+                    ),
                     (self.get_bpm_score(), MATCH_WEIGHTS[MatchFactors.BPM.name]),
-                    (self.get_smms_score(), MATCH_WEIGHTS[MatchFactors.SMMS_SCORE.name]),
-                    (self.get_freshness_score(), MATCH_WEIGHTS[MatchFactors.FRESHNESS.name]),
+                    (
+                        self.get_smms_score(),
+                        MATCH_WEIGHTS[MatchFactors.SMMS_SCORE.name],
+                    ),
+                    (
+                        self.get_freshness_score(),
+                        MATCH_WEIGHTS[MatchFactors.FRESHNESS.name],
+                    ),
                     (self.get_genre_score(), MATCH_WEIGHTS[MatchFactors.GENRE.name]),
                     (self.get_label_score(), MATCH_WEIGHTS[MatchFactors.LABEL.name]),
                     (self.get_artist_score(), MATCH_WEIGHTS[MatchFactors.ARTIST.name]),
                     (self.get_energy_score(), MATCH_WEIGHTS[MatchFactors.ENERGY.name]),
                 ]
-                self.score = 100 * sum([score * weight for score, weight in score_weights])
+                self.score = 100 * sum(
+                    [score * weight for score, weight in score_weights]
+                )
 
         return self.score
 
@@ -50,7 +64,9 @@ class TransitionMatch:
             cur_track_remixer_counts = self.cur_track_md.get(ArtistFields.REMIXERS, {})
 
             artists = (set(artist_counts.keys())).union(set(remixer_counts.keys()))
-            cur_track_artists = (set(cur_track_artist_counts.keys())).union(set(cur_track_remixer_counts.keys()))
+            cur_track_artists = (set(cur_track_artist_counts.keys())).union(
+                set(cur_track_remixer_counts.keys())
+            )
 
             total_artists = len(artists) + len(cur_track_artists)
             if total_artists == 0:
@@ -62,12 +78,27 @@ class TransitionMatch:
                 return 0.0
 
             unified_counts = {}
-            for count_dict in [artist_counts, remixer_counts, cur_track_artist_counts, cur_track_remixer_counts]:
+            for count_dict in [
+                artist_counts,
+                remixer_counts,
+                cur_track_artist_counts,
+                cur_track_remixer_counts,
+            ]:
                 for k, v in count_dict.items():
                     unified_counts[k] = v
 
-            log_artist_count = log2smooth(self.collection_metadata[CollectionStat.ARTIST_COUNTS])
-            return sum([1.0 - (log2smooth(unified_counts[artist]) / log_artist_count) for artist in overlap]) / n
+            log_artist_count = log2smooth(
+                self.collection_metadata[CollectionStat.ARTIST_COUNTS]
+            )
+            return (
+                sum(
+                    [
+                        1.0 - (log2smooth(unified_counts[artist]) / log_artist_count)
+                        for artist in overlap
+                    ]
+                )
+                / n
+            )
 
         if MatchFactors.ARTIST not in self.factors:
             self.factors[MatchFactors.ARTIST] = _get_artist_score()
@@ -107,7 +138,9 @@ class TransitionMatch:
             discount = 0.9
 
             if relative_diff <= abs_same_lower_bound:
-                score = float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
+                score = (
+                    float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
+                )
 
             if relative_diff <= abs_down_key_lower_bound:
                 midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
@@ -157,8 +190,9 @@ class TransitionMatch:
             if date_added is None:
                 return 0.5
 
-            return ((date_added - self.collection_metadata[CollectionStat.OLDEST]) /
-                    self.collection_metadata[CollectionStat.TIME_RANGE])
+            return (
+                date_added - self.collection_metadata[CollectionStat.OLDEST]
+            ) / self.collection_metadata[CollectionStat.TIME_RANGE]
 
         if MatchFactors.FRESHNESS not in self.factors:
             self.factors[MatchFactors.FRESHNESS] = _get_freshness_score()
@@ -176,7 +210,7 @@ class TransitionMatch:
                 return 1.0
 
             # TODO: genre-specific hacks, fix
-            trance_genres = {'Trance', 'Classic Trance'}
+            trance_genres = {"Trance", "Classic Trance"}
             if genre in trance_genres and cur_track_genre in trance_genres:
                 return 0.5
 
@@ -189,11 +223,22 @@ class TransitionMatch:
     def get_label_score(self):
         def _get_label_score():
             label, label_count = self.metadata.get(TrackDBCols.LABEL, (None, None))
-            cur_label, cur_label_count = self.cur_track_md.get(TrackDBCols.LABEL, (None, None))
-            if label != cur_label or label == 'CDR' or cur_label == 'CDR' or label is None or cur_label is None:
+            cur_label, cur_label_count = self.cur_track_md.get(
+                TrackDBCols.LABEL, (None, None)
+            )
+            if (
+                label != cur_label
+                or label == "CDR"
+                or cur_label == "CDR"
+                or label is None
+                or cur_label is None
+            ):
                 return 0.0
 
-            return 1.0 - (log2smooth(label_count) / log2smooth(self.collection_metadata[CollectionStat.LABEL_COUNTS]))
+            return 1.0 - (
+                log2smooth(label_count)
+                / log2smooth(self.collection_metadata[CollectionStat.LABEL_COUNTS])
+            )
 
         if MatchFactors.LABEL not in self.factors:
             self.factors[MatchFactors.LABEL] = _get_label_score()
@@ -201,9 +246,16 @@ class TransitionMatch:
 
     def get_smms_score(self):
         def _get_smms_score():
-            smms_score = self.db_session.query(TransitionMatchRow).filter(
-                TransitionMatchRow.on_deck_id == self.cur_track_md.get(TrackDBCols.ID),
-                TransitionMatchRow.candidate_id == self.metadata.get(TrackDBCols.ID)).first()
+            smms_score = (
+                self.db_session.query(TransitionMatchRow)
+                .filter(
+                    TransitionMatchRow.on_deck_id
+                    == self.cur_track_md.get(TrackDBCols.ID),
+                    TransitionMatchRow.candidate_id
+                    == self.metadata.get(TrackDBCols.ID),
+                )
+                .first()
+            )
             if smms_score is None:
                 return 0.0
             else:
@@ -216,8 +268,11 @@ class TransitionMatch:
         return self.factors[MatchFactors.SMMS_SCORE]
 
     def __lt__(self, other):
-        return ((self.get_score(), self.get_smms_score(), self.get_freshness_score()) <
-                (other.get_score(), self.get_smms_score(), other.get_freshness_score()))
+        return (self.get_score(), self.get_smms_score(), self.get_freshness_score()) < (
+            other.get_score(),
+            self.get_smms_score(),
+            other.get_freshness_score(),
+        )
 
     def __hash__(self):
         return hash(self.metadata[TrackDBCols.FILE_NAME])
