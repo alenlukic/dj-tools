@@ -1,11 +1,8 @@
 from setuptools import setup, find_packages
-import sys
+
 
 with open('requirements.txt') as f:
     requirements = [r.strip() for r in f.read().splitlines()]
-    if sys.platform.startswith('darwin'):
-        with open('mac_os_requirements.txt') as m:
-            requirements.extend([r.strip() for r in m.read().splitlines()])
 
 setup(
     name='dj-tools',
