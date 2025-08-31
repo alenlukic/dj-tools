@@ -33,7 +33,8 @@ class Database:
             )
             self.engine = create_engine(conn_string)
             self.conn = self.engine.connect()
-            self.metadata = MetaData(self.engine, reflect=True)
+            self.metadata = MetaData()
+            self.metadata.reflect(bind=self.engine)
 
     def __init__(self):
         if self.db is None:
