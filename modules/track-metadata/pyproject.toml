@@ -1,0 +1,32 @@
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+extend-exclude = [
+  ".venv",
+  "logs",
+  "agent-tools",
+  "terminals",
+  "test_data",
+]
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+  "SIM", # flake8-simplify
+  "RUF", # ruff-specific rules
+]
+ignore = [
+  "SIM105", # keep explicit context managers where already present
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+
