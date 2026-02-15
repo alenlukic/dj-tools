@@ -130,3 +130,6 @@ config/*
 
 # Mac OS gunk
 .DS_Store
+
+# VSCode workspace file
+*.code-workspace

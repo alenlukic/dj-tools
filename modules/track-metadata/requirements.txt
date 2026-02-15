@@ -1,11 +1,12 @@
-langchain>=0.1.14
-serpapi>=0.1.0
 mutagen>=1.46.0
-eyed3>=0.9.7
-requests>=2.31.0
-numpy>=1.23,<1.24
-Cython>=0.29
-madmom
-psycopg2-binary
+requests>=2.31.0,<3
+numpy>=1.23
 rich
 pytest>=7.4
+
+# Agent dependencies (optional at runtime, but installed by default in the dedicated venv).
+langchain-core>=0.3,<0.4
+langchain-openai>=0.3,<0.4
+langchain-community>=0.3,<0.4
+langgraph>=0.6,<0.7
+tavily-python>=0.7,<0.8

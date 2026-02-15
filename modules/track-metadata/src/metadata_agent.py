@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import importlib
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -29,6 +30,10 @@ from utils import (
 
 AIFF_SUFFIXES = {".aiff", ".aif"}
 ID3_FIELDS = {"title", "artist", "album", "label", "genre", "remixer", "key"}
+
+
+def _import_attr(module: str, attr: str):
+    return getattr(importlib.import_module(module), attr)
 
 
 @dataclass
@@ -330,7 +335,10 @@ def analyze_missing_audio_features(audio_path: Path, metadata: SimpleMetadata) -
 
 def _estimate_bpm(audio_path: Path) -> float | None:
     try:
-        from madmom.features.beats import DBNBeatTrackingProcessor, RNNBeatProcessor
+        DBNBeatTrackingProcessor = _import_attr(
+            "madmom.features.beats", "DBNBeatTrackingProcessor"
+        )
+        RNNBeatProcessor = _import_attr("madmom.features.beats", "RNNBeatProcessor")
     except ImportError as exc:
         raise RuntimeError(
             "madmom is required for BPM estimation. "
@@ -360,7 +368,12 @@ def _estimate_bpm(audio_path: Path) -> float | None:
 
 def _estimate_key(audio_path: Path) -> str | None:
     try:
-        from madmom.features.key import CNNKeyRecognitionProcessor, key_prediction_to_label
+        CNNKeyRecognitionProcessor = _import_attr(
+            "madmom.features.key", "CNNKeyRecognitionProcessor"
+        )
+        key_prediction_to_label = _import_attr(
+            "madmom.features.key", "key_prediction_to_label"
+        )
     except ImportError as exc:
         raise RuntimeError(
             "madmom is required for key estimation. "

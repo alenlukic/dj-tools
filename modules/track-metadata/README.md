@@ -17,8 +17,7 @@ Essentia’s Python bindings are published under Homebrew’s `python@3.9`. We w
 
 ```bash
 cd /Users/alen/Dev/dj-tools/modules/track-metadata
-rm -rf .venv                      # remove any previous env
-/opt/homebrew/opt/python@3.9/bin/python3.9 -m venv .venv
+./scripts/setup_venv.sh
 source .venv/bin/activate
 ```
 
@@ -27,6 +26,27 @@ Upgrade pip in the fresh environment:
 ```bash
 pip install --upgrade pip
 ```
+
+## Quick commands
+
+Run module tests:
+
+```bash
+./scripts/run_tests.sh
+```
+
+## Editor setup (Cursor / VS Code)
+
+BasedPyright only auto-loads `pyrightconfig.json` from **workspace roots**. If you opened `/Users/alen/Dev` (or some parent folder) as the workspace, the module-level `pyrightconfig.json` will not be applied.
+
+Recommended: open the multi-root workspace file:
+
+```bash
+cd /Users/alen/Dev/dj-tools
+code dj-tools.code-workspace
+```
+
+Or in Cursor/VS Code: **File → Open Workspace from File…** and select `dj-tools/dj-tools.code-workspace`.
 
 ## 3. Make Essentia importable inside the venv
 
