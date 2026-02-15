@@ -1,0 +1,10 @@
+#
+# Optional audio/DSP dependencies.
+#
+# Notes:
+# - `madmom` is used for BPM/key estimation in `metadata_agent.py`.
+# - Installation may require compiler toolchain on macOS and is installed with
+#   `--no-build-isolation` by the setup script.
+#
+Cython>=0.29
+madmom

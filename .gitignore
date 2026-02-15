@@ -94,6 +94,11 @@ venv.bak/
 
 # Ruff
 ruff.toml
+*.ruff_cache/
+
+# Pytest
+*.pytest_cache/
+
 
 # Spyder project settings
 .spyderproject
@@ -115,7 +120,7 @@ ruff.toml
 data/*
 
 # Log directory
-logs/*
+*logs/*
 
 # Short-lived scripts
 src/scripts/tmp/*
@@ -125,3 +130,6 @@ config/*
 
 # Mac OS gunk
 .DS_Store
+
+# VSCode workspace file
+*.code-workspace
