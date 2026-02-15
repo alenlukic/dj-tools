@@ -35,6 +35,17 @@ Run module tests:
 ./scripts/run_tests.sh
 ```
 
+## Configuration (uses dj-tools `config/config.json`)
+
+This module reads its directories from `dj-tools/config/config.json` under the `TRACK_METADATA` key:
+
+- `TRACK_METADATA.DOWNLOAD_DIR`
+- `TRACK_METADATA.PROCESSING_DIR`
+- `TRACK_METADATA.AUGMENTED_DIR`
+- `TRACK_METADATA.LOG_DIR`
+
+You can still override these with environment variables (`TRACK_METADATA_DOWNLOAD_DIR`, etc.), but the config file is the default.
+
 ## Editor setup (Cursor / VS Code)
 
 BasedPyright only auto-loads `pyrightconfig.json` from **workspace roots**. If you opened `/Users/alen/Dev` (or some parent folder) as the workspace, the module-level `pyrightconfig.json` will not be applied.

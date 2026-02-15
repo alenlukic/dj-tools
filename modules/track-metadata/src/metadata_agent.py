@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from mutagen.aiff import AIFF
 from mutagen.id3 import ID3, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TPE4, TPUB, ID3NoHeaderError
 
 from utils import (
@@ -28,7 +27,6 @@ from utils import (
     stage_file,
 )
 
-AIFF_SUFFIXES = {".aiff", ".aif"}
 ID3_FIELDS = {"title", "artist", "album", "label", "genre", "remixer", "key"}
 
 
@@ -392,27 +390,15 @@ def _estimate_key(audio_path: Path) -> str | None:
     return None
 
 
-def _load_id3(path: Path, create_if_missing: bool = False) -> tuple[ID3 | None, AIFF | None]:
-    suffix = path.suffix.lower()
-    if suffix in AIFF_SUFFIXES:
-        audio = AIFF(path)
-
-        if audio.tags is None and create_if_missing:
-            audio.tags = ID3()
-
-        return audio.tags, audio
-
+def _load_id3(path: Path, create_if_missing: bool = False) -> tuple[ID3 | None, None]:
     try:
         return ID3(str(path)), None
     except ID3NoHeaderError:
         return (ID3(), None) if create_if_missing else (None, None)
 
 
-def _save_id3(path: Path, tags: ID3, container: AIFF | None) -> None:
-    if container is not None:
-        container.save(v2_version=4)
-        return
-
+def _save_id3(path: Path, tags: ID3, container: None = None) -> None:
+    _ = container
     tags.save(str(path), v2_version=4)
 
 

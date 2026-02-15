@@ -13,14 +13,60 @@ from typing import Any
 LOG_FORMAT = "%(asctime)s %(levelname)s:%(message)s"
 
 
+def _module_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def _dj_tools_root() -> Path:
+    # .../dj-tools/modules/track-metadata/src/utils.py -> .../dj-tools
+    return Path(__file__).resolve().parents[3]
+
+
+def _load_config() -> dict[str, Any]:
+    config_path = _dj_tools_root() / "config" / "config.json"
+    if not config_path.exists():
+        return {}
+    try:
+        return json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+_CONFIG: dict[str, Any] = _load_config()
+
+
+def _config_str(*keys: str) -> str | None:
+    node: Any = _CONFIG
+    for key in keys:
+        if not isinstance(node, dict) or key not in node:
+            return None
+        node = node[key]
+    return node if isinstance(node, str) and node.strip() else None
+
+
+def _configured_path(env_var: str, config_keys: tuple[str, ...], default: str) -> Path:
+    raw = os.getenv(env_var) or _config_str(*config_keys) or default
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        # Make relative paths stable regardless of CWD.
+        path = _module_root() / path
+    return path
+
+
 def _env_path(var_name: str, default: str) -> Path:
     return Path(os.getenv(var_name, default)).expanduser()
 
 
-DOWNLOAD_DIR = _env_path("TRACK_METADATA_DOWNLOAD_DIR", "downloads")
-PROCESSING_DIR = _env_path("TRACK_METADATA_PROCESSING_DIR", "processing")
-AUGMENTED_DIR = _env_path("TRACK_METADATA_AUGMENTED_DIR", "augmented")
-LOG_DIR = _env_path("TRACK_METADATA_LOG_DIR", "logs")
+DOWNLOAD_DIR = _configured_path(
+    "TRACK_METADATA_DOWNLOAD_DIR", ("TRACK_METADATA", "DOWNLOAD_DIR"), "downloads"
+)
+PROCESSING_DIR = _configured_path(
+    "TRACK_METADATA_PROCESSING_DIR", ("TRACK_METADATA", "PROCESSING_DIR"), "processing"
+)
+AUGMENTED_DIR = _configured_path(
+    "TRACK_METADATA_AUGMENTED_DIR", ("TRACK_METADATA", "AUGMENTED_DIR"), "augmented"
+)
+LOG_DIR = _configured_path("TRACK_METADATA_LOG_DIR", ("TRACK_METADATA", "LOG_DIR"), "logs")
 RUN_START = os.getenv("TRACK_METADATA_RUN_START", datetime.now().strftime("%Y%m%dT%H%M%S"))
 LOG_FILE_PATH = LOG_DIR / f"{RUN_START}.log"
 

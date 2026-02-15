@@ -1,4 +1,10 @@
 {
   "PROCESSED_MUSIC_DIR": "/path/to/processed/music/directory",
-  "TMP_MUSIC_DIR": "/path/to/unprocessed/music/directory"
+  "TMP_MUSIC_DIR": "/path/to/unprocessed/music/directory",
+  "TRACK_METADATA": {
+    "DOWNLOAD_DIR": "/path/to/Downloaded Tracks",
+    "PROCESSING_DIR": "processing",
+    "AUGMENTED_DIR": "augmented",
+    "LOG_DIR": "logs"
+  }
 }
