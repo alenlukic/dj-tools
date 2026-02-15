@@ -7,20 +7,6 @@ set -euo pipefail
 DOWNLOAD_DIR="/Volumes/Mnemosyne/Music/Downloaded Tracks"
 
 files=(
-  "The Groovaholic's - Wake Up The Funk (Ragel Mood Remix).aiff"
-  "Silent Space - Miracle (Original Long Trance Mix).aiff"
-  "POETRY - Picking Up The Pace (Extended Version).aiff"
-  "DAFT PUNK - AROUND THE WORLD (WESTEND EDIT).aiff"
-  "M83 - Midnight City (Versaro & Landau Remix).aiff"
-  "Silent Space - Miracle (Hard Trance Remix).aiff"
-  "Akon - Beautiful (Klein Rietje - remix).aiff"
-  "SWART - did ya think this was a salsa.aiff"
-  "CIS - New Phone (Extended Version).aiff"
-  "Lucas Boston - Hazard 2 Society.aiff"
-  "Music Sounds Better With Groove (Loatz edit).mp3"
-  "Die Antwoord - I Fink U Freeky  (HUMAN404 Edit) 24_44.1.aiff"
-  "Funk Assault - Sacred Arsenal.aiff"
-  "JBox - HOT PEOPLE IN MY HOUSE.aiff"
 )
 
 echo "Files that would be deleted from: $DOWNLOAD_DIR"
