@@ -133,3 +133,5 @@ config/*
 
 # VSCode workspace file
 *.code-workspace
+
+.local/
