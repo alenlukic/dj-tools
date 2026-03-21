@@ -19,15 +19,15 @@ def datetime_transform(value):
 
 
 def float_transform(value):
-    return None if value is value is None else float(value)
+    return None if value is None else float(value)
 
 
 def int_transform(value):
-    return None if value is value is None else int(value)
+    return None if value is None else int(value)
 
 
 def string_transform(value):
-    return None if value is value is None else str(value)
+    return None if value is None else str(value)
 
 
 def get_config_value(path):
