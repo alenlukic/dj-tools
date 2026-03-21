@@ -5,12 +5,9 @@ from pathlib import Path
 
 from mutagen.id3 import ID3
 
-from metadata_agent import (
-    SimpleMetadata,
-    purge_invalid_augmented_files,
-    read_existing_metadata,
-    write_tags,
-)
+from metadata_agent import purge_invalid_augmented_files
+from models import SimpleMetadata
+from tags import read_existing_metadata, write_tags
 
 TEST_DATA_DIR = Path(__file__).resolve().parent.parent / "test_data"
 
