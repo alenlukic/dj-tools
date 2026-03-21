@@ -1,4 +1,5 @@
 import logging
+import os
 
 from sqlalchemy import create_engine, inspect, MetaData
 from sqlalchemy.ext.declarative import declarative_base
@@ -18,12 +19,12 @@ class Database:
 
     class __Database:
         def __init__(self):
-            db_config = CONFIG["DB"]
-            user = db_config["USER"]
-            password = db_config["PASSWORD"]
-            host = db_config["HOST"]
-            port = db_config["PORT"]
-            name = db_config["NAME"]
+            db_config = CONFIG.get("DB", {})
+            user = os.getenv("DB_USER") or db_config.get("USER", "")
+            password = os.getenv("DB_PASSWORD") or db_config.get("PASSWORD", "")
+            host = os.getenv("DB_HOST") or db_config.get("HOST", "localhost")
+            port = os.getenv("DB_PORT") or db_config.get("PORT", "5432")
+            name = os.getenv("DB_NAME") or db_config.get("NAME", "")
             conn_string = "postgresql+psycopg2://%s:%s@%s:%s/%s" % (
                 user,
                 password,

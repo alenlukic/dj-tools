@@ -1,133 +1,172 @@
-# Track Metadata Agent – Setup Guide
+# track-metadata
 
-This project now targets **Python 3.9** so that all DSP libraries (Essentia, madmom) and the LangChain agent run in the same runtime. Follow the steps below to reproduce the working environment that was validated on macOS (Apple Silicon) with Homebrew.
+## Overview
 
-## 1. Install Essentia via Homebrew
+Enriches audio file metadata by querying MusicBrainz, Discogs, and AcoustID, resolving any remaining gaps with an OpenAI LLM, and writing the final tags back to the file.
+
+---
+
+## Setup
+
+### Prerequisites
+
+- Python 3.9
+- ffmpeg (audio decoding; install instructions below)
+- Homebrew (macOS, for Essentia — only needed if you want audio BPM/key estimation)
+- A `.env` file at the dj-tools repo root (see [Configuration](#configuration))
+
+### Installation
+
+**1. Create the Python 3.9 virtual environment:**
+
+```bash
+cd modules/track-metadata
+
+# Standard setup (no audio analysis):
+./scripts/setup_venv.sh
+
+# With BPM/key audio analysis (installs madmom + Cython):
+./scripts/setup_venv.sh --audio
+
+source .venv/bin/activate
+```
+
+**2. Install ffmpeg:**
+
+```bash
+./scripts/install_cli_dependencies.sh
+```
+
+This runs `brew install ffmpeg` on macOS or uses apt/dnf/pacman on Linux.
+
+**3. (macOS only, optional) Install Essentia for audio analysis:**
+
+Essentia provides beat and key estimation. Skip this if you don't need audio-based BPM/key resolution.
 
 ```bash
 brew tap mtg/essentia
 brew install --HEAD mtg/essentia/essentia
 ```
 
-> The Essentia tap builds from source. Homebrew will install a large dependency stack (gcc, ffmpeg@2.8, python@3.9, etc.). Make sure you have the latest macOS Command Line Tools; otherwise the build can fail.
-
-Essentia’s Python bindings are published under Homebrew’s `python@3.9`. We will link them into the project virtual environment in a later step.
-
-## 2. Create a Python 3.9 virtual environment
-
-```bash
-cd /Users/alen/Dev/dj-tools/modules/track-metadata
-./scripts/setup_venv.sh
-source .venv/bin/activate
-```
-
-Upgrade pip in the fresh environment:
-
-```bash
-pip install --upgrade pip
-```
-
-## Quick commands
-
-Run module tests:
-
-```bash
-./scripts/run_tests.sh
-```
-
-## Configuration (uses dj-tools `config/config.json`)
-
-This module reads its directories from `dj-tools/config/config.json` under the `TRACK_METADATA` key:
-
-- `TRACK_METADATA.DOWNLOAD_DIR`
-- `TRACK_METADATA.PROCESSING_DIR`
-- `TRACK_METADATA.AUGMENTED_DIR`
-- `TRACK_METADATA.LOG_DIR`
-
-You can still override these with environment variables (`TRACK_METADATA_DOWNLOAD_DIR`, etc.), but the config file is the default.
-
-## Editor setup (Cursor / VS Code)
-
-BasedPyright only auto-loads `pyrightconfig.json` from **workspace roots**. If you opened `/Users/alen/Dev` (or some parent folder) as the workspace, the module-level `pyrightconfig.json` will not be applied.
-
-Recommended: open the multi-root workspace file:
-
-```bash
-cd /Users/alen/Dev/dj-tools
-code dj-tools.code-workspace
-```
-
-Or in Cursor/VS Code: **File → Open Workspace from File…** and select `dj-tools/dj-tools.code-workspace`.
-
-## 3. Make Essentia importable inside the venv
-
-Append Essentia’s site-packages directory to the virtualenv so the bindings installed by Homebrew are visible:
+Link Essentia's bindings into the virtual environment:
 
 ```bash
 echo '/opt/homebrew/opt/essentia/lib/python3.9/site-packages' \
   > .venv/lib/python3.9/site-packages/essentia-homebrew.pth
 ```
 
-You can verify with:
+Verify:
 
 ```bash
 python -c "import essentia; print(essentia.__version__)"
 ```
 
-## 4. Pre-install binary build prerequisites
+> If `brew install` fails, update macOS Command Line Tools: `xcode-select --install`.
 
-madmom’s wheel build expects `numpy` and `Cython` to be present in the active environment. Install them first:
+---
+
+### Configuration
+
+Configuration is loaded from the `.env` file at the dj-tools repo root. Copy `.env.example` to `.env` if you haven't already:
 
 ```bash
-pip install numpy==2.0.2 Cython==3.1.6
+cp ../../.env.example ../../.env
 ```
 
-## 5. Install madmom (without build isolation)
+**Env vars:**
 
-The default isolated build fails because it cannot see the pre-installed `Cython`. Installing without isolation reuses the environment packages:
+| Variable | Required | Description |
+|---|---|---|
+| `TRACK_METADATA_DOWNLOAD_DIR` | Yes | Directory where new audio files are placed for processing |
+| `TRACK_METADATA_PROCESSING_DIR` | No | Working directory for in-progress files (default: `processing`) |
+| `TRACK_METADATA_AUGMENTED_DIR` | No | Output directory for enriched files (default: `augmented`) |
+| `TRACK_METADATA_LOG_DIR` | No | Log directory (default: `logs`) |
+| `TRACK_METADATA_RUN_START` | No | Override run timestamp used in log file naming |
+| `DISCOGS_TOKEN` | No | Discogs personal access token — enables Discogs label/genre lookups |
+| `ACOUSTID_API_KEY` | No | AcoustID API key — enables audio fingerprint identification |
+| `OPENAI_API_KEY` | No | OpenAI API key — enables LLM resolution of remaining missing fields |
+| `OPENAI_METADATA_MODEL` | No | OpenAI model to use (default: `gpt-4o-mini`) |
+| `MUSIC_METADATA_USER_AGENT` | No | User-Agent header for MusicBrainz/Discogs HTTP requests |
 
+The module works without any API keys. MusicBrainz is queried without authentication. Each optional service adds a layer of metadata coverage.
+
+---
+
+## Usage
+
+### Metadata Agent
+
+**Purpose:** Discovers new audio files, enriches their metadata from external sources, writes final ID3 tags, and deposits renamed files into the augmented directory.
+
+**When to use:** After downloading new tracks and placing them in `TRACK_METADATA_DOWNLOAD_DIR`, before ingesting them into the main dj-tools pipeline.
+
+**Invocation:**
 ```bash
-pip install --no-build-isolation madmom
+cd modules/track-metadata
+source .venv/bin/activate
+python -m metadata_agent
 ```
 
-## 6. Install the remaining Python dependencies
+**What it does, step by step:**
 
+1. Creates `processing/`, `augmented/`, and `logs/` directories if missing
+2. Removes any files in `augmented/` that have no readable title tag
+3. Clears the `processing/` directory
+4. Scans `TRACK_METADATA_DOWNLOAD_DIR` for `.mp3` and `.aiff` files not already present in `augmented/`
+5. For each file:
+   - Copies it to `processing/`
+   - Reads existing ID3 tags
+   - Queries AcoustID (if configured) to identify the recording by audio fingerprint
+   - Queries MusicBrainz to fill title, artist, album, label, genre, year
+   - Queries Discogs (if configured) to supplement label and genre
+   - If fields are still missing, calls the OpenAI LLM with all candidate results to resolve them
+   - Runs madmom BPM/key estimation (if installed) for any still-missing BPM or key
+   - Writes final tags back to the file
+   - Renames the file to `Artist - Title.ext`
+   - Copies the renamed file to `TRACK_METADATA_AUGMENTED_DIR`
+
+**Output:**
+
+- Enriched, renamed audio files in `TRACK_METADATA_AUGMENTED_DIR`
+- Structured JSON log in `TRACK_METADATA_LOG_DIR/{timestamp}.log` containing per-file metadata decisions and raw API responses
+
+---
+
+### Run Tests
+
+**Purpose:** Runs the full test suite for this module.
+
+**Invocation:**
 ```bash
-pip install -r requirements.txt
+./scripts/run_tests.sh
 ```
 
-This will pull in LangChain, requests, psycopg2-binary, rich, and the other runtime libraries.
-
-## 7. Linting and formatting (Ruff)
-
-Ruff is configured in `pyproject.toml` for linting and formatting.
-
-Install (if not yet installed in the venv):
-
+Or directly:
 ```bash
-pip install -r requirements-dev.txt
+source .venv/bin/activate
+pytest -q tests/
 ```
 
-Run checks and formatting:
+**Output:** Test results for 103 tests covering file utilities, ID3 tag read/write, audio feature analysis, and metadata hydration (with mocked network calls).
 
+---
+
+### Lint and Format
+
+**Purpose:** Checks code quality with Ruff.
+
+**Invocation:**
 ```bash
+source .venv/bin/activate
 ruff check .
 ruff format .
 ```
 
-## 8. Optional verification
+---
 
-```bash
-python -c "import essentia, madmom; print('Essentia', essentia.__version__)"
-python -m metadata_agent  # or run the agent entry point you use
-```
+## Notes
 
-## Notes & Troubleshooting
-
-- If `brew install --HEAD mtg/essentia/essentia` complains about missing Command Line Tools, update them via System Settings or reinstall with `xcode-select --install`.
-- The installation process assumes a clean virtual environment. If you change Python versions or reinstall dependencies, start from Step 2.
-- LangChain requires Python ≥3.10 for the 1.x line; the project pins the 0.3.x series, which remains compatible with Python 3.9.
-- When automating setup, run these commands in the same order to avoid build failures for `madmom`.
-
-With these steps complete, the metadata agent runs entirely within the Python 3.9 virtual environment and can access Essentia, madmom, and the LangChain tools it orchestrates.
-
+- madmom requires Python 3.9 and `--no-build-isolation` during installation (handled automatically by `setup_venv.sh --audio`).
+- LangChain is not used. Metadata resolution uses the OpenAI structured outputs API directly.
+- All API services are optional and degrade gracefully; the agent will use whatever sources are configured.
+- Files already present in `augmented/` are skipped on subsequent runs.

@@ -18,3 +18,4 @@ requests==2.31.0
 protobuf==4.24.4
 networkx==2.8.8
 ipython==8.12.3
+python-dotenv==1.0.1

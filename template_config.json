@@ -1,10 +1,50 @@
 {
-  "PROCESSED_MUSIC_DIR": "/path/to/processed/music/directory",
-  "TMP_MUSIC_DIR": "/path/to/unprocessed/music/directory",
+  "_comment": "Copy to config/config.json and fill in values. Secrets (DB_*) should be set via .env instead.",
+  "DATA": {
+    "ROOT": "/path/to/dj-tools/data",
+    "BACKUP_RESTORE_MUSIC_DIR": "backup/restored",
+    "FILE_STAGING_DIR": "file_staging"
+  },
+  "DB": {
+    "_comment": "Prefer .env for DB credentials. These values are fallbacks only.",
+    "NAME": "music_collection",
+    "USER": "postgres",
+    "PASSWORD": "changeme",
+    "HOST": "localhost",
+    "PORT": "5432"
+  },
+  "FEATURE_EXTRACTION": {
+    "SMMS_CACHE_SIZE": 4096
+  },
+  "HARMONIC_MIXING": {
+    "TRANSITION_MATCH_WEIGHTS": {
+      "SMMS_SCORE": 0.24,
+      "CAMELOT": 0.19,
+      "BPM": 0.17,
+      "FRESHNESS": 0.14,
+      "LABEL": 0.12,
+      "GENRE": 0.08,
+      "ARTIST": 0.04,
+      "ENERGY": 0.02
+    },
+    "3_SD_SMMS": 525.294,
+    "MAX_RESULTS": 50,
+    "SCORE_THRESHOLD": 25,
+    "RESULT_THRESHOLD": 20
+  },
+  "INGESTION_PIPELINE": {
+    "ROOT": "/path/to/dj-tools/data/ingestion_pipeline",
+    "UNPROCESSED": "unprocessed",
+    "PROCESSING": "processing",
+    "FINALIZED": "finalized",
+    "REKORDBOX_TAG_FILE": "rekordbox_tags.txt",
+    "PROCESSED_MUSIC_DIR": "/path/to/Music/High Quality"
+  },
   "TRACK_METADATA": {
     "DOWNLOAD_DIR": "/path/to/Downloaded Tracks",
     "PROCESSING_DIR": "processing",
     "AUGMENTED_DIR": "augmented",
     "LOG_DIR": "logs"
-  }
+  },
+  "LOG_LOCATION": "logs/logs.txt"
 }
