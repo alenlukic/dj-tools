@@ -134,4 +134,5 @@ config/*
 # VSCode workspace file
 *.code-workspace
 
+.cursor/
 .local/

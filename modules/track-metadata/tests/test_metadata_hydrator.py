@@ -9,24 +9,29 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-import metadata_agent
-from metadata_agent import (
-    MetadataHydrator,
-    SimpleMetadata,
+
+from matching import (
     _best_year,
-    _coerce_year,
     _extract_remixer,
-    _extract_year_from_date,
-    _first_list_item,
-    _first_non_empty,
-    _first_release_id,
-    _format_artist_credit,
     _merge_missing,
-    _musicbrainz_payload_to_metadata,
     _normalize_for_match,
     _parse_filename_seed,
     _similarity,
+)
+from models import SimpleMetadata
+from sources import hydrator as hydrator_mod
+from sources.discogs import (
+    _coerce_year,
+    _first_list_item,
+    _first_non_empty,
     _split_discogs_title,
+)
+from sources.hydrator import MetadataHydrator
+from sources.musicbrainz import (
+    _extract_year_from_date,
+    _first_release_id,
+    _format_artist_credit,
+    _musicbrainz_payload_to_metadata,
 )
 
 TEST_DATA_DIR = Path(__file__).resolve().parent.parent / "test_data"
@@ -307,7 +312,9 @@ def test_first_list_item_not_a_list_returns_none() -> None:
         (42, None, None),
     ],
 )
-def test_split_discogs_title(value: Any, expected_artist: str | None, expected_title: str | None) -> None:
+def test_split_discogs_title(
+    value: Any, expected_artist: str | None, expected_title: str | None
+) -> None:
     artist, title = _split_discogs_title(value)
     assert artist == expected_artist
     assert title == expected_title
@@ -357,19 +364,19 @@ def test_musicbrainz_payload_to_metadata_without_release() -> None:
 
 
 # ---------------------------------------------------------------------------
-# MetadataHydrator – cache
+# MetadataHydrator - cache
 # ---------------------------------------------------------------------------
 
 
 def test_hydrator_load_cache_returns_empty_dict_on_missing_file(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "nonexistent_cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "nonexistent_cache.json"):
         hydrator = MetadataHydrator()
         assert hydrator.cache == {}
 
 
 def test_hydrator_save_and_load_cache(tmp_path) -> None:
     cache_path = tmp_path / "cache.json"
-    with patch.object(metadata_agent, "CACHE_PATH", cache_path):
+    with patch.object(hydrator_mod, "CACHE_PATH", cache_path):
         hydrator = MetadataHydrator()
         hydrator.cache["key1"] = {"final": {"title": "Cached Track", "artist": "Artist"}}
         hydrator._save_cache()
@@ -383,7 +390,7 @@ def test_hydrator_file_cache_key_is_deterministic(tmp_path) -> None:
     test_file = tmp_path / "sample.mp3"
     test_file.write_bytes(b"fake audio data")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
         key1 = hydrator._file_cache_key(test_file)
         key2 = hydrator._file_cache_key(test_file)
@@ -396,8 +403,7 @@ def test_hydrator_hydrate_uses_cache_hit(tmp_path) -> None:
     shutil.copy2(TEST_DATA_DIR / "[01A - Abm - 086.00] Cell - Traffic (Live).mp3", mp3)
 
     cache_path = tmp_path / "cache.json"
-    with patch.object(metadata_agent, "CACHE_PATH", cache_path), \
-         patch.object(metadata_agent, "AUGMENTED_DIR", tmp_path):
+    with patch.object(hydrator_mod, "CACHE_PATH", cache_path):
         hydrator = MetadataHydrator()
         cache_key = hydrator._file_cache_key(mp3)
         hydrator.cache[cache_key] = {"final": {"title": "Cached Title", "artist": "Cached Artist"}}
@@ -416,7 +422,7 @@ def test_lookup_acoustid_skips_without_api_key(tmp_path) -> None:
     mp3 = tmp_path / "track.mp3"
     mp3.write_bytes(b"fake")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     with patch.dict("os.environ", {}, clear=True):
@@ -431,10 +437,9 @@ def test_lookup_acoustid_skips_when_pyacoustid_not_installed(tmp_path, monkeypat
 
     monkeypatch.setenv("ACOUSTID_API_KEY", "fakekey")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
-    import importlib
     import sys
 
     # Temporarily make acoustid unimportable
@@ -456,7 +461,7 @@ def test_lookup_acoustid_returns_none_on_low_confidence(tmp_path, monkeypatch) -
 
     monkeypatch.setenv("ACOUSTID_API_KEY", "fakekey")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     mock_acoustid = MagicMock()
@@ -473,7 +478,7 @@ def test_lookup_acoustid_returns_metadata_on_high_confidence(tmp_path, monkeypat
 
     monkeypatch.setenv("ACOUSTID_API_KEY", "fakekey")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     mock_acoustid = MagicMock()
@@ -495,7 +500,7 @@ def test_lookup_acoustid_returns_metadata_on_high_confidence(tmp_path, monkeypat
 
 
 def test_lookup_musicbrainz_returns_none_without_title(tmp_path, monkeypatch) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     result = hydrator._lookup_musicbrainz(SimpleMetadata(), Path("no_title.mp3"))
@@ -503,7 +508,7 @@ def test_lookup_musicbrainz_returns_none_without_title(tmp_path, monkeypatch) ->
 
 
 def test_lookup_musicbrainz_handles_http_error(tmp_path, monkeypatch) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     hydrator.http.get = MagicMock(side_effect=requests.RequestException("timeout"))
@@ -514,7 +519,7 @@ def test_lookup_musicbrainz_handles_http_error(tmp_path, monkeypatch) -> None:
 
 
 def test_lookup_musicbrainz_returns_none_when_no_recordings_match(tmp_path, monkeypatch) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     mock_response = MagicMock()
@@ -529,7 +534,7 @@ def test_lookup_musicbrainz_returns_none_when_no_recordings_match(tmp_path, monk
 
 
 def test_lookup_musicbrainz_returns_metadata_on_match(tmp_path, monkeypatch) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     search_response = MagicMock()
@@ -595,7 +600,7 @@ def test_lookup_musicbrainz_returns_metadata_on_match(tmp_path, monkeypatch) -> 
 
 
 def test_select_best_musicbrainz_recording_returns_none_below_threshold(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     recordings = [
@@ -612,7 +617,7 @@ def test_select_best_musicbrainz_recording_returns_none_below_threshold(tmp_path
 
 
 def test_select_best_musicbrainz_recording_returns_best_match(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     recordings = [
@@ -641,10 +646,13 @@ def test_select_best_musicbrainz_recording_returns_best_match(tmp_path) -> None:
 
 
 def test_lookup_discogs_returns_none_without_token(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
-    with patch.dict("os.environ", {k: v for k, v in __import__("os").environ.items() if k != "DISCOGS_TOKEN"}):
+    env_without_token = {
+        k: v for k, v in __import__("os").environ.items() if k != "DISCOGS_TOKEN"
+    }
+    with patch.dict("os.environ", env_without_token, clear=True):
         result = hydrator._lookup_discogs(SimpleMetadata(title="Track"))
         assert result is None
 
@@ -652,7 +660,7 @@ def test_lookup_discogs_returns_none_without_token(tmp_path) -> None:
 def test_lookup_discogs_returns_none_without_title(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DISCOGS_TOKEN", "faketoken")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     result = hydrator._lookup_discogs(SimpleMetadata(artist="Artist"))
@@ -662,7 +670,7 @@ def test_lookup_discogs_returns_none_without_title(tmp_path, monkeypatch) -> Non
 def test_lookup_discogs_returns_metadata_on_match(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DISCOGS_TOKEN", "faketoken")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     mock_response = MagicMock()
@@ -693,7 +701,7 @@ def test_lookup_discogs_returns_metadata_on_match(tmp_path, monkeypatch) -> None
 def test_lookup_discogs_returns_none_below_threshold(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DISCOGS_TOKEN", "faketoken")
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     mock_response = MagicMock()
@@ -724,7 +732,7 @@ def test_lookup_discogs_returns_none_below_threshold(tmp_path, monkeypatch) -> N
 
 
 def test_resolve_from_candidates_returns_none_without_openai_client(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
     hydrator.openai_client = None
 
@@ -737,7 +745,7 @@ def test_resolve_from_candidates_returns_none_without_openai_client(tmp_path) ->
 
 
 def test_resolve_from_candidates_returns_none_when_no_missing_fields(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
     hydrator.openai_client = MagicMock()
 
@@ -759,7 +767,7 @@ def test_resolve_from_candidates_returns_none_when_no_missing_fields(tmp_path) -
 
 
 def test_resolve_from_candidates_returns_none_when_no_sources(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
     hydrator.openai_client = MagicMock()
 
@@ -777,11 +785,11 @@ def test_resolve_from_candidates_returns_none_when_no_sources(tmp_path) -> None:
 
 
 def test_respect_rate_limit_sleeps_when_needed(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     # Force the last request timestamp to be "just now" so rate limit kicks in
-    metadata_agent._last_musicbrainz_request_ts = time.monotonic()
+    hydrator_mod._last_musicbrainz_request_ts = time.monotonic()
 
     with patch("time.sleep") as mock_sleep:
         hydrator._respect_rate_limit("musicbrainz")
@@ -791,11 +799,11 @@ def test_respect_rate_limit_sleeps_when_needed(tmp_path) -> None:
 
 
 def test_respect_rate_limit_no_sleep_when_enough_time_passed(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     # Simulate enough time having elapsed
-    metadata_agent._last_musicbrainz_request_ts = time.monotonic() - 10.0
+    hydrator_mod._last_musicbrainz_request_ts = time.monotonic() - 10.0
 
     with patch("time.sleep") as mock_sleep:
         hydrator._respect_rate_limit("musicbrainz")
@@ -803,7 +811,7 @@ def test_respect_rate_limit_no_sleep_when_enough_time_passed(tmp_path) -> None:
 
 
 def test_respect_rate_limit_unknown_provider_is_noop(tmp_path) -> None:
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
     with patch("time.sleep") as mock_sleep:
@@ -812,7 +820,7 @@ def test_respect_rate_limit_unknown_provider_is_noop(tmp_path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# MetadataHydrator.hydrate – integration (no real network)
+# MetadataHydrator.hydrate - integration (no real network)
 # ---------------------------------------------------------------------------
 
 
@@ -820,8 +828,7 @@ def test_hydrate_uses_filename_seed_when_no_existing_metadata(tmp_path) -> None:
     mp3 = tmp_path / "Great Artist - Great Track.mp3"
     shutil.copy2(TEST_DATA_DIR / "[01A - Abm - 086.00] Cell - Traffic (Live).mp3", mp3)
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"), \
-         patch.object(metadata_agent, "AUGMENTED_DIR", tmp_path):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
         # Stub out all remote lookups
@@ -841,11 +848,12 @@ def test_hydrate_does_not_overwrite_existing_metadata(tmp_path) -> None:
 
     existing = SimpleMetadata(title="Existing Title", artist="Existing Artist", bpm=128.0)
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"), \
-         patch.object(metadata_agent, "AUGMENTED_DIR", tmp_path):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
-        candidate = SimpleMetadata(title="Candidate Title", artist="Candidate Artist", genre="Techno")
+        candidate = SimpleMetadata(
+            title="Candidate Title", artist="Candidate Artist", genre="Techno"
+        )
         with patch.object(hydrator, "_lookup_acoustid", return_value=None), \
              patch.object(hydrator, "_lookup_musicbrainz", return_value=candidate), \
              patch.object(hydrator, "_lookup_discogs", return_value=None), \
@@ -866,8 +874,7 @@ def test_hydrate_writes_and_reads_cache(tmp_path) -> None:
 
     cache_path = tmp_path / "cache.json"
 
-    with patch.object(metadata_agent, "CACHE_PATH", cache_path), \
-         patch.object(metadata_agent, "AUGMENTED_DIR", tmp_path):
+    with patch.object(hydrator_mod, "CACHE_PATH", cache_path):
         hydrator = MetadataHydrator()
 
         with patch.object(hydrator, "_lookup_acoustid", return_value=None), \
@@ -877,8 +884,11 @@ def test_hydrate_writes_and_reads_cache(tmp_path) -> None:
             result1 = hydrator.hydrate(mp3, SimpleMetadata(title="Cached Track", artist="Artist"))
 
         # Second hydrate should hit cache (no lookup calls)
-        with patch.object(hydrator, "_lookup_acoustid", side_effect=AssertionError("Should not be called")), \
-             patch.object(hydrator, "_lookup_musicbrainz", side_effect=AssertionError("Should not be called")):
+        _not_called = AssertionError("Should not be called")
+        with (
+            patch.object(hydrator, "_lookup_acoustid", side_effect=_not_called),
+            patch.object(hydrator, "_lookup_musicbrainz", side_effect=_not_called),
+        ):
             result2 = hydrator.hydrate(mp3, SimpleMetadata())
 
     assert result1.title == result2.title
@@ -889,8 +899,7 @@ def test_hydrate_applies_label_fallback(tmp_path) -> None:
     mp3 = tmp_path / "Track.mp3"
     shutil.copy2(TEST_DATA_DIR / "[01A - Abm - 086.00] Cell - Traffic (Live).mp3", mp3)
 
-    with patch.object(metadata_agent, "CACHE_PATH", tmp_path / "cache.json"), \
-         patch.object(metadata_agent, "AUGMENTED_DIR", tmp_path):
+    with patch.object(hydrator_mod, "CACHE_PATH", tmp_path / "cache.json"):
         hydrator = MetadataHydrator()
 
         existing = SimpleMetadata(title="Track", artist="Artist", label="White Label")
