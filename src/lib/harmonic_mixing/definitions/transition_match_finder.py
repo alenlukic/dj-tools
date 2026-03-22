@@ -30,8 +30,10 @@ class TransitionMatchFinder:
         self.tracks = load_tracks()
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         TransitionMatch.collection_metadata = self.collection_metadata
+        TransitionMatch.clear_descriptor_caches()
 
     def get_transition_matches(self, track, sort_results=True):
+        TransitionMatch.clear_descriptor_caches()
         try:
             db_row = (
                 track
