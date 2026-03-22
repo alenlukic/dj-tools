@@ -1,7 +1,9 @@
+from src.db.entities.track_descriptor import TrackDescriptor
 from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
 from src.definitions.data_management import *
-from src.definitions.feature_extraction import Feature
+from src.definitions.feature_extraction import DESCRIPTOR_VERSION, Feature
 from src.definitions.harmonic_mixing import *
+from src.lib.feature_extraction.compact_descriptor import cosine_similarity, unpack_vector
 from src.utils.common import log2smooth
 
 
@@ -10,7 +12,17 @@ class TransitionMatch:
 
     collection_metadata = None
     db_session = None
+    # Class-level caches: one query per on-deck track and one per candidate per session.
+    # Call clear_descriptor_caches() at the start of each new track query.
+    _on_deck_descriptor_cache = {}
+    _candidate_descriptor_cache = {}
     result_column_header = "   ".join(["Total Score", "SMMS Score", " Track"])
+
+    @classmethod
+    def clear_descriptor_caches(cls):
+        """Clear per-session descriptor caches. Call before each new track query."""
+        cls._on_deck_descriptor_cache.clear()
+        cls._candidate_descriptor_cache.clear()
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
         self.metadata = metadata
@@ -246,22 +258,47 @@ class TransitionMatch:
 
     def get_smms_score(self):
         def _get_smms_score():
+            on_deck_id = self.cur_track_md.get(TrackDBCols.ID)
+            candidate_id = self.metadata.get(TrackDBCols.ID)
+
+            # Prefer compact-descriptor cosine similarity when both tracks have descriptors.
+            # Both caches are populated lazily and cleared per track query via
+            # TransitionMatch.clear_descriptor_caches().
+            if on_deck_id not in TransitionMatch._on_deck_descriptor_cache:
+                TransitionMatch._on_deck_descriptor_cache[on_deck_id] = (
+                    self.db_session.query(TrackDescriptor)
+                    .filter_by(track_id=on_deck_id, descriptor_version=DESCRIPTOR_VERSION)
+                    .first()
+                )
+            on_deck_desc = TransitionMatch._on_deck_descriptor_cache[on_deck_id]
+
+            if candidate_id not in TransitionMatch._candidate_descriptor_cache:
+                TransitionMatch._candidate_descriptor_cache[candidate_id] = (
+                    self.db_session.query(TrackDescriptor)
+                    .filter_by(track_id=candidate_id, descriptor_version=DESCRIPTOR_VERSION)
+                    .first()
+                )
+            candidate_desc = TransitionMatch._candidate_descriptor_cache[candidate_id]
+
+            if on_deck_desc is not None and candidate_desc is not None:
+                v1 = unpack_vector(on_deck_desc.global_vector)
+                v2 = unpack_vector(candidate_desc.global_vector)
+                return cosine_similarity(v1, v2)
+
+            # Fall back to pre-computed SMMS Euclidean distance
             smms_score = (
                 self.db_session.query(TransitionMatchRow)
                 .filter(
-                    TransitionMatchRow.on_deck_id
-                    == self.cur_track_md.get(TrackDBCols.ID),
-                    TransitionMatchRow.candidate_id
-                    == self.metadata.get(TrackDBCols.ID),
+                    TransitionMatchRow.on_deck_id == on_deck_id,
+                    TransitionMatchRow.candidate_id == candidate_id,
                 )
                 .first()
             )
             if smms_score is None:
                 return 0.0
-            else:
-                smms_val = smms_score.match_factors[Feature.SMMS.value]
-                smms_max = self.collection_metadata[CollectionStat.SMMS_MAX]
-                return max(0.0, 1.0 - (float(smms_val) / smms_max))
+            smms_val = smms_score.match_factors[Feature.SMMS.value]
+            smms_max = self.collection_metadata[CollectionStat.SMMS_MAX]
+            return max(0.0, 1.0 - (float(smms_val) / smms_max))
 
         if MatchFactors.SMMS_SCORE not in self.factors:
             self.factors[MatchFactors.SMMS_SCORE] = _get_smms_score()
