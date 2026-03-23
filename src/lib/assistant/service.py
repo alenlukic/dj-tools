@@ -1,13 +1,12 @@
 from sys import exit
 
 from src.db import database
-from src.definitions.assistant import *
+from src.definitions.assistant import ALIAS_MAPPING, ALL_ALIASES, COMMANDS, MATCH
 from src.lib.assistant.definitions.command import CommandParsingException
 from src.lib.harmonic_mixing.definitions.transition_match_finder import (
     TransitionMatchFinder,
 )
-from src.utils.harmonic_mixing import *
-from src.utils.assistant import *
+from src.utils.common import is_empty
 
 
 def parse_user_input(user_input):

@@ -1,7 +1,15 @@
+import re
 from ast import literal_eval
 from unicodedata import normalize
 
-from src.definitions.data_management import *
+from src.definitions.data_management import (
+    BAR_REGEX,
+    GENRE_CANON,
+    LABEL_CANON,
+    MD_COMPOSITE_REGEX,
+    PAREN_REGEX,
+    SPECIAL_FILENAME_CHARS,
+)
 from src.utils.common import is_empty
 
 
