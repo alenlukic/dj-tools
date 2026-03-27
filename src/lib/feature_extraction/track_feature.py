@@ -2,7 +2,14 @@ import librosa
 import numpy as np
 
 from src.db.entities.feature_value import FeatureValue
-from src.definitions.feature_extraction import *
+from src.definitions.feature_extraction import (
+    Feature,
+    NUM_MELS,
+    NUM_ROW_CHUNKS,
+    OVERLAP_WINDOW,
+    SAMPLE_RATE,
+    WINDOW_SIZE,
+)
 from src.utils.file_operations import get_track_load_path
 
 

@@ -4,7 +4,7 @@ import traceback
 
 from src.definitions.error_management import MAX_ERROR_MESSAGE_SIZE
 from src.utils.common import get_banner
-from src.utils.logging import *
+from src.utils.logging import error, print_and_log
 
 
 def handle(

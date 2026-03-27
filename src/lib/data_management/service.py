@@ -1,5 +1,6 @@
 from collections import defaultdict
 import json
+from os.path import join
 from shutil import copyfile
 from sqlalchemy import or_
 
@@ -16,10 +17,25 @@ from src.db.entities.tag_record import (
 from src.db.entities.track import Track
 from src.db.entities.transition_match import TransitionMatch
 from src.definitions.common import PROCESSED_MUSIC_DIR
+from src.definitions.data_management import (
+    ALL_TRACK_DB_COLS,
+    ArtistFields,
+    COMMENT_FIELDS,
+    DBUpdateType,
+    ID3_COMMENT_FIELDS,
+    METADATA_KEY_TO_ID3,
+    TrackDBCols,
+)
 from src.lib.data_management.definitions.audio_file import AudioFile
 from src.lib.error_management.service import handle
-from src.utils.common import *
-from src.utils.data_management import *
+from src.utils.common import get_banner
+from src.utils.data_management import (
+    dedupe_title,
+    extract_unformatted_title,
+    load_comment,
+    normalize_tag_text,
+    split_artist_string,
+)
 from src.utils.file_operations import delete_track_files, get_audio_files
 
 

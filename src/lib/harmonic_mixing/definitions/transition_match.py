@@ -1,8 +1,19 @@
 from src.db.entities.track_descriptor import TrackDescriptor
 from src.db.entities.transition_match import TransitionMatch as TransitionMatchRow
-from src.definitions.data_management import *
+from src.definitions.data_management import ArtistFields, TrackDBCols
 from src.definitions.feature_extraction import DESCRIPTOR_VERSION, Feature
-from src.definitions.harmonic_mixing import *
+from src.definitions.harmonic_mixing import (
+    SAME_LOWER_BOUND,
+    SAME_UPPER_BOUND,
+    UP_KEY_LOWER_BOUND,
+    UP_KEY_UPPER_BOUND,
+    DOWN_KEY_LOWER_BOUND,
+    DOWN_KEY_UPPER_BOUND,
+    CamelotPriority,
+    CollectionStat,
+    MATCH_WEIGHTS,
+    MatchFactors,
+)
 from src.lib.feature_extraction.compact_descriptor import cosine_similarity, unpack_vector
 from src.utils.common import log2smooth
 

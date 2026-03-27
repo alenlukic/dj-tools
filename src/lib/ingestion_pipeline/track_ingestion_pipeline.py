@@ -1,12 +1,18 @@
 from collections import ChainMap
+from os.path import join, splitext
 from shutil import copyfile
-from os.path import splitext
 
 from src.db import database
 from src.db.entities.track import Track
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.definitions.data_management import TrackDBCols
-from src.definitions.ingestion_pipeline import *
+from src.definitions.data_management import ID3Tag, TrackDBCols
+from src.definitions.ingestion_pipeline import (
+    FINALIZED_DIR,
+    PROCESSING_DIR,
+    RB_TAG_FILE,
+    TAG_RECORD_FACTORIES,
+    UNPROCESSED_DIR,
+)
 from src.lib.data_management.definitions.audio_file import AudioFile
 from src.lib.data_management.service import ingest_tracks
 import src.lib.ingestion_pipeline.tag_record_factory as tag_record_factories

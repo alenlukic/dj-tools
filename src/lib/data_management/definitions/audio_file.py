@@ -1,3 +1,4 @@
+from collections import ChainMap
 from os import path
 from time import ctime
 
@@ -5,8 +6,26 @@ import mutagen
 from mutagen.id3 import TIT2, TCON, TBPM, TKEY, TPUB, COMM
 
 from src.definitions.common import PROCESSED_MUSIC_DIR
-from src.definitions.data_management import *
-from src.utils.data_management import *
+from src.definitions.data_management import (
+    ArtistFields,
+    CAMELOT_MAP,
+    CANONICAL_KEY_MAP,
+    ID3Tag,
+    ID3_TAG_SYNONYMS,
+    METADATA_KEY_TO_ID3,
+    TRACK_MD_ID3_TAGS,
+    TrackDBCols,
+)
+from src.utils.common import is_empty
+from src.utils.data_management import (
+    dedupe_title,
+    load_comment,
+    normalize_tag_text,
+    split_artist_string,
+    transform_artist,
+    transform_genre,
+    transform_label,
+)
 from src.utils.file_operations import get_file_creation_time
 
 

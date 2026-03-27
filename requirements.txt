@@ -8,14 +8,7 @@ pydub==0.25.1
 mutagen==1.47.0
 SQLAlchemy==1.4.52
 psycopg2-binary==2.9.9
-google-api-python-client==2.147.0
-google-auth==2.34.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
-googleapis-common-protos==1.63.2
-httplib2==0.22.0
 requests==2.31.0
-protobuf==4.24.4
 networkx==2.8.8
 ipython==8.12.3
 python-dotenv==1.0.1
