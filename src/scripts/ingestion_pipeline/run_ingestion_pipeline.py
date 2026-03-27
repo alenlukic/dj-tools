@@ -1,14 +1,14 @@
 import sys
 
-from src.definitions.ingestion_pipeline import NUM_STEPS, PIPELINE_CMDS, TagRecordType
-from src.lib.ingestion_pipeline.track_ingestion_pipeline import (
+from src.ingestion_pipeline.config import NUM_STEPS, PIPELINE_CMDS, TagRecordType
+from src.ingestion_pipeline.track_ingestion_pipeline import (
     FinalPipelineStage,
     InitialPipelineStage,
     PipelineStage,
     PostRBPipelineStage,
 )
-from src.lib.error_management.service import handle
-from src.utils.assistant import print_error
+from src.errors import handle
+from src.assistant.utils import print_error
 
 
 STEPS = {

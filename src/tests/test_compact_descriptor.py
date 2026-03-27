@@ -7,8 +7,8 @@ Run with:
 import numpy as np
 import pytest
 
-from src.definitions.feature_extraction import DESCRIPTOR_DIMS, SAMPLE_RATE
-from src.lib.feature_extraction.compact_descriptor import (
+from src.feature_extraction.config import DESCRIPTOR_DIMS, SAMPLE_RATE
+from src.feature_extraction.compact_descriptor import (
     CompactDescriptor,
     _MIN_AUDIO_SAMPLES,
     _extract_zone_vector,
@@ -204,7 +204,7 @@ class TestCompactDescriptor:
     def test_short_track_skips_intro_outro(self, tmp_path):
         """Tracks shorter than 2 × DESCRIPTOR_ZONE_SECONDS get no intro/outro vectors."""
         import soundfile as sf
-        from src.definitions.feature_extraction import DESCRIPTOR_ZONE_SECONDS
+        from src.feature_extraction.config import DESCRIPTOR_ZONE_SECONDS
 
         # 10 s < 2 × 60 s, so intro/outro should be None
         y, sr = _sine_wave(duration_s=10.0)
@@ -224,7 +224,7 @@ class TestCompactDescriptor:
     def test_long_track_produces_intro_outro(self, tmp_path):
         """Tracks longer than 2 × DESCRIPTOR_ZONE_SECONDS get intro and outro vectors."""
         import soundfile as sf
-        from src.definitions.feature_extraction import DESCRIPTOR_ZONE_SECONDS
+        from src.feature_extraction.config import DESCRIPTOR_ZONE_SECONDS
 
         duration = DESCRIPTOR_ZONE_SECONDS * 2 + 10  # just over the threshold
         y, sr = _sine_wave(duration_s=float(duration))

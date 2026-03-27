@@ -1,6 +1,6 @@
 import sys
 
-from src.lib.data_management.service import delete_tracks
+from src.data_management.service import delete_tracks
 
 
 if __name__ == "__main__":

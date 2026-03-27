@@ -1,6 +1,6 @@
 from src.db import database
-import src.lib.data_management.service as data_service
-from src.lib.error_management.service import handle
+import src.data_management.service as data_service
+from src.errors import handle
 
 
 def migrate():

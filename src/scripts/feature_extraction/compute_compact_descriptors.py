@@ -25,12 +25,12 @@ from os.path import join, splitext
 import numpy as np
 
 from src.db import database
-from src.db.entities.track import Track
-from src.db.entities.track_descriptor import TrackDescriptor
-from src.definitions.common import NUM_CORES, PROCESSED_MUSIC_DIR
-from src.definitions.file_operations import AUDIO_TYPES
-from src.lib.error_management.service import handle
-from src.lib.feature_extraction.compact_descriptor import CompactDescriptor
+from src.models.track import Track
+from src.models.track_descriptor import TrackDescriptor
+from src.config import NUM_CORES, PROCESSED_MUSIC_DIR
+from src.utils.file_operations import AUDIO_TYPES
+from src.errors import handle
+from src.feature_extraction.compact_descriptor import CompactDescriptor
 
 
 _PROGRESS_INTERVAL = 100

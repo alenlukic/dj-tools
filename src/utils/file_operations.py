@@ -2,8 +2,11 @@ from os import listdir, remove, stat as osstat
 from os.path import isfile, join, splitext
 from shutil import copyfile
 
-from src.definitions.common import IS_UNIX, PROCESSED_MUSIC_DIR
-from src.definitions.file_operations import AUDIO_TYPES, FILE_STAGING_DIR
+from src.config import IS_UNIX, PROCESSED_MUSIC_DIR
+from src.utils.common import join_config_paths
+
+AUDIO_TYPES = {".mp3", ".wav", ".flac", ".ogg", ".aif", ".aiff", ".m3u"}
+FILE_STAGING_DIR = join_config_paths([["DATA", "ROOT"], ["DATA", "FILE_STAGING_DIR"]])
 
 
 def delete_track_files(track, track_directory=PROCESSED_MUSIC_DIR):

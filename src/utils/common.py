@@ -3,7 +3,7 @@ from functools import reduce
 from math import log2
 from os.path import join
 
-from src.definitions.common import CONFIG, TIMESTAMP_FORMAT
+from src.config import CONFIG, TIMESTAMP_FORMAT
 
 
 def default_transform(value):
