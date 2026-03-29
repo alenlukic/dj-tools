@@ -140,3 +140,7 @@ AGENTS.md
 
 # DB dumps
 .backup/
+# ONNX model cache (downloaded at runtime)
+models/traits/
+
+.test_data/

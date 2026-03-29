@@ -27,3 +27,24 @@ DESCRIPTOR_BPM_RANGE = 140.0
 DESCRIPTOR_TEMPOGRAM_BINS = 16
 
 SAMPLE_RATE = 44100
+
+# Trait extraction constants
+TRAIT_VERSION = "1"
+TRAIT_SAMPLE_RATE = 16000
+TRAIT_MODELS_DIR = "models/traits"
+TRAIT_PREDICTION_THRESHOLD = 0.1
+
+# EffNet-backed classification heads (18 MB embedding backbone)
+TRAIT_CLASSIFIERS_EFFNET = [
+    "mtg_jamendo_moodtheme-discogs-effnet-1",
+    "voice_instrumental-discogs-effnet-1",
+    "danceability-discogs-effnet-1",
+    "timbre-discogs-effnet-1",
+    "nsynth_acoustic_electronic-discogs-effnet-1",
+    "tonal_atonal-discogs-effnet-1",
+    "nsynth_reverb-discogs-effnet-1",
+    "mtg_jamendo_instrument-discogs-effnet-1",
+]
+
+# MAEST backbone not used: genre predictions come from EffNet backbone output[0]
+# (400-class Discogs taxonomy, zero extra model weight)

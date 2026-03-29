@@ -12,3 +12,4 @@ requests==2.31.0
 networkx==2.8.8
 ipython==8.12.3
 python-dotenv==1.0.1
+onnxruntime>=1.17.0
