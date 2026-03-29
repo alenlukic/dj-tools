@@ -52,8 +52,7 @@ cp .env.example .env
 | `DB_PASSWORD` | PostgreSQL password |
 | `DB_HOST` | PostgreSQL host (default: `localhost`) |
 | `DB_PORT` | PostgreSQL port (default: `5432`) |
-| `FEATURE_EXTRACTION_SMMS_CACHE_SIZE` | *(deprecated)* LRU cache size for SMMS feature values (default: `4096`) |
-| `HM_WEIGHT_SMMS_SCORE` | *(deprecated)* Harmonic mixing weight — SMMS spectral similarity (default: `0.24`) |
+| `HM_WEIGHT_SIMILARITY` | Harmonic mixing weight — cosine similarity (default: `0.24`) |
 | `HM_WEIGHT_CAMELOT` | Harmonic mixing weight — Camelot key compatibility (default: `0.19`) |
 | `HM_WEIGHT_BPM` | Harmonic mixing weight — BPM proximity (default: `0.17`) |
 | `HM_WEIGHT_FRESHNESS` | Harmonic mixing weight — track recency (default: `0.14`) |
@@ -61,7 +60,6 @@ cp .env.example .env
 | `HM_WEIGHT_GENRE` | Harmonic mixing weight — genre match (default: `0.08`) |
 | `HM_WEIGHT_ARTIST` | Harmonic mixing weight — shared artist (default: `0.04`) |
 | `HM_WEIGHT_ENERGY` | Harmonic mixing weight — energy level proximity (default: `0.02`) |
-| `HM_3_SD_SMMS` | *(deprecated)* 3-sigma SMMS distance threshold (default: `525.294`) |
 | `HM_MAX_RESULTS` | Max transition match candidates to return (default: `50`) |
 | `HM_SCORE_THRESHOLD` | Minimum composite score to include a candidate (default: `25`) |
 | `HM_RESULT_THRESHOLD` | Min result count before score threshold is enforced (default: `20`) |
@@ -149,33 +147,6 @@ python -m src.scripts.feature_extraction.compute_compact_descriptors <id1> <id2>
 ```
 
 **Output:** `TrackDescriptor` rows written to DB. Computation is parallelized across `NUM_CORES`.
-
----
-
-### Create Transition Match Rows
-
-**Purpose:** Precomputes pairwise transition match scores for all harmonically compatible track pairs and writes them to the database.
-
-**When to use:** After computing compact descriptors for new tracks, to make them searchable by the mixing assistant.
-
-**Invocation:**
-```bash
-python -m src.scripts.feature_extraction.create_transition_match_rows
-```
-
-**Output:** `TransitionMatch` rows written to DB.
-
----
-
-### Compute SMMS Features *(deprecated)*
-
-> **Deprecated.** SMMS feature extraction has been superseded by compact descriptor computation
-> above. Scripts remain under `src/scripts/feature_extraction/deprecated/` for reference.
-
-**Invocation:**
-```bash
-python -m src.scripts.feature_extraction.deprecated.compute_mean_mel_spectrograms
-```
 
 ---
 

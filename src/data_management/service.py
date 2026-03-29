@@ -2,12 +2,12 @@ from collections import defaultdict
 import json
 from os.path import join
 from shutil import copyfile
-from sqlalchemy import or_
+
+from src.data_management.mapping_registry import MappingRegistry
 
 from src.db import database
 from src.models.artist import Artist
 from src.models.artist_track import ArtistTrack
-from src.models.feature_value import FeatureValue
 from src.models.tag_record import (
     InitialTagRecord,
     PostMIKTagRecord,
@@ -15,7 +15,6 @@ from src.models.tag_record import (
     FinalTagRecord,
 )
 from src.models.track import Track
-from src.models.transition_match import TransitionMatch
 from src.config import PROCESSED_MUSIC_DIR
 from src.data_management.config import (
     ALL_TRACK_DB_COLS,
@@ -50,6 +49,7 @@ def load_tracks(sesh=None):
 
 def ingest_tracks(input_dir, target_dir=PROCESSED_MUSIC_DIR):
     session = database.create_session()
+    MappingRegistry.load(session)
 
     try:
         input_files = get_audio_files(input_dir)
@@ -265,18 +265,6 @@ def delete_tracks(track_ids):
             "Tag record update statuses", tag_record_deletion_statuses
         )
 
-        # Delete transition match data
-        tm_deletion_statuses = delete_transition_matches(session, track_ids)
-        print_database_operation_statuses(
-            "Transition match deletion statuses", tm_deletion_statuses
-        )
-
-        # Delete feature value data
-        fv_deletion_statuses = delete_feature_values(session, track_ids)
-        print_database_operation_statuses(
-            "Feature value deletion statuses", fv_deletion_statuses
-        )
-
         # Delete the tracks themselves
         track_deletion_statuses = {}
         for track_id in track_ids:
@@ -341,43 +329,6 @@ def update_artist_counts(session, artist_id_decrement_map):
             continue
 
     return update_statuses
-
-
-def delete_transition_matches(session, track_ids):
-    deletion_statuses = {}
-
-    for track_id in track_ids:
-        try:
-            tms = session.query(TransitionMatch).filter(
-                or_(
-                    TransitionMatch.on_deck_id == track_id,
-                    TransitionMatch.candidate_id == track_id,
-                )
-            ).all()
-            for tm in tms:
-                deletion_statuses[tm.id] = _get_deletion_status(session, tm)
-        except Exception as e:
-            handle(e)
-            deletion_statuses[track_id] = DBUpdateType.FAILURE.value
-            continue
-
-    return deletion_statuses
-
-
-def delete_feature_values(session, track_ids):
-    deletion_statuses = {}
-
-    for track_id in track_ids:
-        try:
-            fvs = session.query(FeatureValue).filter_by(track_id=track_id).all()
-            for fv in fvs:
-                deletion_statuses[fv.id] = _get_deletion_status(session, fv)
-        except Exception as e:
-            handle(e)
-            deletion_statuses[track_id] = DBUpdateType.FAILURE.value
-            continue
-
-    return deletion_statuses
 
 
 def sync_track_fields(tracks):

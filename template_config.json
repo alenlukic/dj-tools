@@ -13,12 +13,10 @@
     "HOST": "localhost",
     "PORT": "5432"
   },
-  "FEATURE_EXTRACTION": {
-    "SMMS_CACHE_SIZE": 4096
-  },
+  "FEATURE_EXTRACTION": {},
   "HARMONIC_MIXING": {
     "TRANSITION_MATCH_WEIGHTS": {
-      "SMMS_SCORE": 0.24,
+      "SIMILARITY": 0.24,
       "CAMELOT": 0.19,
       "BPM": 0.17,
       "FRESHNESS": 0.14,
@@ -27,7 +25,6 @@
       "ARTIST": 0.04,
       "ENERGY": 0.02
     },
-    "3_SD_SMMS": 525.294,
     "MAX_RESULTS": 50,
     "SCORE_THRESHOLD": 25,
     "RESULT_THRESHOLD": 20
