@@ -29,7 +29,7 @@ def parse_user_input(user_input):
 
 
 class Assistant:
-    """ " Encapsulates the CLI mixing assistant."""
+    """Encapsulates the CLI mixing assistant."""
 
     def __init__(self):
         self.session = database.create_session()

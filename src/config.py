@@ -40,12 +40,10 @@ CONFIG = {
         "HOST": _str("DB_HOST", "localhost"),
         "PORT": _str("DB_PORT", "5432"),
     },
-    "FEATURE_EXTRACTION": {
-        "SMMS_CACHE_SIZE": _int("FEATURE_EXTRACTION_SMMS_CACHE_SIZE", 4096),
-    },
+    "FEATURE_EXTRACTION": {},
     "HARMONIC_MIXING": {
         "TRANSITION_MATCH_WEIGHTS": {
-            "SMMS_SCORE": _float("HM_WEIGHT_SMMS_SCORE", 0.24),
+            "SIMILARITY": _float("HM_WEIGHT_SIMILARITY", 0.24),
             "CAMELOT": _float("HM_WEIGHT_CAMELOT", 0.19),
             "BPM": _float("HM_WEIGHT_BPM", 0.17),
             "FRESHNESS": _float("HM_WEIGHT_FRESHNESS", 0.14),
@@ -54,7 +52,6 @@ CONFIG = {
             "ARTIST": _float("HM_WEIGHT_ARTIST", 0.04),
             "ENERGY": _float("HM_WEIGHT_ENERGY", 0.02),
         },
-        "3_SD_SMMS": _float("HM_3_SD_SMMS", 525.294),
         "MAX_RESULTS": _int("HM_MAX_RESULTS", 50),
         "SCORE_THRESHOLD": _int("HM_SCORE_THRESHOLD", 25),
         "RESULT_THRESHOLD": _int("HM_RESULT_THRESHOLD", 20),

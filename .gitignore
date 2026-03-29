@@ -137,3 +137,6 @@ config/*
 .cursor/
 .local/
 AGENTS.md
+
+# DB dumps
+.backup/

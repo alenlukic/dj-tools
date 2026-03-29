@@ -4,16 +4,12 @@ from unicodedata import normalize
 
 from src.data_management.config import (
     BAR_REGEX,
-    GENRE_CANON,
-    LABEL_CANON,
     MD_COMPOSITE_REGEX,
     PAREN_REGEX,
     SPECIAL_FILENAME_CHARS,
 )
+from src.data_management.mapping_registry import MappingRegistry
 from src.utils.common import is_empty
-
-
-# TODO: move hard-coded stuff in this file to config
 
 
 def get_canonical_form(segment, canon):
@@ -59,13 +55,10 @@ def split_artist_string(artists):
 
 
 def transform_artist(artist):
-    if "Kamaya Painters" in artist:
-        return "Kamaya Painters"
-
-    if artist in {"Tiësto", "DJ Tiësto", "DJ Tiesto"}:
-        return "Tiesto"
-
-    return artist
+    for raw, canonical in MappingRegistry.artist_contains():
+        if raw in artist:
+            return canonical
+    return MappingRegistry.artist_exact().get(artist, artist)
 
 
 def transform_genre(genre):
@@ -86,26 +79,27 @@ def transform_genre(genre):
     if len(paren_matches) > 0:
         return genre.split(paren_matches[0])[0]
 
-    return get_canonical_form(genre, GENRE_CANON)
+    return get_canonical_form(genre, MappingRegistry.genre_exact())
 
 
 def transform_label(label):
-    parent_label_parens = {"(Armada)", "(Armada Music)", "(Spinnin)"}
-    for pl in parent_label_parens:
-        if pl in label:
-            return label.split(pl)[0].strip()
+    for suffix in MappingRegistry.label_strip_suffix():
+        if suffix in label:
+            return label.split(suffix)[0].strip()
 
     label_lower = label.lower()
-    if "hommega" in label_lower:
-        return "HOMmega Productions"
-    if "pure trance" in label_lower and label_lower != "pure trance progressive":
-        return "Pure Trance Recordings"
+    for raw, canonical, exclude_pattern in MappingRegistry.label_substring():
+        if raw in label_lower:
+            if exclude_pattern and label_lower == exclude_pattern:
+                continue
+            return canonical
 
     paren_matches = re.findall(PAREN_REGEX, label_lower)
+    label_word = MappingRegistry.label_word()
 
     if len(paren_matches) == 0:
         transformed_segments = transform_segments(
-            [lp.strip() for lp in label_lower.split()], LABEL_CANON
+            [lp.strip() for lp in label_lower.split()], label_word
         )
     else:
         paren_match = paren_matches[0]
@@ -113,15 +107,15 @@ def transform_label(label):
         paren_end = paren_begin + len(paren_match)
 
         pre_segments = transform_segments(
-            [lp.strip() for lp in label_lower[0:paren_begin].split()], LABEL_CANON
+            [lp.strip() for lp in label_lower[0:paren_begin].split()], label_word
         )
-        parens = [transform_parens(label_lower[paren_begin:paren_end], LABEL_CANON)]
+        parens = [transform_parens(label_lower[paren_begin:paren_end], label_word)]
         post_segments = (
             []
             if paren_end == len(label_lower) - 1
             else [lp.strip() for lp in label_lower[paren_end:].split()]
         )
-        post_segments = transform_segments(post_segments, LABEL_CANON)
+        post_segments = transform_segments(post_segments, label_word)
         transformed_segments = pre_segments + parens + post_segments
 
     return " ".join([seg.strip() for seg in transformed_segments])

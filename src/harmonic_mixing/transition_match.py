@@ -1,8 +1,6 @@
 from src.models.track_descriptor import TrackDescriptor
-from src.models.transition_match import TransitionMatch as TransitionMatchRow
 from src.data_management.config import ArtistFields, TrackDBCols
 from src.feature_extraction.config import DESCRIPTOR_VERSION
-from src.feature_extraction.deprecated.config import Feature
 from src.harmonic_mixing.config import (
     SAME_LOWER_BOUND,
     SAME_UPPER_BOUND,
@@ -28,7 +26,7 @@ class TransitionMatch:
     # Call clear_descriptor_caches() at the start of each new track query.
     _on_deck_descriptor_cache = {}
     _candidate_descriptor_cache = {}
-    result_column_header = "   ".join(["Total Score", "SMMS Score", " Track"])
+    result_column_header = "   ".join(["Total Score", "Cos Sim", " Track"])
 
     @classmethod
     def clear_descriptor_caches(cls):
@@ -45,9 +43,9 @@ class TransitionMatch:
 
     def format(self):
         score = "{:.2f}".format(self.get_score())
-        smms_score = "{:.2f}".format(100 * self.get_smms_score())
+        cos_sim = "{:.2f}".format(100 * self.get_similarity_score())
         return ("         " * (6 - len(score))).join(
-            [score, smms_score, self.metadata[TrackDBCols.TITLE]]
+            [score, cos_sim, self.metadata[TrackDBCols.TITLE]]
         )
 
     def get_score(self):
@@ -62,8 +60,8 @@ class TransitionMatch:
                     ),
                     (self.get_bpm_score(), MATCH_WEIGHTS[MatchFactors.BPM.name]),
                     (
-                        self.get_smms_score(),
-                        MATCH_WEIGHTS[MatchFactors.SMMS_SCORE.name],
+                        self.get_similarity_score(),
+                        MATCH_WEIGHTS[MatchFactors.SIMILARITY.name],
                     ),
                     (
                         self.get_freshness_score(),
@@ -268,14 +266,11 @@ class TransitionMatch:
             self.factors[MatchFactors.LABEL] = _get_label_score()
         return self.factors[MatchFactors.LABEL]
 
-    def get_smms_score(self):
-        def _get_smms_score():
+    def get_similarity_score(self):
+        def _get_similarity_score():
             on_deck_id = self.cur_track_md.get(TrackDBCols.ID)
             candidate_id = self.metadata.get(TrackDBCols.ID)
 
-            # Prefer compact-descriptor cosine similarity when both tracks have descriptors.
-            # Both caches are populated lazily and cleared per track query via
-            # TransitionMatch.clear_descriptor_caches().
             if on_deck_id not in TransitionMatch._on_deck_descriptor_cache:
                 TransitionMatch._on_deck_descriptor_cache[on_deck_id] = (
                     self.db_session.query(TrackDescriptor)
@@ -297,29 +292,16 @@ class TransitionMatch:
                 v2 = unpack_vector(candidate_desc.global_vector)
                 return cosine_similarity(v1, v2)
 
-            # Fall back to pre-computed SMMS Euclidean distance
-            smms_score = (
-                self.db_session.query(TransitionMatchRow)
-                .filter(
-                    TransitionMatchRow.on_deck_id == on_deck_id,
-                    TransitionMatchRow.candidate_id == candidate_id,
-                )
-                .first()
-            )
-            if smms_score is None:
-                return 0.0
-            smms_val = smms_score.match_factors[Feature.SMMS.value]
-            smms_max = self.collection_metadata[CollectionStat.SMMS_MAX]
-            return max(0.0, 1.0 - (float(smms_val) / smms_max))
+            return 0.0
 
-        if MatchFactors.SMMS_SCORE not in self.factors:
-            self.factors[MatchFactors.SMMS_SCORE] = _get_smms_score()
-        return self.factors[MatchFactors.SMMS_SCORE]
+        if MatchFactors.SIMILARITY not in self.factors:
+            self.factors[MatchFactors.SIMILARITY] = _get_similarity_score()
+        return self.factors[MatchFactors.SIMILARITY]
 
     def __lt__(self, other):
-        return (self.get_score(), self.get_smms_score(), self.get_freshness_score()) < (
+        return (self.get_score(), self.get_similarity_score(), self.get_freshness_score()) < (
             other.get_score(),
-            self.get_smms_score(),
+            other.get_similarity_score(),
             other.get_freshness_score(),
         )
 

@@ -6,7 +6,6 @@ from src.data_management.audio_file import AudioFile
 from src.utils.common import (
     datetime_transform,
     float_transform,
-    get_config_value,
     get_or_default,
     int_transform,
     is_empty,
@@ -34,7 +33,6 @@ def generate_camelot_map(tracks):
     collection_md = {
         CollectionStat.NEWEST: -1,
         CollectionStat.OLDEST: float("inf"),
-        CollectionStat.SMMS_MAX: get_max_smms(),
     }
     label_counts = defaultdict(int)
     artist_counts = defaultdict(int)
@@ -126,7 +124,3 @@ def generate_camelot_map(tracks):
 
 def get_bpm_bound(bpm, bound):
     return bpm / (1 + bound)
-
-
-def get_max_smms():
-    return get_config_value(["HARMONIC_MIXING", "3_SD_SMMS"])

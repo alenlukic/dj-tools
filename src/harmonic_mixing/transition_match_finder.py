@@ -2,6 +2,7 @@ from src.db import database
 from src.models.track import Track
 from src.assistant.config import DASHED_LINE
 from src.data_management.config import TrackDBCols
+from src.data_management.mapping_registry import MappingRegistry
 from src.harmonic_mixing.config import (
     CamelotPriority,
     DOWN_KEY_LOWER_BOUND,
@@ -27,9 +28,10 @@ class TransitionMatchFinder:
     """Encapsulates functionality for finding transition matches."""
 
     def __init__(self, session=None):
-        self.tracks = load_tracks()
-        self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         self.session = session if session is not None else database.create_session()
+        MappingRegistry.load(self.session)
+        self.tracks = load_tracks(self.session)
+        self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         self.max_results = get_config_value(["HARMONIC_MIXING", "MAX_RESULTS"])
         self.cutoff_threshold_score = get_config_value(
             ["HARMONIC_MIXING", "SCORE_THRESHOLD"]
@@ -42,7 +44,8 @@ class TransitionMatchFinder:
         TransitionMatch.collection_metadata = self.collection_metadata
 
     def reload_track_data(self):
-        self.tracks = load_tracks()
+        MappingRegistry.load(self.session)
+        self.tracks = load_tracks(self.session)
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         TransitionMatch.collection_metadata = self.collection_metadata
         TransitionMatch.clear_descriptor_caches()
