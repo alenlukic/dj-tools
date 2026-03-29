@@ -52,8 +52,8 @@ cp .env.example .env
 | `DB_PASSWORD` | PostgreSQL password |
 | `DB_HOST` | PostgreSQL host (default: `localhost`) |
 | `DB_PORT` | PostgreSQL port (default: `5432`) |
-| `FEATURE_EXTRACTION_SMMS_CACHE_SIZE` | LRU cache size for SMMS feature values (default: `4096`) |
-| `HM_WEIGHT_SMMS_SCORE` | Harmonic mixing weight — audio spectral similarity (default: `0.24`) |
+| `FEATURE_EXTRACTION_SMMS_CACHE_SIZE` | *(deprecated)* LRU cache size for SMMS feature values (default: `4096`) |
+| `HM_WEIGHT_SMMS_SCORE` | *(deprecated)* Harmonic mixing weight — SMMS spectral similarity (default: `0.24`) |
 | `HM_WEIGHT_CAMELOT` | Harmonic mixing weight — Camelot key compatibility (default: `0.19`) |
 | `HM_WEIGHT_BPM` | Harmonic mixing weight — BPM proximity (default: `0.17`) |
 | `HM_WEIGHT_FRESHNESS` | Harmonic mixing weight — track recency (default: `0.14`) |
@@ -61,7 +61,7 @@ cp .env.example .env
 | `HM_WEIGHT_GENRE` | Harmonic mixing weight — genre match (default: `0.08`) |
 | `HM_WEIGHT_ARTIST` | Harmonic mixing weight — shared artist (default: `0.04`) |
 | `HM_WEIGHT_ENERGY` | Harmonic mixing weight — energy level proximity (default: `0.02`) |
-| `HM_3_SD_SMMS` | 3-sigma SMMS distance threshold (default: `525.294`) |
+| `HM_3_SD_SMMS` | *(deprecated)* 3-sigma SMMS distance threshold (default: `525.294`) |
 | `HM_MAX_RESULTS` | Max transition match candidates to return (default: `50`) |
 | `HM_SCORE_THRESHOLD` | Minimum composite score to include a candidate (default: `25`) |
 | `HM_RESULT_THRESHOLD` | Min result count before score threshold is enforced (default: `20`) |
@@ -71,7 +71,7 @@ cp .env.example .env
 | `INGESTION_PIPELINE_FINALIZED` | Subdir for finalized tracks (default: `finalized`) |
 | `INGESTION_PIPELINE_REKORDBOX_TAG_FILE` | Rekordbox exported tag filename (default: `rekordbox_tags.txt`) |
 | `INGESTION_PIPELINE_PROCESSED_MUSIC_DIR` | Final destination for processed music files |
-| `TRACK_METADATA_DOWNLOAD_DIR` | Input directory for the track-metadata module |
+| `TRACK_METADATA_DOWNLOAD_DIR` | Input directory for track metadata enrichment |
 | `TRACK_METADATA_PROCESSING_DIR` | Working directory for track-metadata (default: `processing`) |
 | `TRACK_METADATA_AUGMENTED_DIR` | Output directory for enriched tracks (default: `augmented`) |
 | `TRACK_METADATA_LOG_DIR` | Log directory for track-metadata (default: `logs`) |
@@ -100,7 +100,7 @@ reload                Reload track data from the database
 exit                  Quit
 ```
 
-**Output:** Ranked transition candidates grouped by key relationship (same key / step up / step down), scored across 8 weighted factors (SMMS spectral similarity, Camelot, BPM, freshness, label, genre, artist, energy).
+**Output:** Ranked transition candidates grouped by key relationship (same key / step up / step down), scored across weighted factors (Camelot, BPM, freshness, label, genre, artist, energy, and compact audio descriptor similarity).
 
 ---
 
@@ -133,30 +133,30 @@ python -m src.scripts.ingestion_pipeline.load_final_tag_records          # Step 
 
 ---
 
-### Compute SMMS Features
+### Compute Compact Descriptors
 
-**Purpose:** Computes Segmented Mean Mel Spectrogram (SMMS) feature vectors for tracks and stores them in the database. Used as input for audio-similarity scoring during transition matching.
+**Purpose:** Computes compact CQT-based audio descriptor vectors for tracks and stores them in the database. Used for audio-similarity scoring during transition matching.
 
 **When to use:** After new tracks are ingested and before generating transition match rows.
 
 **Invocation:**
 ```bash
 # All tracks
-python -m src.scripts.feature_extraction.compute_mean_mel_spectrograms
+python -m src.scripts.feature_extraction.compute_compact_descriptors
 
 # Specific track IDs
-python -m src.scripts.feature_extraction.compute_mean_mel_spectrograms <id1> <id2> ...
+python -m src.scripts.feature_extraction.compute_compact_descriptors <id1> <id2> ...
 ```
 
-**Output:** `FeatureValue` rows written to DB. Computation is parallelized across `NUM_CORES`.
+**Output:** `TrackDescriptor` rows written to DB. Computation is parallelized across `NUM_CORES`.
 
 ---
 
 ### Create Transition Match Rows
 
-**Purpose:** Precomputes pairwise SMMS distance scores for all harmonically compatible track pairs and writes them to the database.
+**Purpose:** Precomputes pairwise transition match scores for all harmonically compatible track pairs and writes them to the database.
 
-**When to use:** After computing SMMS features for new tracks, to make them searchable by the mixing assistant.
+**When to use:** After computing compact descriptors for new tracks, to make them searchable by the mixing assistant.
 
 **Invocation:**
 ```bash
@@ -164,6 +164,18 @@ python -m src.scripts.feature_extraction.create_transition_match_rows
 ```
 
 **Output:** `TransitionMatch` rows written to DB.
+
+---
+
+### Compute SMMS Features *(deprecated)*
+
+> **Deprecated.** SMMS feature extraction has been superseded by compact descriptor computation
+> above. Scripts remain under `src/scripts/feature_extraction/deprecated/` for reference.
+
+**Invocation:**
+```bash
+python -m src.scripts.feature_extraction.deprecated.compute_mean_mel_spectrograms
+```
 
 ---
 
@@ -234,8 +246,11 @@ python -m src.scripts.delete_tracks <start>...<end>
 
 ---
 
-## Modules
+### Metadata Enrichment
 
-| Module | Description |
-|---|---|
-| [`modules/track-metadata`](modules/track-metadata/README.md) | Standalone metadata enrichment agent — enriches ID3 tags using MusicBrainz, Discogs, AcoustID, and an OpenAI LLM |
+**Purpose:** Enriches ID3 tags for audio files using MusicBrainz, Discogs, AcoustID, and an
+OpenAI LLM. Writes enriched metadata back to file tags.
+
+**Location:** `src/track_metadata/`
+
+**Entry point:** `src/track_metadata/metadata_agent.py`

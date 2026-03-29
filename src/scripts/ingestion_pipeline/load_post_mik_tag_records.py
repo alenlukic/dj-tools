@@ -1,5 +1,5 @@
-from src.definitions.ingestion_pipeline import TagRecordType
-from src.lib.ingestion_pipeline.track_ingestion_pipeline import PipelineStage
+from src.ingestion_pipeline.config import TagRecordType
+from src.ingestion_pipeline.track_ingestion_pipeline import PipelineStage
 
 
 if __name__ == "__main__":

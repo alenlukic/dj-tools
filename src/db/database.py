@@ -5,8 +5,8 @@ from sqlalchemy import create_engine, inspect, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import session as sezzion, sessionmaker
 
-from src.definitions.common import CONFIG
-from src.lib.error_management.service import handle
+from src.config import CONFIG
+from src.errors import handle
 
 
 class Database:

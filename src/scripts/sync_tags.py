@@ -1,7 +1,7 @@
 from src.db import database
-from src.db.entities.track import Track
-from src.lib.data_management.service import sync_track_tags
-from src.lib.error_management.service import handle
+from src.models.track import Track
+from src.data_management.service import sync_track_tags
+from src.errors import handle
 
 
 def sync_tags():

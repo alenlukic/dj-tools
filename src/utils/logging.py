@@ -1,6 +1,6 @@
 import logging
 
-from src.definitions.common import LOG_LOCATION
+from src.config import LOG_LOCATION
 
 
 logging.basicConfig(filename=LOG_LOCATION)

@@ -136,3 +136,4 @@ config/*
 
 .cursor/
 .local/
+AGENTS.md
