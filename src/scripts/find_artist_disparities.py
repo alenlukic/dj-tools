@@ -2,8 +2,7 @@ from src.db import database
 from src.models.artist import Artist
 from src.models.artist_track import ArtistTrack
 from src.models.track import Track
-from src.data_management.config import ArtistFields, TrackDBCols
-from src.data_management.audio_file import AudioFile
+from src.data_management.config import ArtistFields
 from src.utils.common import is_empty
 from src.data_management.utils import load_comment
 from src.errors import handle

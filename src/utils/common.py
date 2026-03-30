@@ -54,12 +54,11 @@ def is_empty(value):
     empty dictionary, dictionary with all empty elements
     """
 
-    typ = type(value)
     return (
         (value is None)
-        or (typ == str and (len(value.strip()) == 0 or value.strip() == "\x00"))
-        or ((typ == list or type == tuple) and all([is_empty(e) for e in value]))
-        or (typ == dict and all([is_empty(v) for v in value.values()]))
+        or (isinstance(value, str) and (len(value.strip()) == 0 or value.strip() == "\x00"))
+        or (isinstance(value, (list, tuple)) and all([is_empty(e) for e in value]))
+        or (isinstance(value, dict) and all([is_empty(v) for v in value.values()]))
     )
 
 

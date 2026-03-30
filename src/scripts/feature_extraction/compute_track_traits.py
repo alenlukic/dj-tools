@@ -19,18 +19,18 @@ import warnings
 
 warnings.simplefilter("ignore")
 
-from multiprocessing import Pipe, Process
-from os import getpid
-from os.path import join, splitext
+from multiprocessing import Pipe, Process  # noqa: E402
+from os import getpid  # noqa: E402
+from os.path import join, splitext  # noqa: E402
 
-import numpy as np
+import numpy as np  # noqa: E402
 
-from src.db import database
-from src.models.track import Track
-from src.models.track_trait import TrackTrait
-from src.config import NUM_CORES, PROCESSED_MUSIC_DIR
-from src.utils.file_operations import AUDIO_TYPES
-from src.errors import handle
+from src.db import database  # noqa: E402
+from src.models.track import Track  # noqa: E402
+from src.models.track_trait import TrackTrait  # noqa: E402
+from src.config import NUM_CORES, PROCESSED_MUSIC_DIR  # noqa: E402
+from src.utils.file_operations import AUDIO_TYPES  # noqa: E402
+from src.errors import handle  # noqa: E402
 
 
 _PROGRESS_INTERVAL = 10

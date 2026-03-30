@@ -17,7 +17,6 @@ from src.harmonic_mixing.config import (
     MatchFactors,
 )
 from src.feature_extraction.compact_descriptor import cosine_similarity, unpack_vector
-from src.utils.common import log2smooth
 
 
 def jsonb_cosine_similarity(d1: dict, d2: dict) -> float:

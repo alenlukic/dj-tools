@@ -1,6 +1,3 @@
-from enum import Enum
-
-
 # Compact descriptor constants
 DESCRIPTOR_VERSION = "1"
 

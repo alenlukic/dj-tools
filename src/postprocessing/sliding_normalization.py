@@ -30,7 +30,7 @@ def normalize_segment(
 
 
 def apply_sliding_normalization(original_audio, window_len):
-    # TODO: performance is garbage, attempt improvements
+    # TODO: optimize sliding normalization runtime.
     normalized_audio = AudioSegment.empty()
     audio_len_millis = len(original_audio)
     overlap_len = int(window_len / OVERLAP_COEFFICIENT)
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     for i, arg in enumerate(args):
         try:
             window_lens.append(int(arg))
-        except:
+        except Exception:
             file_paths.append(arg)
 
     for file_path in file_paths:

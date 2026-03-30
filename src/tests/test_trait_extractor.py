@@ -15,7 +15,6 @@ Run unit tests only (no models needed):
     python -m pytest src/tests/test_trait_extractor.py -v -m "not integration"
 """
 
-import os
 import pathlib
 
 import numpy as np
@@ -136,7 +135,7 @@ class TestLabelLists:
             assert len(labels) == len(set(labels)), "Duplicates in %s" % name
 
     def test_genre_contains_electronic_subgenres(self):
-        electronic = [l for l in LABELS_GENRE_DISCOGS519 if l.startswith("Electronic---")]
+        electronic = [label for label in LABELS_GENRE_DISCOGS519 if label.startswith("Electronic---")]
         assert len(electronic) >= 50, "Expected many Electronic subgenres"
 
     def test_genre_519_has_maest_only_subgenres(self):

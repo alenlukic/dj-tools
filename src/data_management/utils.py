@@ -124,7 +124,7 @@ def transform_label(label):
 def normalize_tag_text(text):
     return (
         normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
-        if type(text) == str
+        if isinstance(text, str)
         else text
     )
 
