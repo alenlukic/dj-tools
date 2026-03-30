@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import src.models.tag_record as tag_records
 from src.ingestion_pipeline.config import TAG_COLUMNS
-from src.data_management.config import ID3Tag, CANONICAL_KEY_MAP
+from src.data_management.config import CANONICAL_KEY_MAP
 from src.data_management.audio_file import AudioFile
 from src.errors import handle
 

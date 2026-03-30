@@ -1,6 +1,9 @@
+import numpy as np
+
 from src.models.track_descriptor import TrackDescriptor
-from src.data_management.config import ArtistFields, TrackDBCols
-from src.feature_extraction.config import DESCRIPTOR_VERSION
+from src.models.track_trait import TrackTrait
+from src.data_management.config import TrackDBCols
+from src.feature_extraction.config import DESCRIPTOR_VERSION, TRAIT_VERSION
 from src.harmonic_mixing.config import (
     SAME_LOWER_BOUND,
     SAME_UPPER_BOUND,
@@ -14,7 +17,19 @@ from src.harmonic_mixing.config import (
     MatchFactors,
 )
 from src.feature_extraction.compact_descriptor import cosine_similarity, unpack_vector
-from src.utils.common import log2smooth
+
+
+def jsonb_cosine_similarity(d1: dict, d2: dict) -> float:
+    """Cosine similarity between two sparse {label: probability} dicts."""
+    if not d1 or not d2:
+        return 0.0
+    keys = set(d1) | set(d2)
+    v1 = np.array([d1.get(k, 0.0) for k in keys])
+    v2 = np.array([d2.get(k, 0.0) for k in keys])
+    norm1, norm2 = np.linalg.norm(v1), np.linalg.norm(v2)
+    if norm1 == 0.0 or norm2 == 0.0:
+        return 0.0
+    return max(0.0, float(np.dot(v1, v2) / (norm1 * norm2)))
 
 
 class TransitionMatch:
@@ -26,13 +41,17 @@ class TransitionMatch:
     # Call clear_descriptor_caches() at the start of each new track query.
     _on_deck_descriptor_cache = {}
     _candidate_descriptor_cache = {}
+    _on_deck_trait_cache = {}
+    _candidate_trait_cache = {}
     result_column_header = "   ".join(["Total Score", "Cos Sim", " Track"])
 
     @classmethod
     def clear_descriptor_caches(cls):
-        """Clear per-session descriptor caches. Call before each new track query."""
+        """Clear per-session caches. Call before each new track query."""
         cls._on_deck_descriptor_cache.clear()
         cls._candidate_descriptor_cache.clear()
+        cls._on_deck_trait_cache.clear()
+        cls._candidate_trait_cache.clear()
 
     def __init__(self, metadata, cur_track_md, camelot_priority):
         self.metadata = metadata
@@ -67,10 +86,31 @@ class TransitionMatch:
                         self.get_freshness_score(),
                         MATCH_WEIGHTS[MatchFactors.FRESHNESS.name],
                     ),
-                    (self.get_genre_score(), MATCH_WEIGHTS[MatchFactors.GENRE.name]),
-                    (self.get_label_score(), MATCH_WEIGHTS[MatchFactors.LABEL.name]),
-                    (self.get_artist_score(), MATCH_WEIGHTS[MatchFactors.ARTIST.name]),
                     (self.get_energy_score(), MATCH_WEIGHTS[MatchFactors.ENERGY.name]),
+                    (
+                        self.get_genre_similarity_score(),
+                        MATCH_WEIGHTS[MatchFactors.GENRE_SIMILARITY.name],
+                    ),
+                    (
+                        self.get_mood_continuity_score(),
+                        MATCH_WEIGHTS[MatchFactors.MOOD_CONTINUITY.name],
+                    ),
+                    (
+                        self.get_vocal_clash_score(),
+                        MATCH_WEIGHTS[MatchFactors.VOCAL_CLASH.name],
+                    ),
+                    (
+                        self.get_danceability_score(),
+                        MATCH_WEIGHTS[MatchFactors.DANCEABILITY.name],
+                    ),
+                    (
+                        self.get_timbre_score(),
+                        MATCH_WEIGHTS[MatchFactors.TIMBRE.name],
+                    ),
+                    (
+                        self.get_instrument_similarity_score(),
+                        MATCH_WEIGHTS[MatchFactors.INSTRUMENT_SIMILARITY.name],
+                    ),
                 ]
                 self.score = 100 * sum(
                     [score * weight for score, weight in score_weights]
@@ -78,53 +118,9 @@ class TransitionMatch:
 
         return self.score
 
-    def get_artist_score(self):
-        def _get_artist_score():
-            artist_counts = self.metadata.get(ArtistFields.ARTISTS, {})
-            remixer_counts = self.metadata.get(ArtistFields.REMIXERS, {})
-            cur_track_artist_counts = self.cur_track_md.get(ArtistFields.ARTISTS, {})
-            cur_track_remixer_counts = self.cur_track_md.get(ArtistFields.REMIXERS, {})
-
-            artists = (set(artist_counts.keys())).union(set(remixer_counts.keys()))
-            cur_track_artists = (set(cur_track_artist_counts.keys())).union(
-                set(cur_track_remixer_counts.keys())
-            )
-
-            total_artists = len(artists) + len(cur_track_artists)
-            if total_artists == 0:
-                return 0.0
-
-            overlap = artists.intersection(cur_track_artists)
-            n = len(overlap)
-            if n == 0:
-                return 0.0
-
-            unified_counts = {}
-            for count_dict in [
-                artist_counts,
-                remixer_counts,
-                cur_track_artist_counts,
-                cur_track_remixer_counts,
-            ]:
-                for k, v in count_dict.items():
-                    unified_counts[k] = v
-
-            log_artist_count = log2smooth(
-                self.collection_metadata[CollectionStat.ARTIST_COUNTS]
-            )
-            return (
-                sum(
-                    [
-                        1.0 - (log2smooth(unified_counts[artist]) / log_artist_count)
-                        for artist in overlap
-                    ]
-                )
-                / n
-            )
-
-        if MatchFactors.ARTIST not in self.factors:
-            self.factors[MatchFactors.ARTIST] = _get_artist_score()
-        return self.factors[MatchFactors.ARTIST]
+    # ------------------------------------------------------------------ #
+    # Low-level feature scorers                                            #
+    # ------------------------------------------------------------------ #
 
     def get_bpm_score(self):
         def _get_bpm_score():
@@ -145,7 +141,6 @@ class TransitionMatch:
                     return score
 
                 if relative_diff <= UP_KEY_UPPER_BOUND:
-                    # TODO: Not sure how to evaluate step up / down - using range midpoint for now
                     midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
                     return float(midpoint - abs(midpoint - relative_diff)) / midpoint
 
@@ -155,7 +150,6 @@ class TransitionMatch:
             abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
             abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
 
-            # Slightly discount score of lower BPM tracks
             score = 0.0
             discount = 0.9
 
@@ -192,7 +186,6 @@ class TransitionMatch:
             self.factors[MatchFactors.CAMELOT] = _get_camelot_priority_score()
         return self.factors[MatchFactors.CAMELOT]
 
-    # Track's energy as calculated by Mixed In Key
     def get_energy_score(self):
         def _get_energy_score():
             energy = self.metadata.get(TrackDBCols.ENERGY)
@@ -219,52 +212,6 @@ class TransitionMatch:
         if MatchFactors.FRESHNESS not in self.factors:
             self.factors[MatchFactors.FRESHNESS] = _get_freshness_score()
         return self.factors[MatchFactors.FRESHNESS]
-
-    def get_genre_score(self):
-        def _get_genre_score():
-            genre = self.metadata.get(TrackDBCols.GENRE)
-            cur_track_genre = self.cur_track_md.get(TrackDBCols.GENRE)
-
-            if genre is None or cur_track_genre is None:
-                return 0.0
-
-            if genre == cur_track_genre:
-                return 1.0
-
-            # TODO: genre-specific hacks, fix
-            trance_genres = {"Trance", "Classic Trance"}
-            if genre in trance_genres and cur_track_genre in trance_genres:
-                return 0.5
-
-            return 0.0
-
-        if MatchFactors.GENRE not in self.factors:
-            self.factors[MatchFactors.GENRE] = _get_genre_score()
-        return self.factors[MatchFactors.GENRE]
-
-    def get_label_score(self):
-        def _get_label_score():
-            label, label_count = self.metadata.get(TrackDBCols.LABEL, (None, None))
-            cur_label, cur_label_count = self.cur_track_md.get(
-                TrackDBCols.LABEL, (None, None)
-            )
-            if (
-                label != cur_label
-                or label == "CDR"
-                or cur_label == "CDR"
-                or label is None
-                or cur_label is None
-            ):
-                return 0.0
-
-            return 1.0 - (
-                log2smooth(label_count)
-                / log2smooth(self.collection_metadata[CollectionStat.LABEL_COUNTS])
-            )
-
-        if MatchFactors.LABEL not in self.factors:
-            self.factors[MatchFactors.LABEL] = _get_label_score()
-        return self.factors[MatchFactors.LABEL]
 
     def get_similarity_score(self):
         def _get_similarity_score():
@@ -297,6 +244,133 @@ class TransitionMatch:
         if MatchFactors.SIMILARITY not in self.factors:
             self.factors[MatchFactors.SIMILARITY] = _get_similarity_score()
         return self.factors[MatchFactors.SIMILARITY]
+
+    # ------------------------------------------------------------------ #
+    # TrackTrait cache helper                                              #
+    # ------------------------------------------------------------------ #
+
+    def _get_on_deck_trait(self):
+        on_deck_id = self.cur_track_md.get(TrackDBCols.ID)
+        if on_deck_id not in TransitionMatch._on_deck_trait_cache:
+            TransitionMatch._on_deck_trait_cache[on_deck_id] = (
+                self.db_session.query(TrackTrait)
+                .filter_by(track_id=on_deck_id, trait_version=TRAIT_VERSION)
+                .first()
+            )
+        return TransitionMatch._on_deck_trait_cache[on_deck_id]
+
+    def _get_candidate_trait(self):
+        candidate_id = self.metadata.get(TrackDBCols.ID)
+        if candidate_id not in TransitionMatch._candidate_trait_cache:
+            TransitionMatch._candidate_trait_cache[candidate_id] = (
+                self.db_session.query(TrackTrait)
+                .filter_by(track_id=candidate_id, trait_version=TRAIT_VERSION)
+                .first()
+            )
+        return TransitionMatch._candidate_trait_cache[candidate_id]
+
+    # ------------------------------------------------------------------ #
+    # High-level semantic trait scorers                                    #
+    # ------------------------------------------------------------------ #
+
+    def get_genre_similarity_score(self):
+        def _score():
+            on_deck = self._get_on_deck_trait()
+            candidate = self._get_candidate_trait()
+            if on_deck is None or candidate is None:
+                return 0.0
+            return jsonb_cosine_similarity(
+                on_deck.genre or {}, candidate.genre or {}
+            )
+
+        if MatchFactors.GENRE_SIMILARITY not in self.factors:
+            self.factors[MatchFactors.GENRE_SIMILARITY] = _score()
+        return self.factors[MatchFactors.GENRE_SIMILARITY]
+
+    def get_mood_continuity_score(self):
+        def _score():
+            on_deck = self._get_on_deck_trait()
+            candidate = self._get_candidate_trait()
+            if on_deck is None or candidate is None:
+                return 0.0
+            return jsonb_cosine_similarity(
+                on_deck.mood_theme or {}, candidate.mood_theme or {}
+            )
+
+        if MatchFactors.MOOD_CONTINUITY not in self.factors:
+            self.factors[MatchFactors.MOOD_CONTINUITY] = _score()
+        return self.factors[MatchFactors.MOOD_CONTINUITY]
+
+    def get_vocal_clash_score(self):
+        """Penalty when both tracks carry vocals.
+
+        Score = 1.0 - min(on_deck.voice_instrumental, candidate.voice_instrumental).
+        Two instrumentals → 1.0. Vocal into vocal → ~0.0.
+        """
+        def _score():
+            on_deck = self._get_on_deck_trait()
+            candidate = self._get_candidate_trait()
+            if on_deck is None or candidate is None:
+                return 0.0
+            vi_on_deck = on_deck.voice_instrumental if on_deck.voice_instrumental is not None else 0.0
+            vi_candidate = candidate.voice_instrumental if candidate.voice_instrumental is not None else 0.0
+            return 1.0 - min(vi_on_deck, vi_candidate)
+
+        if MatchFactors.VOCAL_CLASH not in self.factors:
+            self.factors[MatchFactors.VOCAL_CLASH] = _score()
+        return self.factors[MatchFactors.VOCAL_CLASH]
+
+    def get_danceability_score(self):
+        """Reward similar or gently building danceability.
+
+        Base score = 1.0 - abs(diff). Small bonus when candidate is higher
+        (building energy on the floor).
+        """
+        def _score():
+            on_deck = self._get_on_deck_trait()
+            candidate = self._get_candidate_trait()
+            if on_deck is None or candidate is None:
+                return 0.0
+            d_on = on_deck.danceability if on_deck.danceability is not None else 0.5
+            d_cand = candidate.danceability if candidate.danceability is not None else 0.5
+            diff = d_cand - d_on
+            base = 1.0 - abs(diff)
+            # Small bonus (up to 0.1) when candidate is slightly more danceable
+            build_bonus = max(0.0, min(0.1, diff))
+            return min(1.0, base + build_bonus)
+
+        if MatchFactors.DANCEABILITY not in self.factors:
+            self.factors[MatchFactors.DANCEABILITY] = _score()
+        return self.factors[MatchFactors.DANCEABILITY]
+
+    def get_timbre_score(self):
+        """Reward timbral continuity via bright_dark proximity."""
+        def _score():
+            on_deck = self._get_on_deck_trait()
+            candidate = self._get_candidate_trait()
+            if on_deck is None or candidate is None:
+                return 0.0
+            t_on = on_deck.bright_dark if on_deck.bright_dark is not None else 0.5
+            t_cand = candidate.bright_dark if candidate.bright_dark is not None else 0.5
+            return 1.0 - abs(t_on - t_cand)
+
+        if MatchFactors.TIMBRE not in self.factors:
+            self.factors[MatchFactors.TIMBRE] = _score()
+        return self.factors[MatchFactors.TIMBRE]
+
+    def get_instrument_similarity_score(self):
+        def _score():
+            on_deck = self._get_on_deck_trait()
+            candidate = self._get_candidate_trait()
+            if on_deck is None or candidate is None:
+                return 0.0
+            return jsonb_cosine_similarity(
+                on_deck.instruments or {}, candidate.instruments or {}
+            )
+
+        if MatchFactors.INSTRUMENT_SIMILARITY not in self.factors:
+            self.factors[MatchFactors.INSTRUMENT_SIMILARITY] = _score()
+        return self.factors[MatchFactors.INSTRUMENT_SIMILARITY]
 
     def __lt__(self, other):
         return (self.get_score(), self.get_similarity_score(), self.get_freshness_score()) < (

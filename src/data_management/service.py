@@ -1,5 +1,4 @@
 from collections import defaultdict
-import json
 from os.path import join
 from shutil import copyfile
 
@@ -19,20 +18,14 @@ from src.config import PROCESSED_MUSIC_DIR
 from src.data_management.config import (
     ALL_TRACK_DB_COLS,
     ArtistFields,
-    COMMENT_FIELDS,
     DBUpdateType,
-    ID3_COMMENT_FIELDS,
-    METADATA_KEY_TO_ID3,
     TrackDBCols,
 )
 from src.data_management.audio_file import AudioFile
 from src.errors import handle
-from src.utils.common import get_banner
 from src.data_management.utils import (
-    dedupe_title,
     extract_unformatted_title,
     load_comment,
-    normalize_tag_text,
     split_artist_string,
 )
 from src.utils.file_operations import delete_track_files, get_audio_files

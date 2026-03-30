@@ -204,9 +204,7 @@ class TestCompactDescriptor:
     def test_short_track_skips_intro_outro(self, tmp_path):
         """Tracks shorter than 2 × DESCRIPTOR_ZONE_SECONDS get no intro/outro vectors."""
         import soundfile as sf
-        from src.feature_extraction.config import DESCRIPTOR_ZONE_SECONDS
 
-        # 10 s < 2 × 60 s, so intro/outro should be None
         y, sr = _sine_wave(duration_s=10.0)
         audio_file = tmp_path / "short_track.wav"
         sf.write(str(audio_file), y, sr)
@@ -259,5 +257,5 @@ class TestCompactDescriptor:
 
         assert isinstance(desc.pack_global(), bytes)
         assert len(desc.pack_global()) == DESCRIPTOR_DIMS * 4
-        assert desc.pack_intro() is None  # short track
+        assert desc.pack_intro() is None
         assert desc.pack_outro() is None

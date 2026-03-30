@@ -1,15 +1,16 @@
-"""Batch script: compute compact audio descriptors for all unprocessed tracks.
+"""Batch script: compute semantic traits for all unprocessed tracks.
 
-Each worker saves descriptors directly to the DB as it goes, so progress is
-visible in real time and a crash only loses the track currently being computed.
-The script is safe to re-run — already-processed tracks are skipped.
+Each worker loads ONNX sessions once (expensive) then processes its chunk of
+tracks, saving results to DB as it goes. Progress is visible in real time; a
+crash only loses the track currently being computed. Safe to re-run — tracks
+with an existing TrackTrait row are skipped.
 
 Usage:
-    # Process all tracks that have no descriptor yet
-    python -m src.scripts.feature_extraction.compute_compact_descriptors
+    # Process all tracks that have no trait row yet
+    python -m src.scripts.feature_extraction.compute_track_traits
 
     # Process specific track IDs
-    python -m src.scripts.feature_extraction.compute_compact_descriptors 42 101 200
+    python -m src.scripts.feature_extraction.compute_track_traits 42 101 200
 """
 
 import datetime
@@ -26,53 +27,63 @@ import numpy as np  # noqa: E402
 
 from src.db import database  # noqa: E402
 from src.models.track import Track  # noqa: E402
-from src.models.track_descriptor import TrackDescriptor  # noqa: E402
+from src.models.track_trait import TrackTrait  # noqa: E402
 from src.config import NUM_CORES, PROCESSED_MUSIC_DIR  # noqa: E402
 from src.utils.file_operations import AUDIO_TYPES  # noqa: E402
 from src.errors import handle  # noqa: E402
-from src.feature_extraction.compact_descriptor import CompactDescriptor  # noqa: E402
 
 
-_PROGRESS_INTERVAL = 100
+_PROGRESS_INTERVAL = 10
 
 
-def _compute_descriptors(chunk, result_transmitter):
-    """Worker: compute and immediately persist one descriptor per track."""
+def _compute_traits(chunk, result_transmitter):
+    """Worker: load ONNX sessions once, compute and persist one trait row per track."""
+    # Import here so ONNX sessions are not created in the parent process
+    from src.feature_extraction.trait_extractor import TraitExtractor
+
     worker_session = database.create_session()
+    pid = getpid()
     n_saved = 0
     n_skipped = 0
     n_failed = 0
-    pid = getpid()
-    recent_saved_ids = []
+
+    print("  [%d] Loading ONNX sessions..." % pid, flush=True)
+    try:
+        extractor = TraitExtractor()
+    except Exception as exc:
+        handle(exc)
+        result_transmitter.send((0, 0, len(chunk)))
+        return
+    print("  [%d] Sessions ready, processing %d tracks." % (pid, len(chunk)), flush=True)
 
     for track in chunk:
         try:
             audio_path = join(PROCESSED_MUSIC_DIR, track.file_name)
             print("  [%d] track %d: %s" % (pid, track.id, track.file_name), flush=True)
 
-            desc = CompactDescriptor(track)
-            desc.compute(audio_path=audio_path)
+            traits = extractor.compute(audio_path)
 
-            if desc.global_vector is None:
-                n_skipped += 1
-                continue
-
-            row = TrackDescriptor(
+            row = TrackTrait(
                 track_id=track.id,
-                global_vector=desc.pack_global(),
-                intro_vector=desc.pack_intro(),
-                outro_vector=desc.pack_outro(),
-                descriptor_version=desc.version,
+                voice_instrumental=traits["voice_instrumental"],
+                danceability=traits["danceability"],
+                bright_dark=traits["bright_dark"],
+                acoustic_electronic=traits["acoustic_electronic"],
+                tonal_atonal=traits["tonal_atonal"],
+                reverb=traits["reverb"],
+                onset_density=traits["onset_density"],
+                spectral_flatness=traits["spectral_flatness"],
+                mood_theme=traits["mood_theme"],
+                genre=traits["genre"],
+                instruments=traits["instruments"],
+                trait_version=traits["trait_version"],
                 computed_at=datetime.datetime.utcnow(),
             )
             if worker_session.guarded_add(row):
                 n_saved += 1
-                recent_saved_ids.append(track.id)
                 if n_saved % _PROGRESS_INTERVAL == 0:
                     print(
-                        "  [%d] saved %d so far — last %d IDs: %s"
-                        % (pid, n_saved, len(recent_saved_ids[-_PROGRESS_INTERVAL:]),
-                           recent_saved_ids[-_PROGRESS_INTERVAL:]),
+                        "  [%d] saved %d traits so far" % (pid, n_saved),
                         flush=True,
                     )
             else:
@@ -97,7 +108,7 @@ def run(track_ids):
             tracks_to_process = [t for t in tracks if t.id in track_ids]
         else:
             existing_ids = {
-                row.track_id for row in session.query(TrackDescriptor).all()
+                row.track_id for row in session.query(TrackTrait).all()
             }
             tracks_to_process = [
                 t for t in tracks
@@ -106,7 +117,7 @@ def run(track_ids):
             ]
 
         num_tracks = len(tracks_to_process)
-        print("Computing compact descriptors for %d track(s)\n" % num_tracks)
+        print("Computing traits for %d track(s)\n" % num_tracks)
         if num_tracks == 0:
             return
 
@@ -118,7 +129,7 @@ def run(track_ids):
             receiver, transmitter = Pipe()
             aggregators.append(receiver)
             worker = Process(
-                target=_compute_descriptors,
+                target=_compute_traits,
                 args=(chunk, transmitter),
             )
             worker.daemon = True

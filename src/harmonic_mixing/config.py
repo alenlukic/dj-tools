@@ -12,14 +12,18 @@ class CollectionStat(Enum):
 
 
 class MatchFactors(Enum):
-    ARTIST = "Artist"
     BPM = "BPM"
     CAMELOT = "Camelot"
     ENERGY = "Energy"
     FRESHNESS = "Freshness"
-    GENRE = "Genre"
-    LABEL = "Label"
     SIMILARITY = "Cosine Similarity"
+    # Phase II semantic trait factors
+    GENRE_SIMILARITY = "Genre Similarity"
+    MOOD_CONTINUITY = "Mood Continuity"
+    VOCAL_CLASH = "Vocal Clash"
+    DANCEABILITY = "Danceability"
+    TIMBRE = "Timbre"
+    INSTRUMENT_SIMILARITY = "Instrument Similarity"
 
 
 # How harmonic a particular key transition is (higher = more harmonic)
