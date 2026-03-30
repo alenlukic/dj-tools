@@ -31,7 +31,7 @@ class TrackTrait(Base):
 
     # Multi-label classifiers — {label: probability} above threshold
     mood_theme = Column(JSONB, nullable=True)            # 56-class MTG Jamendo
-    genre = Column(JSONB, nullable=True)                 # 519-class Discogs
+    genre = Column(JSONB, nullable=True)                 # 519-class Discogs taxonomy (MAEST)
     instruments = Column(JSONB, nullable=True)           # 40-class MTG Jamendo
 
     # Phase III placeholders (no inference implementation yet)

@@ -29,7 +29,7 @@ DESCRIPTOR_TEMPOGRAM_BINS = 16
 SAMPLE_RATE = 44100
 
 # Trait extraction constants
-TRAIT_VERSION = "1"
+TRAIT_VERSION = "2"
 TRAIT_SAMPLE_RATE = 16000
 TRAIT_MODELS_DIR = "models/traits"
 TRAIT_PREDICTION_THRESHOLD = 0.1
@@ -46,5 +46,5 @@ TRAIT_CLASSIFIERS_EFFNET = [
     "mtg_jamendo_instrument-discogs-effnet-1",
 ]
 
-# MAEST backbone not used: genre predictions come from EffNet backbone output[0]
-# (400-class Discogs taxonomy, zero extra model weight)
+# MAEST standalone backbone for 519-class Discogs genre classification
+TRAIT_CLASSIFIER_MAEST = "discogs-maest-30s-pw-519l"

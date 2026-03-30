@@ -27,20 +27,23 @@ from src.feature_extraction.config import (
     TRAIT_VERSION,
 )
 from src.feature_extraction.trait_extractor import (
-    LABELS_GENRE_DISCOGS400,
+    LABELS_GENRE_DISCOGS519,
     LABELS_INSTRUMENT,
     LABELS_MOOD_THEME,
     _binary_prob,
     _multilabel_dict,
     _patch_mel_for_effnet,
+    _patch_mel_for_maest,
     compute_mel_spectrogram,
 )
 
 _TEST_DATA = pathlib.Path(__file__).parent.parent.parent / ".test_data"
 _MODELS_DIR = pathlib.Path(__file__).parent.parent.parent / "models" / "traits"
 _BACKBONE = _MODELS_DIR / "discogs-effnet-bsdynamic-1.onnx"
+_MAEST = _MODELS_DIR / "discogs-maest-30s-pw-519l-2.onnx"
 
 _HAVE_BACKBONE = _BACKBONE.exists() and _BACKBONE.stat().st_size > 10_000
+_HAVE_MAEST = _MAEST.exists() and _MAEST.stat().st_size > 10_000
 
 _TEST_FILES = sorted(_TEST_DATA.glob("*")) if _TEST_DATA.exists() else []
 
@@ -90,8 +93,7 @@ def _is_valid_trait_dict(traits: dict) -> None:
                 )
                 assert prob <= 1.0, "%s prob %s > 1.0" % (key, prob)
 
-    # genre is always present (comes from EffNet backbone, always available)
-    assert traits["genre"] is not None
+    # genre may be None when MAEST model is unavailable (graceful degradation)
 
 
 # ------------------------------------------------------------------ #
@@ -106,7 +108,7 @@ class TestLabelLists:
         assert len(LABELS_INSTRUMENT) == 40
 
     def test_genre_count(self):
-        assert len(LABELS_GENRE_DISCOGS400) == 400
+        assert len(LABELS_GENRE_DISCOGS519) == 519
 
     def test_mood_theme_known_labels(self):
         expected = {"action", "calm", "dark", "energetic", "happy", "sad",
@@ -129,13 +131,20 @@ class TestLabelLists:
         for labels, name in [
             (LABELS_MOOD_THEME, "mood_theme"),
             (LABELS_INSTRUMENT, "instrument"),
-            (LABELS_GENRE_DISCOGS400, "genre"),
+            (LABELS_GENRE_DISCOGS519, "genre"),
         ]:
             assert len(labels) == len(set(labels)), "Duplicates in %s" % name
 
     def test_genre_contains_electronic_subgenres(self):
-        electronic = [l for l in LABELS_GENRE_DISCOGS400 if l.startswith("Electronic---")]
+        electronic = [l for l in LABELS_GENRE_DISCOGS519 if l.startswith("Electronic---")]
         assert len(electronic) >= 50, "Expected many Electronic subgenres"
+
+    def test_genre_519_has_maest_only_subgenres(self):
+        """Verify labels unique to the 519-class MAEST taxonomy are present."""
+        maest_only = {"Electronic---Footwork", "Electronic---Witch House",
+                      "Electronic---Ghettotech", "Electronic---Baltimore Club",
+                      "Electronic---Doomcore", "Electronic---Glitch Hop"}
+        assert maest_only.issubset(set(LABELS_GENRE_DISCOGS519))
 
 
 class TestPatchMelForEffnet:
@@ -184,6 +193,47 @@ class TestPatchMelForEffnet:
         # First patch should be mel[:, 0:128].T
         expected = mel[:, :128].T
         np.testing.assert_array_equal(patches[0], expected)
+
+
+class TestPatchMelForMaest:
+    def _make_mel(self, T: int) -> np.ndarray:
+        return np.random.rand(96, T).astype(np.float32)
+
+    def test_output_is_list(self):
+        mel = self._make_mel(5000)
+        patches = _patch_mel_for_maest(mel)
+        assert isinstance(patches, list)
+
+    def test_patch_shape(self):
+        mel = self._make_mel(5000)
+        patches = _patch_mel_for_maest(mel)
+        assert len(patches) >= 1
+        assert patches[0].shape == (1, 1876, 96)
+
+    def test_patch_dtype_float32(self):
+        mel = self._make_mel(5000)
+        patches = _patch_mel_for_maest(mel)
+        assert patches[0].dtype == np.float32
+
+    def test_short_track_padded_to_one_patch(self):
+        # Track shorter than 1876 frames → padded, yields exactly 1 patch
+        mel = self._make_mel(100)
+        patches = _patch_mel_for_maest(mel)
+        assert len(patches) == 1
+        assert patches[0].shape == (1, 1876, 96)
+
+    def test_long_track_multiple_patches(self):
+        # 1876 + 1875 = 3751 frames → yields 2 patches (hop=1875)
+        mel = self._make_mel(3751)
+        patches = _patch_mel_for_maest(mel)
+        assert len(patches) == 2
+
+    def test_values_match_original(self):
+        mel = self._make_mel(4000)
+        patches = _patch_mel_for_maest(mel)
+        # First patch should be mel[:, 0:1876].T
+        expected = mel[:, :1876].T
+        np.testing.assert_array_equal(patches[0][0], expected)
 
 
 class TestBinaryProb:
@@ -378,17 +428,22 @@ class TestTraitExtractorIntegration:
     # ---- result quality checks ----
 
     def test_genre_always_present(self, extractor):
-        """genre comes from EffNet backbone — must be non-None and non-empty for music."""
+        """genre comes from MAEST backbone — must be non-None and non-empty for music."""
+        pytest.importorskip("onnxruntime")
+        if not _HAVE_MAEST:
+            pytest.skip("MAEST model not downloaded")
         f = _TEST_DATA / "[05A - Cm - 000] Bicep - Vespa.mp3"
         traits = extractor.compute(str(f))
         assert traits["genre"] is not None
         assert len(traits["genre"]) > 0, "Expected at least one genre above threshold"
 
     def test_genre_uses_real_labels(self, extractor):
-        """Genre labels must all be from the Discogs-400 taxonomy."""
+        """Genre labels must all be from the Discogs-519 MAEST taxonomy."""
+        if not _HAVE_MAEST:
+            pytest.skip("MAEST model not downloaded")
         f = _TEST_DATA / "[05A - Cm - 000] Bicep - Vespa.mp3"
         traits = extractor.compute(str(f))
-        label_set = set(LABELS_GENRE_DISCOGS400)
+        label_set = set(LABELS_GENRE_DISCOGS519)
         for label in (traits["genre"] or {}):
             assert label in label_set, "Unknown genre label: %s" % label
 
@@ -459,6 +514,11 @@ class TestModelManagerIntegration:
     def test_is_cached_backbone(self):
         from src.feature_extraction.model_manager import is_cached
         assert is_cached("discogs-effnet-bsdynamic")
+
+    def test_is_cached_maest_when_downloaded(self):
+        from src.feature_extraction.model_manager import is_cached
+        if _HAVE_MAEST:
+            assert is_cached("discogs-maest-30s-pw-519l")
 
     def test_is_cached_unknown_false(self):
         from src.feature_extraction.model_manager import is_cached

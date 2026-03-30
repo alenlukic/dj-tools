@@ -33,6 +33,11 @@ _MANIFEST: Dict[str, tuple] = {
         "feature-extractors/discogs-effnet/discogs-effnet-bsdynamic-1.onnx",
         "discogs-effnet-bsdynamic-1.onnx",
     ),
+    # MAEST standalone backbone — 519-class Discogs genre (30s context window)
+    "discogs-maest-30s-pw-519l": (
+        "feature-extractors/maest/discogs-maest-30s-pw-519l-2.onnx",
+        "discogs-maest-30s-pw-519l-2.onnx",
+    ),
     # EffNet classification heads
     "mtg_jamendo_moodtheme-discogs-effnet-1": (
         "classification-heads/mtg_jamendo_moodtheme/mtg_jamendo_moodtheme-discogs-effnet-1.onnx",

@@ -885,11 +885,9 @@ def test_hydrate_writes_and_reads_cache(tmp_path) -> None:
 
         # Second hydrate should hit cache (no lookup calls)
         _not_called = AssertionError("Should not be called")
-        with (
-            patch.object(hydrator, "_lookup_acoustid", side_effect=_not_called),
-            patch.object(hydrator, "_lookup_musicbrainz", side_effect=_not_called),
-        ):
-            result2 = hydrator.hydrate(mp3, SimpleMetadata())
+        with patch.object(hydrator, "_lookup_acoustid", side_effect=_not_called):
+            with patch.object(hydrator, "_lookup_musicbrainz", side_effect=_not_called):
+                result2 = hydrator.hydrate(mp3, SimpleMetadata())
 
     assert result1.title == result2.title
     assert result1.artist == result2.artist
