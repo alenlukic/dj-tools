@@ -146,3 +146,9 @@ models/traits/
 .test_data/
 
 .harness/runs/
+
+# Node / Vite
+node_modules/
+client/dist/
+client/node_modules/
+*.tsbuildinfo
