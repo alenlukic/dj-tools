@@ -408,6 +408,82 @@ def ensure_regression_stub(run_dir: pathlib.Path) -> None:
         })
 
 
+def validate_task_files(paths: list[str]) -> list[dict[str, Any]]:
+    """Validate task-definition files and return their metadata."""
+    entries: list[dict[str, Any]] = []
+    for i, p in enumerate(paths):
+        fp = pathlib.Path(p)
+        if not fp.exists():
+            raise FileNotFoundError(f"Task file does not exist: {p}")
+        if not fp.is_file():
+            raise ValueError(f"Task file is not a regular file: {p}")
+        try:
+            content = fp.read_text(encoding="utf-8").strip()
+        except OSError as e:
+            raise ValueError(f"cannot read {p}: {e}") from e
+        if not content:
+            raise ValueError(f"Task file is empty: {p}")
+        entries.append({
+            "index": i,
+            "source_file": str(fp),
+            "task_content": content,
+            "run_id": None,
+            "run_dir": None,
+            "status": "pending",
+            "started_at": None,
+            "finished_at": None,
+            "eval_score": None,
+            "eval_verdict": None,
+            "summary": None,
+        })
+    return entries
+
+
+def create_batch(task_entries: list[dict[str, Any]]) -> pathlib.Path:
+    """Create a batch directory with BATCH_REPORT.json."""
+    ensure_runs_dir()
+    batch_id = f"batch-{utc_run_id()}"
+    batch_dir = RUNS_DIR / batch_id
+    batch_dir.mkdir(parents=True, exist_ok=False)
+    report = {
+        "batch_id": batch_id,
+        "batch_dir": str(batch_dir),
+        "started_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "finished_at": None,
+        "status": "running",
+        "on_failure": "fail_fast",
+        "tasks": task_entries,
+    }
+    write_json(batch_dir / "BATCH_REPORT.json", report)
+    return batch_dir
+
+
+def update_batch_task(batch_dir: pathlib.Path, index: int, updates: dict[str, Any]) -> dict[str, Any]:
+    """Update a specific task entry in BATCH_REPORT.json."""
+    report_path = batch_dir / "BATCH_REPORT.json"
+    report = read_json(report_path)
+    if report is None:
+        raise FileNotFoundError(f"BATCH_REPORT.json not found in {batch_dir}")
+    tasks = report.get("tasks", [])
+    if index < 0 or index >= len(tasks):
+        raise IndexError(f"Task index {index} out of range (0..{len(tasks) - 1})")
+    tasks[index].update(updates)
+    write_json(report_path, report)
+    return report
+
+
+def finalize_batch(batch_dir: pathlib.Path, status: str) -> dict[str, Any]:
+    """Mark the batch as complete/failed/partial."""
+    report_path = batch_dir / "BATCH_REPORT.json"
+    report = read_json(report_path)
+    if report is None:
+        raise FileNotFoundError(f"BATCH_REPORT.json not found in {batch_dir}")
+    report["status"] = status
+    report["finished_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
+    write_json(report_path, report)
+    return report
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Repo-local agentic harness helper")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -433,6 +509,21 @@ def main() -> int:
     retry_parser.add_argument("--run-dir", required=True, help="Path to existing run directory")
     retry_parser.add_argument("--reason", required=False, help="Optional reason for the retry")
 
+    batch_start_parser = subparsers.add_parser("batch-start", help="Initialize a batch run from multiple task files")
+    batch_start_parser.add_argument("--task-files", nargs="+", required=True, help="Paths to task-definition files (min 2)")
+
+    batch_record_parser = subparsers.add_parser("batch-record-outcome", help="Record outcome for a batch task")
+    batch_record_parser.add_argument("--batch-dir", required=True, help="Path to batch directory")
+    batch_record_parser.add_argument("--index", type=int, required=True, help="Task index in the batch")
+    batch_record_parser.add_argument("--run-dir", required=False, help="Path to the task's run directory")
+    batch_record_parser.add_argument("--status", required=True, choices=["pass", "fail", "skip"], help="Outcome status")
+    batch_record_parser.add_argument("--started-at", required=False, help="ISO timestamp when the task started")
+    batch_record_parser.add_argument("--summary", required=False, help="Optional outcome summary")
+
+    batch_finalize_parser = subparsers.add_parser("batch-finalize", help="Finalize a batch run")
+    batch_finalize_parser.add_argument("--batch-dir", required=True, help="Path to batch directory")
+    batch_finalize_parser.add_argument("--status", required=True, choices=["complete", "failed", "partial"], help="Final batch status")
+
     args = parser.parse_args()
     config = load_config()
 
@@ -440,6 +531,63 @@ def main() -> int:
         run_dir = create_run(task=args.task, mode=args.mode)
         ensure_regression_stub(run_dir)
         print(str(run_dir))
+        return 0
+
+    if args.command == "batch-start":
+        task_files = args.task_files
+        if len(task_files) < 2:
+            print("batch-start requires at least 2 task files", file=sys.stderr)
+            return 1
+        try:
+            entries = validate_task_files(task_files)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"Task file validation failed: {exc}", file=sys.stderr)
+            return 1
+        batch_dir = create_batch(entries)
+        print(str(batch_dir))
+        return 0
+
+    if args.command == "batch-record-outcome":
+        batch_dir = pathlib.Path(args.batch_dir)
+        if not batch_dir.exists():
+            print(f"Batch directory does not exist: {batch_dir}", file=sys.stderr)
+            return 1
+        updates: dict[str, Any] = {
+            "status": args.status,
+            "finished_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        }
+        if args.started_at:
+            updates["started_at"] = args.started_at
+        if args.run_dir:
+            run_path = pathlib.Path(args.run_dir)
+            updates["run_id"] = run_path.name
+            updates["run_dir"] = str(run_path)
+            eval_path = run_path / "EVAL_REPORT.json"
+            eval_data = read_json(eval_path)
+            if eval_data:
+                updates["eval_score"] = eval_data.get("score")
+                updates["eval_verdict"] = eval_data.get("verdict")
+        if args.summary:
+            updates["summary"] = args.summary
+        try:
+            report = update_batch_task(batch_dir, args.index, updates)
+        except (FileNotFoundError, IndexError) as exc:
+            print(f"Failed to record outcome: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(report, indent=2))
+        return 0
+
+    if args.command == "batch-finalize":
+        batch_dir = pathlib.Path(args.batch_dir)
+        if not batch_dir.exists():
+            print(f"Batch directory does not exist: {batch_dir}", file=sys.stderr)
+            return 1
+        try:
+            report = finalize_batch(batch_dir, args.status)
+        except FileNotFoundError as exc:
+            print(f"Failed to finalize batch: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(report, indent=2))
         return 0
 
     run_dir = pathlib.Path(args.run_dir)

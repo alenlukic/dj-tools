@@ -1,0 +1,45 @@
+# Module scorecard schema
+# Populate: .harness/docs/quality/scorecards/<module>.yaml
+# History:  .harness/docs/quality/history/YYYY-MM.jsonl
+# Update policy: audits / restructures / incident reviews only. Not individual delivery runs.
+
+module: ""           # client | server | workers | sdk | infra | ...
+updated_at: ""       # ISO-8601
+updated_by: ""       # run-id or audit-id
+confidence: ""       # high | medium | low
+
+health_score:
+  overall: 0
+  grade: ""          # A–F per rubric bands
+  trend: ""          # improving | stable | declining
+
+categories:
+  design_quality:
+    score: 0
+    grade: ""
+    trend: ""
+  readability_maintainability:
+    score: 0
+    grade: ""
+    trend: ""
+  testability_verification:
+    score: 0
+    grade: ""
+    trend: ""
+  reliability_operational_safety:
+    score: 0
+    grade: ""
+    trend: ""
+  security_data_safety:
+    score: 0
+    grade: ""
+    trend: ""
+
+recent_change_score:
+  overall: 0
+  grade: ""
+  window: 10         # last N delivery runs averaged
+
+top_debt_drivers: []  # 1-5 concise strings describing primary quality gaps
+
+evidence_sources: []  # list of run-ids or audit descriptions that produced this scorecard

@@ -1,0 +1,6 @@
+open_items:
+- type: low_confidence_commands
+  detail: Command inference has low confidence — pipeline.yaml uses placeholder commands
+  evidence: .harness/pipeline.yaml
+  confidence: 0.6
+last_updated: '2026-04-02T23:14:32.611037+00:00'
