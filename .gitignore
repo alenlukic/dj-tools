@@ -144,3 +144,5 @@ AGENTS.md
 models/traits/
 
 .test_data/
+
+.harness/runs/

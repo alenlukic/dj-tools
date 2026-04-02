@@ -415,7 +415,7 @@ class MetadataHydrator:
 
         try:
             response = self.openai_client.responses.parse(
-                model=os.getenv("OPENAI_METADATA_MODEL", "gpt-4o-mini"),
+                model=os.getenv("OPENAI_METADATA_MODEL", "gpt-5.4-mini"),
                 temperature=0,
                 input=[
                     {

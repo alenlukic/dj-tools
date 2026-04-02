@@ -38,7 +38,7 @@ LOG_DIR = _configured_path("TRACK_METADATA_LOG_DIR", "logs")
 RUN_START = os.getenv("TRACK_METADATA_RUN_START", datetime.now().strftime("%Y%m%dT%H%M%S"))
 LOG_FILE_PATH = LOG_DIR / f"{RUN_START}.log"
 
-SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".aiff", ".aif"}
+SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".aiff", ".aif", ".wav"}
 SANITIZE_PATTERN = re.compile(r"[^\w.\- &'()\[\]]+")
 
 
@@ -84,6 +84,14 @@ def discover_new_audio_files(
             if destination.exists():
                 logging.info("Skipping %s; already present in augmented directory", candidate.name)
                 continue
+            if candidate.suffix.lower() == ".wav":
+                aiff_equivalent = augmented_dir / (candidate.stem + ".aiff")
+                if aiff_equivalent.exists():
+                    logging.info(
+                        "Skipping %s; AIFF conversion already in augmented directory",
+                        candidate.name,
+                    )
+                    continue
             files.append(candidate)
     return files
 
@@ -93,6 +101,29 @@ def stage_file(source: Path, processing_dir: Path = PROCESSING_DIR) -> Path:
     shutil.copy2(source, destination)
     logging.info("Staged %s", destination.name)
     return destination
+
+
+def convert_wav_to_aiff(wav_path: Path) -> Path:
+    """Convert a WAV file to AIFF, preserving audio fidelity.
+
+    Returns the path of the new AIFF file. The original WAV is removed
+    after a successful conversion.
+    """
+    import soundfile as sf
+
+    aiff_path = wav_path.with_suffix(".aiff")
+    try:
+        info = sf.info(str(wav_path))
+        data, samplerate = sf.read(str(wav_path))
+        subtype = info.subtype if sf.check_format("AIFF", info.subtype) else "PCM_16"
+        sf.write(str(aiff_path), data, samplerate, format="AIFF", subtype=subtype)
+    except Exception:
+        logging.error("Failed to convert %s to AIFF", wav_path.name)
+        raise
+
+    wav_path.unlink()
+    logging.info("Converted %s -> %s", wav_path.name, aiff_path.name)
+    return aiff_path
 
 
 def copy_to_converted(
@@ -160,6 +191,7 @@ __all__ = [
     "RUN_START",
     "SANITIZE_PATTERN",
     "SUPPORTED_AUDIO_EXTENSIONS",
+    "convert_wav_to_aiff",
     "copy_to_converted",
     "discover_new_audio_files",
     "ensure_directories",
