@@ -12,6 +12,7 @@ from src.track_metadata.utils import (
     AUGMENTED_DIR,
     DOWNLOAD_DIR,
     SUPPORTED_AUDIO_EXTENSIONS,
+    convert_wav_to_aiff,
     copy_to_converted,
     discover_new_audio_files,
     ensure_directories,
@@ -61,6 +62,12 @@ def enrich_metadata(
 def process_file(agent: MetadataHydrator, source: Path) -> None:
     logging.info("--- Processing '%s' ---", source.name)
     staged = stage_file(source)
+
+    augmented_name = source.name
+    if staged.suffix.lower() == ".wav":
+        staged = convert_wav_to_aiff(staged)
+        augmented_name = source.with_suffix(".aiff").name
+
     existing = read_existing_metadata(staged)
     existing_json = json.dumps(existing.to_dict(), indent=2, ensure_ascii=False)
 
@@ -84,7 +91,7 @@ def process_file(agent: MetadataHydrator, source: Path) -> None:
 
     write_tags(staged, enriched)
     renamed = rename_file(staged, enriched.artist, enriched.title)
-    final_copy = copy_to_converted(renamed, original_name=source.name)
+    final_copy = copy_to_converted(renamed, original_name=augmented_name)
 
     logging.info("Final file copied to '%s'", final_copy)
 
