@@ -27,8 +27,9 @@ from src.harmonic_mixing.utils import (
 class TransitionMatchFinder:
     """Encapsulates functionality for finding transition matches."""
 
-    def __init__(self, session=None):
+    def __init__(self, session=None, cosine_cache=None):
         self.session = session if session is not None else database.create_session()
+        self.cosine_cache = cosine_cache
         MappingRegistry.load(self.session)
         self.tracks = load_tracks(self.session)
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
@@ -42,6 +43,7 @@ class TransitionMatchFinder:
 
         TransitionMatch.db_session = self.session
         TransitionMatch.collection_metadata = self.collection_metadata
+        TransitionMatch.cosine_cache = self.cosine_cache
 
     def reload_track_data(self):
         MappingRegistry.load(self.session)

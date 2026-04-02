@@ -1,10 +1,16 @@
+import threading
+import time
 from sys import exit
 
 from src.db import database
 from src.assistant.config import ALIAS_MAPPING, ALL_ALIASES, COMMANDS, MATCH
 from src.assistant.command import CommandParsingException
+from src.harmonic_mixing.cosine_cache import CosineCache
+from src.models.track import Track
 from src.harmonic_mixing.transition_match_finder import TransitionMatchFinder
 from src.utils.common import is_empty
+
+_WARM_DEBOUNCE_SECONDS = 10.0
 
 
 def parse_user_input(user_input):
@@ -33,7 +39,11 @@ class Assistant:
 
     def __init__(self):
         self.session = database.create_session()
-        self.transition_match_finder = TransitionMatchFinder(self.session)
+        self.cosine_cache = CosineCache()
+        self.transition_match_finder = TransitionMatchFinder(
+            self.session, cosine_cache=self.cosine_cache
+        )
+        self._last_warm_times: dict[int, float] = {}
 
     def execute(self, user_input):
         cmd_name, args = parse_user_input(user_input)
@@ -57,6 +67,32 @@ class Assistant:
 
     def print_transition_matches(self, track_title):
         self.transition_match_finder.print_transition_matches(track_title)
+        self._warm_cache_async(track_title)
+
+    def _warm_cache_async(self, track_title):
+        """Start BFS cache warming in a daemon thread so the CLI returns immediately.
+
+        Warming is debounced per track_id: a second call for the same track
+        within ``_WARM_DEBOUNCE_SECONDS`` is suppressed.
+        """
+        track_row = (
+            self.session.query(Track).filter_by(title=track_title).first()
+        )
+        if track_row is None:
+            return
+
+        now = time.monotonic()
+        last = self._last_warm_times.get(track_row.id, 0.0)
+        if now - last < _WARM_DEBOUNCE_SECONDS:
+            return
+
+        self._last_warm_times[track_row.id] = now
+        t = threading.Thread(
+            target=self.cosine_cache.warm_from_db,
+            args=(track_row.id,),
+            daemon=True,
+        )
+        t.start()
 
     def reload_track_data(self):
         self.transition_match_finder.reload_track_data()

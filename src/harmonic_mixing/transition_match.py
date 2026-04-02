@@ -37,8 +37,7 @@ class TransitionMatch:
 
     collection_metadata = None
     db_session = None
-    # Class-level caches: one query per on-deck track and one per candidate per session.
-    # Call clear_descriptor_caches() at the start of each new track query.
+    cosine_cache = None
     _on_deck_descriptor_cache = {}
     _candidate_descriptor_cache = {}
     _on_deck_trait_cache = {}
@@ -123,127 +122,144 @@ class TransitionMatch:
     # ------------------------------------------------------------------ #
 
     def get_bpm_score(self):
-        def _get_bpm_score():
-            bpm = self.metadata.get(TrackDBCols.BPM)
-            cur_track_bpm = self.cur_track_md.get(TrackDBCols.BPM)
-            if bpm is None or cur_track_bpm is None:
-                return 0.0
+        if MatchFactors.BPM in self.factors:
+            return self.factors[MatchFactors.BPM]
 
-            absolute_diff = cur_track_bpm - bpm
-            if absolute_diff == 0:
-                return 1.0
-
-            relative_diff = abs(absolute_diff) / float(cur_track_bpm)
-            if absolute_diff < 0:
-                if relative_diff <= SAME_UPPER_BOUND:
-                    score = float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
-                    self.factors[MatchFactors.BPM] = score
-                    return score
-
-                if relative_diff <= UP_KEY_UPPER_BOUND:
-                    midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
-                    return float(midpoint - abs(midpoint - relative_diff)) / midpoint
-
-                return 0.0
-
-            abs_same_lower_bound = abs(SAME_LOWER_BOUND)
-            abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
-            abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
-
-            score = 0.0
-            discount = 0.9
-
-            if relative_diff <= abs_same_lower_bound:
-                score = (
-                    float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
-                )
-
-            if relative_diff <= abs_down_key_lower_bound:
-                midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
-                score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
-
-            return score * discount
-
-        if MatchFactors.BPM not in self.factors:
-            self.factors[MatchFactors.BPM] = _get_bpm_score()
-        return self.factors[MatchFactors.BPM]
-
-    def get_camelot_priority_score(self):
-        def _get_camelot_priority_score():
-            if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
-                self.factors[MatchFactors.CAMELOT] = 0.1
-                return 0.1
-            if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
-                self.factors[MatchFactors.CAMELOT] = 0.25
-                return 0.25
-            if self.camelot_priority == CamelotPriority.MAJOR_MINOR_JUMP:
-                self.factors[MatchFactors.CAMELOT] = 0.9
-                return 0.9
-
-            return float(self.camelot_priority / CamelotPriority.SAME_KEY.value)
-
-        if MatchFactors.CAMELOT not in self.factors:
-            self.factors[MatchFactors.CAMELOT] = _get_camelot_priority_score()
-        return self.factors[MatchFactors.CAMELOT]
-
-    def get_energy_score(self):
-        def _get_energy_score():
-            energy = self.metadata.get(TrackDBCols.ENERGY)
-            cur_track_energy = self.cur_track_md.get(TrackDBCols.ENERGY)
-            if energy is None or cur_track_energy is None:
-                return 0.0
-
-            return 1.0 - (abs(energy - cur_track_energy) / 10.0)
-
-        if MatchFactors.ENERGY not in self.factors:
-            self.factors[MatchFactors.ENERGY] = _get_energy_score()
-        return self.factors[MatchFactors.ENERGY]
-
-    def get_freshness_score(self):
-        def _get_freshness_score():
-            date_added = self.metadata.get(TrackDBCols.DATE_ADDED)
-            if date_added is None:
-                return 0.5
-
-            return (
-                date_added - self.collection_metadata[CollectionStat.OLDEST]
-            ) / self.collection_metadata[CollectionStat.TIME_RANGE]
-
-        if MatchFactors.FRESHNESS not in self.factors:
-            self.factors[MatchFactors.FRESHNESS] = _get_freshness_score()
-        return self.factors[MatchFactors.FRESHNESS]
-
-    def get_similarity_score(self):
-        def _get_similarity_score():
-            on_deck_id = self.cur_track_md.get(TrackDBCols.ID)
-            candidate_id = self.metadata.get(TrackDBCols.ID)
-
-            if on_deck_id not in TransitionMatch._on_deck_descriptor_cache:
-                TransitionMatch._on_deck_descriptor_cache[on_deck_id] = (
-                    self.db_session.query(TrackDescriptor)
-                    .filter_by(track_id=on_deck_id, descriptor_version=DESCRIPTOR_VERSION)
-                    .first()
-                )
-            on_deck_desc = TransitionMatch._on_deck_descriptor_cache[on_deck_id]
-
-            if candidate_id not in TransitionMatch._candidate_descriptor_cache:
-                TransitionMatch._candidate_descriptor_cache[candidate_id] = (
-                    self.db_session.query(TrackDescriptor)
-                    .filter_by(track_id=candidate_id, descriptor_version=DESCRIPTOR_VERSION)
-                    .first()
-                )
-            candidate_desc = TransitionMatch._candidate_descriptor_cache[candidate_id]
-
-            if on_deck_desc is not None and candidate_desc is not None:
-                v1 = unpack_vector(on_deck_desc.global_vector)
-                v2 = unpack_vector(candidate_desc.global_vector)
-                return cosine_similarity(v1, v2)
-
+        bpm = self.metadata.get(TrackDBCols.BPM)
+        cur_track_bpm = self.cur_track_md.get(TrackDBCols.BPM)
+        if bpm is None or cur_track_bpm is None:
+            self.factors[MatchFactors.BPM] = 0.0
             return 0.0
 
-        if MatchFactors.SIMILARITY not in self.factors:
-            self.factors[MatchFactors.SIMILARITY] = _get_similarity_score()
-        return self.factors[MatchFactors.SIMILARITY]
+        absolute_diff = cur_track_bpm - bpm
+        if absolute_diff == 0:
+            self.factors[MatchFactors.BPM] = 1.0
+            return 1.0
+
+        relative_diff = abs(absolute_diff) / float(cur_track_bpm)
+        if absolute_diff < 0:
+            if relative_diff <= SAME_UPPER_BOUND:
+                score = float(SAME_UPPER_BOUND - relative_diff) / SAME_UPPER_BOUND
+                self.factors[MatchFactors.BPM] = score
+                return score
+
+            if relative_diff <= UP_KEY_UPPER_BOUND:
+                midpoint = (UP_KEY_LOWER_BOUND + UP_KEY_UPPER_BOUND) / 2
+                result = float(midpoint - abs(midpoint - relative_diff)) / midpoint
+                self.factors[MatchFactors.BPM] = result
+                return result
+
+            self.factors[MatchFactors.BPM] = 0.0
+            return 0.0
+
+        abs_same_lower_bound = abs(SAME_LOWER_BOUND)
+        abs_down_key_upper_bound = abs(DOWN_KEY_UPPER_BOUND)
+        abs_down_key_lower_bound = abs(DOWN_KEY_LOWER_BOUND)
+
+        score = 0.0
+        discount = 0.9
+
+        if relative_diff <= abs_same_lower_bound:
+            score = (
+                float(abs_same_lower_bound - relative_diff) / abs_same_lower_bound
+            )
+
+        if relative_diff <= abs_down_key_lower_bound:
+            midpoint = (abs_down_key_lower_bound + abs_down_key_upper_bound) / 2
+            score = float(midpoint - abs(midpoint - relative_diff)) / midpoint
+
+        result = score * discount
+        self.factors[MatchFactors.BPM] = result
+        return result
+
+    def get_camelot_priority_score(self):
+        if MatchFactors.CAMELOT in self.factors:
+            return self.factors[MatchFactors.CAMELOT]
+
+        if self.camelot_priority == CamelotPriority.ONE_OCTAVE_JUMP:
+            self.factors[MatchFactors.CAMELOT] = 0.1
+            return 0.1
+        if self.camelot_priority == CamelotPriority.ADJACENT_JUMP:
+            self.factors[MatchFactors.CAMELOT] = 0.25
+            return 0.25
+        if self.camelot_priority == CamelotPriority.MAJOR_MINOR_JUMP:
+            self.factors[MatchFactors.CAMELOT] = 0.9
+            return 0.9
+
+        result = float(self.camelot_priority / CamelotPriority.SAME_KEY.value)
+        self.factors[MatchFactors.CAMELOT] = result
+        return result
+
+    def get_energy_score(self):
+        if MatchFactors.ENERGY in self.factors:
+            return self.factors[MatchFactors.ENERGY]
+
+        energy = self.metadata.get(TrackDBCols.ENERGY)
+        cur_track_energy = self.cur_track_md.get(TrackDBCols.ENERGY)
+        if energy is None or cur_track_energy is None:
+            self.factors[MatchFactors.ENERGY] = 0.0
+            return 0.0
+
+        result = 1.0 - (abs(energy - cur_track_energy) / 10.0)
+        self.factors[MatchFactors.ENERGY] = result
+        return result
+
+    def get_freshness_score(self):
+        if MatchFactors.FRESHNESS in self.factors:
+            return self.factors[MatchFactors.FRESHNESS]
+
+        date_added = self.metadata.get(TrackDBCols.DATE_ADDED)
+        if date_added is None:
+            self.factors[MatchFactors.FRESHNESS] = 0.5
+            return 0.5
+
+        result = (
+            date_added - self.collection_metadata[CollectionStat.OLDEST]
+        ) / self.collection_metadata[CollectionStat.TIME_RANGE]
+        self.factors[MatchFactors.FRESHNESS] = result
+        return result
+
+    def get_similarity_score(self):
+        if MatchFactors.SIMILARITY in self.factors:
+            return self.factors[MatchFactors.SIMILARITY]
+
+        on_deck_id = self.cur_track_md.get(TrackDBCols.ID)
+        candidate_id = self.metadata.get(TrackDBCols.ID)
+
+        if TransitionMatch.cosine_cache is not None:
+            cached = TransitionMatch.cosine_cache.get(on_deck_id, candidate_id)
+            if cached is not None:
+                self.factors[MatchFactors.SIMILARITY] = cached
+                return cached
+
+        if on_deck_id not in TransitionMatch._on_deck_descriptor_cache:
+            TransitionMatch._on_deck_descriptor_cache[on_deck_id] = (
+                self.db_session.query(TrackDescriptor)
+                .filter_by(track_id=on_deck_id, descriptor_version=DESCRIPTOR_VERSION)
+                .first()
+            )
+        on_deck_desc = TransitionMatch._on_deck_descriptor_cache[on_deck_id]
+
+        if candidate_id not in TransitionMatch._candidate_descriptor_cache:
+            TransitionMatch._candidate_descriptor_cache[candidate_id] = (
+                self.db_session.query(TrackDescriptor)
+                .filter_by(track_id=candidate_id, descriptor_version=DESCRIPTOR_VERSION)
+                .first()
+            )
+        candidate_desc = TransitionMatch._candidate_descriptor_cache[candidate_id]
+
+        if on_deck_desc is not None and candidate_desc is not None:
+            v1 = unpack_vector(on_deck_desc.global_vector)
+            v2 = unpack_vector(candidate_desc.global_vector)
+            result = cosine_similarity(v1, v2)
+        else:
+            result = 0.0
+
+        if TransitionMatch.cosine_cache is not None:
+            TransitionMatch.cosine_cache.put(on_deck_id, candidate_id, result)
+
+        self.factors[MatchFactors.SIMILARITY] = result
+        return result
 
     # ------------------------------------------------------------------ #
     # TrackTrait cache helper                                              #
@@ -274,51 +290,57 @@ class TransitionMatch:
     # ------------------------------------------------------------------ #
 
     def get_genre_similarity_score(self):
-        def _score():
-            on_deck = self._get_on_deck_trait()
-            candidate = self._get_candidate_trait()
-            if on_deck is None or candidate is None:
-                return 0.0
-            return jsonb_cosine_similarity(
-                on_deck.genre or {}, candidate.genre or {}
-            )
+        if MatchFactors.GENRE_SIMILARITY in self.factors:
+            return self.factors[MatchFactors.GENRE_SIMILARITY]
 
-        if MatchFactors.GENRE_SIMILARITY not in self.factors:
-            self.factors[MatchFactors.GENRE_SIMILARITY] = _score()
-        return self.factors[MatchFactors.GENRE_SIMILARITY]
+        on_deck = self._get_on_deck_trait()
+        candidate = self._get_candidate_trait()
+        if on_deck is None or candidate is None:
+            self.factors[MatchFactors.GENRE_SIMILARITY] = 0.0
+            return 0.0
+
+        result = jsonb_cosine_similarity(
+            on_deck.genre or {}, candidate.genre or {}
+        )
+        self.factors[MatchFactors.GENRE_SIMILARITY] = result
+        return result
 
     def get_mood_continuity_score(self):
-        def _score():
-            on_deck = self._get_on_deck_trait()
-            candidate = self._get_candidate_trait()
-            if on_deck is None or candidate is None:
-                return 0.0
-            return jsonb_cosine_similarity(
-                on_deck.mood_theme or {}, candidate.mood_theme or {}
-            )
+        if MatchFactors.MOOD_CONTINUITY in self.factors:
+            return self.factors[MatchFactors.MOOD_CONTINUITY]
 
-        if MatchFactors.MOOD_CONTINUITY not in self.factors:
-            self.factors[MatchFactors.MOOD_CONTINUITY] = _score()
-        return self.factors[MatchFactors.MOOD_CONTINUITY]
+        on_deck = self._get_on_deck_trait()
+        candidate = self._get_candidate_trait()
+        if on_deck is None or candidate is None:
+            self.factors[MatchFactors.MOOD_CONTINUITY] = 0.0
+            return 0.0
+
+        result = jsonb_cosine_similarity(
+            on_deck.mood_theme or {}, candidate.mood_theme or {}
+        )
+        self.factors[MatchFactors.MOOD_CONTINUITY] = result
+        return result
 
     def get_vocal_clash_score(self):
         """Penalty when both tracks carry vocals.
 
         Score = 1.0 - min(on_deck.voice_instrumental, candidate.voice_instrumental).
-        Two instrumentals → 1.0. Vocal into vocal → ~0.0.
+        Two instrumentals -> 1.0. Vocal into vocal -> ~0.0.
         """
-        def _score():
-            on_deck = self._get_on_deck_trait()
-            candidate = self._get_candidate_trait()
-            if on_deck is None or candidate is None:
-                return 0.0
-            vi_on_deck = on_deck.voice_instrumental if on_deck.voice_instrumental is not None else 0.0
-            vi_candidate = candidate.voice_instrumental if candidate.voice_instrumental is not None else 0.0
-            return 1.0 - min(vi_on_deck, vi_candidate)
+        if MatchFactors.VOCAL_CLASH in self.factors:
+            return self.factors[MatchFactors.VOCAL_CLASH]
 
-        if MatchFactors.VOCAL_CLASH not in self.factors:
-            self.factors[MatchFactors.VOCAL_CLASH] = _score()
-        return self.factors[MatchFactors.VOCAL_CLASH]
+        on_deck = self._get_on_deck_trait()
+        candidate = self._get_candidate_trait()
+        if on_deck is None or candidate is None:
+            self.factors[MatchFactors.VOCAL_CLASH] = 0.0
+            return 0.0
+
+        vi_on_deck = on_deck.voice_instrumental if on_deck.voice_instrumental is not None else 0.0
+        vi_candidate = candidate.voice_instrumental if candidate.voice_instrumental is not None else 0.0
+        result = 1.0 - min(vi_on_deck, vi_candidate)
+        self.factors[MatchFactors.VOCAL_CLASH] = result
+        return result
 
     def get_danceability_score(self):
         """Reward similar or gently building danceability.
@@ -326,51 +348,56 @@ class TransitionMatch:
         Base score = 1.0 - abs(diff). Small bonus when candidate is higher
         (building energy on the floor).
         """
-        def _score():
-            on_deck = self._get_on_deck_trait()
-            candidate = self._get_candidate_trait()
-            if on_deck is None or candidate is None:
-                return 0.0
-            d_on = on_deck.danceability if on_deck.danceability is not None else 0.5
-            d_cand = candidate.danceability if candidate.danceability is not None else 0.5
-            diff = d_cand - d_on
-            base = 1.0 - abs(diff)
-            # Small bonus (up to 0.1) when candidate is slightly more danceable
-            build_bonus = max(0.0, min(0.1, diff))
-            return min(1.0, base + build_bonus)
+        if MatchFactors.DANCEABILITY in self.factors:
+            return self.factors[MatchFactors.DANCEABILITY]
 
-        if MatchFactors.DANCEABILITY not in self.factors:
-            self.factors[MatchFactors.DANCEABILITY] = _score()
-        return self.factors[MatchFactors.DANCEABILITY]
+        on_deck = self._get_on_deck_trait()
+        candidate = self._get_candidate_trait()
+        if on_deck is None or candidate is None:
+            self.factors[MatchFactors.DANCEABILITY] = 0.0
+            return 0.0
+
+        d_on = on_deck.danceability if on_deck.danceability is not None else 0.5
+        d_cand = candidate.danceability if candidate.danceability is not None else 0.5
+        diff = d_cand - d_on
+        base = 1.0 - abs(diff)
+        build_bonus = max(0.0, min(0.1, diff))
+        result = min(1.0, base + build_bonus)
+        self.factors[MatchFactors.DANCEABILITY] = result
+        return result
 
     def get_timbre_score(self):
         """Reward timbral continuity via bright_dark proximity."""
-        def _score():
-            on_deck = self._get_on_deck_trait()
-            candidate = self._get_candidate_trait()
-            if on_deck is None or candidate is None:
-                return 0.0
-            t_on = on_deck.bright_dark if on_deck.bright_dark is not None else 0.5
-            t_cand = candidate.bright_dark if candidate.bright_dark is not None else 0.5
-            return 1.0 - abs(t_on - t_cand)
+        if MatchFactors.TIMBRE in self.factors:
+            return self.factors[MatchFactors.TIMBRE]
 
-        if MatchFactors.TIMBRE not in self.factors:
-            self.factors[MatchFactors.TIMBRE] = _score()
-        return self.factors[MatchFactors.TIMBRE]
+        on_deck = self._get_on_deck_trait()
+        candidate = self._get_candidate_trait()
+        if on_deck is None or candidate is None:
+            self.factors[MatchFactors.TIMBRE] = 0.0
+            return 0.0
+
+        t_on = on_deck.bright_dark if on_deck.bright_dark is not None else 0.5
+        t_cand = candidate.bright_dark if candidate.bright_dark is not None else 0.5
+        result = 1.0 - abs(t_on - t_cand)
+        self.factors[MatchFactors.TIMBRE] = result
+        return result
 
     def get_instrument_similarity_score(self):
-        def _score():
-            on_deck = self._get_on_deck_trait()
-            candidate = self._get_candidate_trait()
-            if on_deck is None or candidate is None:
-                return 0.0
-            return jsonb_cosine_similarity(
-                on_deck.instruments or {}, candidate.instruments or {}
-            )
+        if MatchFactors.INSTRUMENT_SIMILARITY in self.factors:
+            return self.factors[MatchFactors.INSTRUMENT_SIMILARITY]
 
-        if MatchFactors.INSTRUMENT_SIMILARITY not in self.factors:
-            self.factors[MatchFactors.INSTRUMENT_SIMILARITY] = _score()
-        return self.factors[MatchFactors.INSTRUMENT_SIMILARITY]
+        on_deck = self._get_on_deck_trait()
+        candidate = self._get_candidate_trait()
+        if on_deck is None or candidate is None:
+            self.factors[MatchFactors.INSTRUMENT_SIMILARITY] = 0.0
+            return 0.0
+
+        result = jsonb_cosine_similarity(
+            on_deck.instruments or {}, candidate.instruments or {}
+        )
+        self.factors[MatchFactors.INSTRUMENT_SIMILARITY] = result
+        return result
 
     def __lt__(self, other):
         return (self.get_score(), self.get_similarity_score(), self.get_freshness_score()) < (

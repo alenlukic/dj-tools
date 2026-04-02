@@ -1,3 +1,5 @@
+import os
+
 # Compact descriptor constants
 DESCRIPTOR_VERSION = "1"
 
@@ -45,3 +47,14 @@ TRAIT_CLASSIFIERS_EFFNET = [
 
 # MAEST standalone backbone for 519-class Discogs genre classification
 TRAIT_CLASSIFIER_MAEST = "discogs-maest-30s-pw-519l"
+
+# Number of parallel worker processes for compute_track_traits.py.
+# Each worker loads the full ONNX model set (~430 MB); keep this low on
+# memory-constrained machines. Override with the TRAIT_WORKERS env var.
+TRAIT_WORKERS = int(os.getenv("TRAIT_WORKERS", "2"))
+
+# Number of parallel worker processes for compute_cosine_similarities.py.
+# Each worker loads TransitionMatchFinder (all tracks + camelot map) but no
+# heavy ONNX models, so memory is moderate (~50–100 MB per worker).
+# Override with the COSINE_WORKERS env var.
+COSINE_WORKERS = int(os.getenv("COSINE_WORKERS", "2"))
