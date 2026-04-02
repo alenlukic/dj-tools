@@ -1,0 +1,29 @@
+---
+description: Always-on platform rule
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+Start with AGENTS.md at the repo root.
+Execution contract and golden principles: .harness/docs/core-beliefs.md
+Knowledge base: .harness/docs/index.md
+
+Always preserve:
+- narrow scope
+- patch discipline
+- evidence-backed completion
+- explicit retry caps
+- diff-aware second-pass planning when the real change shape appears
+
+Canonical workflow docs:
+- .harness/commands/run-delivery-pipeline.md
+- .harness/commands/run-verification-stack.md
+- .harness/commands/run-maintenance-pipeline.md
+- .harness/commands/run-restructure-pipeline.md
+- .harness/commands/run-repo-research.md
+
+Quality rubric: .harness/docs/quality/rubric.md
+Module scorecard schema: .harness/docs/quality/scorecard-schema.yaml
+
+Canonical rules location: .harness/rules/

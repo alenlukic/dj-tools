@@ -1,0 +1,103 @@
+version: 2
+
+repo:
+  type: python
+  default_branch: main
+
+execution:
+  mode: host
+  run_root: .harness/runs
+  use_git_root: true
+
+read_only_commands:
+  - "git status --short"
+  - "git diff --stat"
+  - "git diff"
+  - "git diff --name-only"
+  - "git ls-files"
+  - "pwd"
+  - "ls"
+  - "find"
+  - "cat"
+
+commands:
+  format:
+    - "ruff format src/"
+
+  lint:
+    - "ruff check src/"
+
+  test:
+    - "python -m pytest src/tests/ -v"
+
+  build:
+    - "python -m pytest src/tests/ -v && ruff check src/"
+
+stages:
+  delivery:
+    - supervisor
+    - coder
+    - reviewer_specific
+    - diff_planner
+    - qa
+    - reviewer_broad
+    - build_verifier
+    - evaluator
+    - regression_detector
+
+gates:
+  require_tests: true
+  require_build: true
+  require_policy_report: true
+  require_eval_report: true
+  require_no_high_regressions: true
+  eval_threshold: 80              # B- — minimum passing grade
+  eval_conditional_threshold: 70  # C- — conditional pass floor
+  grade_gate: "B-"
+  max_review_rounds: 3
+  max_retry_rounds: 2
+  patch_only: true
+  stop_on_test_failure: false
+
+retry:
+  enabled: true
+  trigger_on:
+    - qa_fail
+    - build_fail
+    - eval_below_threshold
+    - high_regression
+    - policy_violation
+  strategy: targeted
+  require_second_pass_plan: true
+
+artifacts:
+  required:
+    - "TASK.md"
+    - "PLAN.md"
+    - "PATCH.diff"
+    - "TEST_REPORT.json"
+    - "REVIEW_NOTES.md"
+    - "QA_REPORT.md"
+    - "BUILD_VERIFICATION.md"
+    - "POLICY_REPORT.json"
+    - "EVAL_REPORT.json"
+    - "REGRESSION_REPORT.json"
+  optional:
+    - "IMPLEMENTATION_NOTES.md"
+    - "MAINTENANCE_REPORT.md"
+    - "SECOND_PASS_PLAN.md"
+    - "RETRY_TASK.md"
+    - "RETRY_LOG.jsonl"
+    - "DEFERRED_ITEMS.json"
+
+policies:
+  forbid_paths:
+    - ".env"
+    - ".git/"
+    - "secrets/"
+    - "config/"
+    - ".venv/"
+    - "data/"
+  max_files_changed: 50
+  max_diff_lines: 5000
+  forbid_full_file_rewrites: true
