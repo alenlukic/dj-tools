@@ -225,3 +225,80 @@ OpenAI LLM. Writes enriched metadata back to file tags.
 **Location:** `src/track_metadata/`
 
 **Entry point:** `src/track_metadata/metadata_agent.py`
+
+---
+
+## Web Client & API
+
+A browser-based alternative to the CLI assistant, backed by a minimal FastAPI layer.
+
+### Prerequisites
+
+- Node.js ≥ 18
+- A running PostgreSQL database with tracks already ingested
+- Docker (for Elasticsearch)
+
+### Quick start
+
+Start Elasticsearch, the API, and the client in one command:
+
+```bash
+bash src/scripts/start_web.sh
+```
+
+The script will:
+1. Start the Elasticsearch Docker container (creating it on first run)
+2. Index tracks from PostgreSQL into Elasticsearch if the index doesn't exist
+3. Start the FastAPI server on port 8000
+4. Install client dependencies (if needed) and start the Vite dev server on port 5173
+
+Use `bash src/scripts/start_web.sh --reindex` to force a re-index of tracks into Elasticsearch.
+
+Press `Ctrl+C` to stop all services (API, client, and Elasticsearch).
+
+### Manual startup
+
+If you prefer to start services individually:
+
+```bash
+# 1. Elasticsearch
+docker run -d --name dj-tools-es -p 9200:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=false" \
+  -e "xpack.security.enrollment.enabled=false" \
+  -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+
+# 2. Index tracks
+python -m src.scripts.index_tracks
+
+# 3. API server
+python -m src.scripts.run_api
+
+# 4. Client dev server
+cd client && npm install && npm run dev
+```
+
+The Vite dev server proxies `/api/*` requests to the API.
+
+### API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/search?q=<query>` | Elasticsearch-powered autocomplete (max 10 results, title-weighted). |
+| `GET` | `/api/tracks?camelot_code=&bpm=&bpm_min=&bpm_max=` | Full track listing with optional filters. Camelot codes are comma-separated. |
+| `GET` | `/api/tracks/{id}/matches` | Transition matches for a track, computed via existing `TransitionMatchFinder`. |
+
+### Search architecture
+
+Search is powered by Elasticsearch with a title-weighted multi-field query:
+- `title` field uses edge-ngram analysis for autocomplete with 5x boost
+- `artist_names` gets 2x boost
+- `genre`, `label` are standard text fields
+- `camelot_code`, `key` are keyword (exact match) fields
+
+The index is populated from PostgreSQL via `src/scripts/index_tracks.py`. Artist names are denormalized into each search document from the `artist_track` → `artist` join.
+
+### Artist join strategy
+
+Track listing endpoints join `track` → `artist_track` → `artist` with SQL `string_agg` aggregation to return artist names per row in a single query (no N+1).
