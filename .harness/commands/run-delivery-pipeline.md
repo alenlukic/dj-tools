@@ -99,6 +99,70 @@ Pass the run directory path and relevant artifacts as context to each subagent.
 10. Finalize
 - end with a concise final summary grounded in produced artifacts
 
+## MODE=multi — Batch Execution
+
+When invoked with `MODE=multi`, the delivery pipeline processes multiple task-definition files sequentially. Each task file receives a fully isolated delivery run. A batch-level summary artifact tracks ordered outcomes.
+
+### Invocation
+
+```
+/run-delivery-pipeline MODE=multi task1.txt task2.txt [task3.txt...]
+```
+
+### Prerequisites
+
+- At least 2 task-definition files must be provided. Fewer than 2 is a usage error — do not proceed.
+- Each file must exist, be a regular file, and contain non-empty text (plain text or markdown).
+- Unreadable or empty files cause a clear failure before that task begins.
+
+### Batch Orchestration Flow
+
+1. Validate MODE=multi and at least 2 task files.
+2. Initialize the batch:
+   ```
+   python3 .harness/bin/pipeline.py batch-start --task-files <file1> <file2> [file3...]
+   ```
+   - Creates `.harness/runs/batch-<timestamp>/` with `BATCH_REPORT.json`
+   - All tasks start in `pending` state
+   - Outputs the batch directory path
+3. For each task file in order (index 0, 1, 2, ...):
+   a. Read the task content from `BATCH_REPORT.json` for this index.
+   b. Initialize a delivery run:
+      ```
+      python3 .harness/bin/pipeline.py start --mode delivery --task "<task content>"
+      ```
+   c. Execute the full delivery pipeline (steps 2–9 above) for this task.
+   d. Record the outcome:
+      ```
+      python3 .harness/bin/pipeline.py batch-record-outcome \
+        --batch-dir <batch_dir> --index <N> --run-dir <run_dir> --status <pass|fail>
+      ```
+   e. If status is `fail` and `on_failure` is `fail_fast` (the default):
+      - Mark all remaining tasks as `skip`:
+        ```
+        python3 .harness/bin/pipeline.py batch-record-outcome \
+          --batch-dir <batch_dir> --index <M> --status skip --summary "Skipped due to prior failure"
+        ```
+      - Finalize the batch as failed:
+        ```
+        python3 .harness/bin/pipeline.py batch-finalize --batch-dir <batch_dir> --status failed
+        ```
+      - STOP processing.
+4. After all tasks complete successfully, finalize:
+   ```
+   python3 .harness/bin/pipeline.py batch-finalize --batch-dir <batch_dir> --status complete
+   ```
+5. Report the batch summary from `BATCH_REPORT.json`.
+
+### Failure Policy
+
+- Default: `fail_fast` — stop after the first irrecoverable task failure and mark remaining tasks as `skip`.
+- Future: `continue` policy may be added later. The batch model supports this without redesign.
+
+### Backward Compatibility
+
+Existing single-task `MODE` (no `MODE=multi` flag) continues to follow the standard single-run flow described above. The multi-task path is opt-in and explicit.
+
 ## VALIDATION
 
 Before completion, verify:
@@ -120,6 +184,7 @@ Produce:
 - `EVAL_REPORT.json`
 - `REGRESSION_REPORT.json`
 - `SECOND_PASS_PLAN.md` when retries or scope tightening occurred
+- in MODE=multi: batch directory with `BATCH_REPORT.json` mapping each task file to its run
 - concise final summary including:
   - verdict
   - changed files
