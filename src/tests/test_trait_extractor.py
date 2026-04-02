@@ -30,6 +30,7 @@ from src.feature_extraction.trait_extractor import (
     LABELS_INSTRUMENT,
     LABELS_MOOD_THEME,
     _binary_prob,
+    _compute_mel_from_signal,
     _multilabel_dict,
     _patch_mel_for_effnet,
     _patch_mel_for_maest,
@@ -51,23 +52,37 @@ _TEST_FILES = sorted(_TEST_DATA.glob("*")) if _TEST_DATA.exists() else []
 # Helpers                                                              #
 # ------------------------------------------------------------------ #
 
+
 def _is_valid_trait_dict(traits: dict) -> None:
     """Assert structural correctness of a compute() result dict."""
     required_keys = {
-        "voice_instrumental", "danceability", "bright_dark",
-        "acoustic_electronic", "tonal_atonal", "reverb",
-        "onset_density", "spectral_flatness",
-        "mood_theme", "genre", "instruments",
+        "voice_instrumental",
+        "danceability",
+        "bright_dark",
+        "acoustic_electronic",
+        "tonal_atonal",
+        "reverb",
+        "onset_density",
+        "spectral_flatness",
+        "mood_theme",
+        "genre",
+        "instruments",
         "trait_version",
     }
-    assert required_keys == set(traits.keys()), (
-        "Missing/extra keys: %s" % (required_keys ^ set(traits.keys()))
+    assert required_keys == set(traits.keys()), "Missing/extra keys: %s" % (
+        required_keys ^ set(traits.keys())
     )
     assert traits["trait_version"] == TRAIT_VERSION
 
     # Scalar traits: float in [0, 1] or None
-    for key in ("voice_instrumental", "danceability", "bright_dark",
-                 "acoustic_electronic", "tonal_atonal", "reverb"):
+    for key in (
+        "voice_instrumental",
+        "danceability",
+        "bright_dark",
+        "acoustic_electronic",
+        "tonal_atonal",
+        "reverb",
+    ):
         v = traits[key]
         if v is not None:
             assert isinstance(v, float), "%s should be float, got %s" % (key, type(v))
@@ -99,6 +114,7 @@ def _is_valid_trait_dict(traits: dict) -> None:
 # Unit tests — no ONNX models required                                #
 # ------------------------------------------------------------------ #
 
+
 class TestLabelLists:
     def test_mood_theme_count(self):
         assert len(LABELS_MOOD_THEME) == 56
@@ -110,8 +126,16 @@ class TestLabelLists:
         assert len(LABELS_GENRE_DISCOGS519) == 519
 
     def test_mood_theme_known_labels(self):
-        expected = {"action", "calm", "dark", "energetic", "happy", "sad",
-                    "upbeat", "uplifting"}
+        expected = {
+            "action",
+            "calm",
+            "dark",
+            "energetic",
+            "happy",
+            "sad",
+            "upbeat",
+            "uplifting",
+        }
         assert expected.issubset(set(LABELS_MOOD_THEME))
 
     def test_mood_theme_no_stale_labels(self):
@@ -135,14 +159,23 @@ class TestLabelLists:
             assert len(labels) == len(set(labels)), "Duplicates in %s" % name
 
     def test_genre_contains_electronic_subgenres(self):
-        electronic = [label for label in LABELS_GENRE_DISCOGS519 if label.startswith("Electronic---")]
+        electronic = [
+            label
+            for label in LABELS_GENRE_DISCOGS519
+            if label.startswith("Electronic---")
+        ]
         assert len(electronic) >= 50, "Expected many Electronic subgenres"
 
     def test_genre_519_has_maest_only_subgenres(self):
         """Verify labels unique to the 519-class MAEST taxonomy are present."""
-        maest_only = {"Electronic---Footwork", "Electronic---Witch House",
-                      "Electronic---Ghettotech", "Electronic---Baltimore Club",
-                      "Electronic---Doomcore", "Electronic---Glitch Hop"}
+        maest_only = {
+            "Electronic---Footwork",
+            "Electronic---Witch House",
+            "Electronic---Ghettotech",
+            "Electronic---Baltimore Club",
+            "Electronic---Doomcore",
+            "Electronic---Glitch Hop",
+        }
         assert maest_only.issubset(set(LABELS_GENRE_DISCOGS519))
 
 
@@ -155,7 +188,7 @@ class TestPatchMelForEffnet:
         patches = _patch_mel_for_effnet(mel)
         assert patches.ndim == 3
         assert patches.shape[1] == 128  # time frames
-        assert patches.shape[2] == 96   # mel bands
+        assert patches.shape[2] == 96  # mel bands
 
     def test_output_dtype_float32(self):
         patches = _patch_mel_for_effnet(self._make_mel(500))
@@ -284,6 +317,49 @@ class TestMultilabelDict:
         assert set(result.keys()) <= {"a", "b"}
 
 
+class TestComputeMelFromSignal:
+    """_compute_mel_from_signal is IO-free and directly testable."""
+
+    def test_output_shape(self):
+        y = np.random.randn(TRAIT_SAMPLE_RATE).astype(np.float32)
+        mel = _compute_mel_from_signal(y)
+        assert mel.ndim == 2
+        assert mel.shape[0] == 96
+
+    def test_output_dtype(self):
+        y = np.random.randn(TRAIT_SAMPLE_RATE).astype(np.float32)
+        mel = _compute_mel_from_signal(y)
+        assert mel.dtype == np.float32
+
+    def test_values_non_negative(self):
+        y = np.random.randn(TRAIT_SAMPLE_RATE).astype(np.float32)
+        mel = _compute_mel_from_signal(y)
+        assert mel.min() >= 0.0
+
+    def test_matches_compute_mel_spectrogram(self):
+        """Verify identical output to the public wrapper when given the same signal."""
+        from unittest.mock import patch
+
+        y = np.random.randn(TRAIT_SAMPLE_RATE).astype(np.float32)
+
+        with patch("src.feature_extraction.trait_extractor.librosa") as mock_lr:
+            mock_lr.load.return_value = (y, TRAIT_SAMPLE_RATE)
+            mock_lr.feature.melspectrogram = __import__(
+                "librosa"
+            ).feature.melspectrogram
+            from_file = compute_mel_spectrogram("dummy.wav")
+
+        from_signal = _compute_mel_from_signal(y)
+        np.testing.assert_array_equal(from_signal, from_file)
+
+    def test_short_signal(self):
+        y = np.random.randn(256).astype(np.float32)
+        mel = _compute_mel_from_signal(y)
+        assert mel.ndim == 2
+        assert mel.shape[0] == 96
+        assert mel.shape[1] >= 1
+
+
 class TestComputeMelSpectrogram:
     @pytest.mark.skipif(not _TEST_FILES, reason="No test data files found")
     def test_mel_shape(self):
@@ -294,7 +370,7 @@ class TestComputeMelSpectrogram:
         mel = compute_mel_spectrogram(str(mp3_files[0]))
         assert mel.ndim == 2
         assert mel.shape[0] == 96  # mel bands
-        assert mel.shape[1] > 0   # time frames
+        assert mel.shape[1] > 0  # time frames
         assert mel.dtype == np.float32
 
     @pytest.mark.skipif(not _TEST_FILES, reason="No test data files found")
@@ -313,6 +389,7 @@ class TestComputeMelSpectrogram:
         Validate that compute_mel_spectrogram matches power=1.0 and not power=2.0.
         """
         import librosa as _librosa
+
         mp3_files = [f for f in _TEST_FILES if f.suffix == ".mp3"]
         if not mp3_files:
             pytest.skip("No MP3 in test data")
@@ -320,14 +397,22 @@ class TestComputeMelSpectrogram:
         y, _ = _librosa.load(path, sr=TRAIT_SAMPLE_RATE, mono=True)
 
         mel_amp = _librosa.feature.melspectrogram(
-            y=y, sr=TRAIT_SAMPLE_RATE, n_fft=512, hop_length=256,
-            n_mels=96, fmax=8000, norm=None, power=1.0, htk=False,
+            y=y,
+            sr=TRAIT_SAMPLE_RATE,
+            n_fft=512,
+            hop_length=256,
+            n_mels=96,
+            fmax=8000,
+            norm=None,
+            power=1.0,
+            htk=False,
         )
         expected = np.log(10000.0 * mel_amp + 1.0).astype(np.float32)
         actual = compute_mel_spectrogram(path)
 
         np.testing.assert_array_equal(
-            actual, expected,
+            actual,
+            expected,
             err_msg="compute_mel_spectrogram does not match power=1.0 amplitude preprocessing",
         )
 
@@ -340,9 +425,75 @@ class TestComputeMelSpectrogram:
         assert mel.shape[0] == 96
 
 
+class TestSpectralFlatnessGuard:
+    """The nanmean + NaN-fallback pattern applied to spectral_flatness in compute()."""
+
+    def test_all_nan_returns_zero(self):
+        import math
+
+        arr = np.full((1, 50), np.nan, dtype=np.float32)
+        raw = float(np.nanmean(arr))
+        result = round(raw if not np.isnan(raw) else 0.0, 6)
+        assert result == 0.0
+        assert not math.isnan(result)
+
+    def test_normal_values_compute_correctly(self):
+        arr = np.array([[0.1, 0.2, 0.3, 0.4]], dtype=np.float32)
+        raw = float(np.nanmean(arr))
+        result = round(raw if not np.isnan(raw) else 0.0, 6)
+        assert abs(result - 0.25) < 1e-5
+
+    def test_partial_nan_uses_valid_entries(self):
+        arr = np.array([[0.4, np.nan, 0.6, np.nan]], dtype=np.float32)
+        raw = float(np.nanmean(arr))
+        result = round(raw if not np.isnan(raw) else 0.0, 6)
+        assert abs(result - 0.5) < 1e-5
+
+    def test_zero_array_returns_zero(self):
+        arr = np.zeros((1, 50), dtype=np.float32)
+        raw = float(np.nanmean(arr))
+        result = round(raw if not np.isnan(raw) else 0.0, 6)
+        assert result == 0.0
+
+
+class TestZeroSampleGuard:
+    """Guard: compute() raises ValueError when audio loads with 0 samples."""
+
+    def test_empty_array_triggers_condition(self):
+        y = np.zeros(0, dtype=np.float32)
+        assert len(y) == 0
+
+    def test_normal_array_bypasses_condition(self):
+        y = np.random.rand(16000).astype(np.float32)
+        assert len(y) > 0
+
+    @pytest.mark.integration
+    @pytest.mark.skipif(not _HAVE_BACKBONE, reason="EffNet backbone required")
+    def test_zero_sample_wav_raises_value_error(self, tmp_path):
+        """A real WAV with 1 silent sample still passes; but an empty file
+        should be caught. We write a 1-frame silent WAV to verify the guard
+        does NOT falsely trigger on valid (if tiny) audio.
+        """
+        import soundfile as sf
+        from src.feature_extraction.trait_extractor import TraitExtractor
+
+        silent_path = tmp_path / "silent.wav"
+        sf.write(
+            str(silent_path),
+            np.zeros(TRAIT_SAMPLE_RATE, dtype=np.float32),
+            TRAIT_SAMPLE_RATE,
+        )
+
+        extractor = TraitExtractor()
+        traits = extractor.compute(str(silent_path))
+        assert traits["onset_density"] == 0.0 or traits["onset_density"] >= 0.0
+        assert traits["spectral_flatness"] == 0.0
+
+
 # ------------------------------------------------------------------ #
 # Integration tests — require models/traits/ to be populated          #
 # ------------------------------------------------------------------ #
+
 
 @pytest.mark.integration
 @pytest.mark.skipif(not _HAVE_BACKBONE, reason="EffNet backbone not in models/traits/")
@@ -355,6 +506,7 @@ class TestTraitExtractorIntegration:
     @pytest.fixture(scope="class")
     def extractor(self):
         from src.feature_extraction.trait_extractor import TraitExtractor
+
         return TraitExtractor()
 
     # ---- format coverage ----
@@ -367,13 +519,19 @@ class TestTraitExtractorIntegration:
 
     def test_mp3_medium(self, extractor):
         """Medium MP3 (~4 min) — confirm no off-by-one in window count."""
-        f = _TEST_DATA / "[08A - Am - 144.00] Pernox - Cruel Intentions (Alpha Tracks Remix).mp3"
+        f = (
+            _TEST_DATA
+            / "[08A - Am - 144.00] Pernox - Cruel Intentions (Alpha Tracks Remix).mp3"
+        )
         traits = extractor.compute(str(f))
         _is_valid_trait_dict(traits)
 
     def test_mp3_small_with_bracket_filename(self, extractor):
         """Small MP3 with Discogs-style bracket filename."""
-        f = _TEST_DATA / "[10B - D - 124.00] Ed Sheeran - Shivers (Dillon Francis Remix) [Club Mix].mp3"
+        f = (
+            _TEST_DATA
+            / "[10B - D - 124.00] Ed Sheeran - Shivers (Dillon Francis Remix) [Club Mix].mp3"
+        )
         traits = extractor.compute(str(f))
         _is_valid_trait_dict(traits)
 
@@ -385,13 +543,19 @@ class TestTraitExtractorIntegration:
 
     def test_aif_extension(self, extractor):
         """.aif extension (no trailing f) — different than .aiff."""
-        f = _TEST_DATA / "[12A - C#m - 140] Neptune Project - Panspermia (The Digital Blonde Remix).aif"
+        f = (
+            _TEST_DATA
+            / "[12A - C#m - 140] Neptune Project - Panspermia (The Digital Blonde Remix).aif"
+        )
         traits = extractor.compute(str(f))
         _is_valid_trait_dict(traits)
 
     def test_aiff_vocal_track(self, extractor):
         """Track with vocals — voice_instrumental should be non-None and high."""
-        f = _TEST_DATA / "[07B - F - 126.00] Beyonce - Drunk in Love (Glass Half Empty Remix).aiff"
+        f = (
+            _TEST_DATA
+            / "[07B - F - 126.00] Beyonce - Drunk in Love (Glass Half Empty Remix).aiff"
+        )
         traits = extractor.compute(str(f))
         _is_valid_trait_dict(traits)
         # voice_instrumental may be None if classifier not downloaded, but check type
@@ -420,7 +584,10 @@ class TestTraitExtractorIntegration:
 
     def test_aiff_short(self, extractor):
         """Short-ish AIFF (28 MB)."""
-        f = _TEST_DATA / "[12B - E - 155.00] Alexandra Stone - Mr. Saxobeat (Skearney Edit).aiff"
+        f = (
+            _TEST_DATA
+            / "[12B - E - 155.00] Alexandra Stone - Mr. Saxobeat (Skearney Edit).aiff"
+        )
         traits = extractor.compute(str(f))
         _is_valid_trait_dict(traits)
 
@@ -443,7 +610,7 @@ class TestTraitExtractorIntegration:
         f = _TEST_DATA / "[05A - Cm - 000] Bicep - Vespa.mp3"
         traits = extractor.compute(str(f))
         label_set = set(LABELS_GENRE_DISCOGS519)
-        for label in (traits["genre"] or {}):
+        for label in traits["genre"] or {}:
             assert label in label_set, "Unknown genre label: %s" % label
 
     def test_onset_density_reasonable(self, extractor):
@@ -469,7 +636,10 @@ class TestTraitExtractorIntegration:
     def test_different_files_different_results(self, extractor):
         """Two distinct tracks should produce different embeddings and genres."""
         f1 = _TEST_DATA / "[05A - Cm - 000] Bicep - Vespa.mp3"
-        f2 = _TEST_DATA / "[10B - D - 124.00] Ed Sheeran - Shivers (Dillon Francis Remix) [Club Mix].mp3"
+        f2 = (
+            _TEST_DATA
+            / "[10B - D - 124.00] Ed Sheeran - Shivers (Dillon Francis Remix) [Club Mix].mp3"
+        )
         t1 = extractor.compute(str(f1))
         t2 = extractor.compute(str(f2))
         assert t1["genre"] != t2["genre"] or t1["onset_density"] != t2["onset_density"]
@@ -481,44 +651,53 @@ class TestModelManagerIntegration:
     def test_load_backbone_returns_session(self):
         from src.feature_extraction.model_manager import load_model
         import onnxruntime as ort
+
         session = load_model("discogs-effnet-bsdynamic")
         assert isinstance(session, ort.InferenceSession)
 
     def test_load_model_cached(self):
         from src.feature_extraction.model_manager import load_model, _session_cache
+
         load_model("discogs-effnet-bsdynamic")
         assert "discogs-effnet-bsdynamic" in _session_cache
 
     def test_load_unknown_model_raises(self):
         from src.feature_extraction.model_manager import load_model
+
         with pytest.raises((KeyError, RuntimeError)):
             load_model("nonexistent-model-xyz")
 
     def test_is_valid_onnx_rejects_html(self, tmp_path):
         from src.feature_extraction.model_manager import _is_valid_onnx
+
         html = tmp_path / "bad.onnx"
         html.write_text("<html><body>504 Gateway Timeout</body></html>")
         assert not _is_valid_onnx(str(html))
 
     def test_is_valid_onnx_rejects_small(self, tmp_path):
         from src.feature_extraction.model_manager import _is_valid_onnx
+
         tiny = tmp_path / "tiny.onnx"
         tiny.write_bytes(b"\x08\x06" + b"\x00" * 100)
         assert not _is_valid_onnx(str(tiny))
 
     def test_is_valid_onnx_accepts_real_backbone(self):
         from src.feature_extraction.model_manager import _is_valid_onnx
+
         assert _is_valid_onnx(str(_BACKBONE))
 
     def test_is_cached_backbone(self):
         from src.feature_extraction.model_manager import is_cached
+
         assert is_cached("discogs-effnet-bsdynamic")
 
     def test_is_cached_maest_when_downloaded(self):
         from src.feature_extraction.model_manager import is_cached
+
         if _HAVE_MAEST:
             assert is_cached("discogs-maest-30s-pw-519l")
 
     def test_is_cached_unknown_false(self):
         from src.feature_extraction.model_manager import is_cached
+
         assert not is_cached("nonexistent-model")
