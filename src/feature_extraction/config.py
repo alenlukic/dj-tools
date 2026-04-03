@@ -28,10 +28,35 @@ DESCRIPTOR_TEMPOGRAM_BINS = 16
 SAMPLE_RATE = 44100
 
 # Trait extraction constants
-TRAIT_VERSION = "2"
+TRAIT_VERSION = "4"
 TRAIT_SAMPLE_RATE = 16000
 TRAIT_MODELS_DIR = "models/traits"
-TRAIT_PREDICTION_THRESHOLD = 0.1
+
+# Storage threshold: the minimum probability to persist in the DB.
+# Keeps near-zero noise out of JSONB without discarding usable signal.
+# All display-layer filtering is applied downstream from these raw stored values.
+TRAIT_STORAGE_THRESHOLD = 0.01
+
+# --- Display-layer filtering (applied at read/consumption time, not storage) ---
+
+MOOD_DISPLAY_THRESHOLD = 0.15
+GENRE_DISPLAY_THRESHOLD = 0.10
+INSTRUMENT_DISPLAY_THRESHOLD = 0.10
+MOOD_TOP_K = 5
+GENRE_TOP_K = 8
+
+# Genre family allowlist for electronic-music collections.
+# Only genres whose family prefix appears here are surfaced; all others
+# are suppressed as acoustically-similar but genre-incorrect noise.
+# Revise this set if the library evolves beyond all-electronic.
+GENRE_ALLOWED_FAMILIES = frozenset({
+    "Electronic",
+    "Hip Hop",
+    "Funk / Soul",
+    "Pop",
+    "Reggae",
+    "Stage & Screen",
+})
 
 # EffNet-backed classification heads (18 MB embedding backbone)
 TRAIT_CLASSIFIERS_EFFNET = [

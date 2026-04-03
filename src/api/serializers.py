@@ -3,6 +3,11 @@
 from typing import List
 
 from src.data_management.config import TrackDBCols
+from src.feature_extraction.trait_extractor import (
+    filter_genre,
+    filter_instruments,
+    filter_mood,
+)
 
 
 def serialize_track_row(track, artist_names_str):
@@ -87,10 +92,15 @@ def serialize_trait_info(trait):
         val = getattr(trait, field, None)
         if val is not None:
             result[field] = round(float(val), 4)
-    for field in ["mood_theme", "genre", "instruments"]:
+    _filters = {
+        "mood_theme": filter_mood,
+        "genre": filter_genre,
+        "instruments": filter_instruments,
+    }
+    for field, fn in _filters.items():
         val = getattr(trait, field, None)
         if val is not None:
-            result[field] = val
+            result[field] = fn(val)
     return result if result else None
 
 

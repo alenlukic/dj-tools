@@ -12,6 +12,9 @@ Usage:
     # Process specific track IDs
     python -m src.scripts.feature_extraction.compute_cosine_similarities 42 101 200
 
+    # Force recompute all existing pairs (e.g. after changing the default scorer)
+    python -m src.scripts.feature_extraction.compute_cosine_similarities --force
+
 Environment:
     COSINE_WORKERS  Number of parallel worker processes (default: 2). Each
                     worker loads TransitionMatchFinder (tracks + camelot map)
@@ -90,7 +93,7 @@ def _classify_existing_pairs(rows, descriptor_version):
     return existing, stale
 
 
-def _compute_cosine_batch(chunk, all_track_ids, result_transmitter, scorer_name=None):
+def _compute_cosine_batch(chunk, all_track_ids, result_transmitter, scorer_name=None, force=False):
     """Worker: compute cosine similarities for a chunk of track IDs.
 
     all_track_ids is the full set of IDs being processed across all workers.
@@ -165,6 +168,9 @@ def _compute_cosine_batch(chunk, all_track_ids, result_transmitter, scorer_name=
                 existing_pairs, stale_pair_keys = _classify_existing_pairs(
                     cosine_rows, DESCRIPTOR_VERSION
                 )
+                if force:
+                    stale_pair_keys |= existing_pairs
+                    existing_pairs = set()
 
                 cand_descs = {
                     d.track_id: d
@@ -284,7 +290,7 @@ def _get_tracks_for_processing(track_ids, session):
     )
 
 
-def run(track_ids, session, scorer_name=None):
+def run(track_ids, session, scorer_name=None, force=False):
     try:
         tracks_to_process = _get_tracks_for_processing(track_ids, session)
 
@@ -295,7 +301,6 @@ def run(track_ids, session, scorer_name=None):
 
         n_workers = min(COSINE_WORKERS, num_tracks)
         print("Using %d worker(s) (COSINE_WORKERS=%d)\n" % (n_workers, COSINE_WORKERS))
-
         chunks = _chunkify(tracks_to_process, n_workers)
         all_track_ids = frozenset(tracks_to_process)
 
@@ -307,7 +312,7 @@ def run(track_ids, session, scorer_name=None):
             aggregators.append(receiver)
             worker = Process(
                 target=_compute_cosine_batch,
-                args=(chunk, all_track_ids, transmitter, scorer_name),
+                args=(chunk, all_track_ids, transmitter, scorer_name, force),
             )
             worker.daemon = True
             workers.append(worker)
@@ -339,25 +344,32 @@ def run(track_ids, session, scorer_name=None):
 
 
 def _parse_args(argv):
-    """Parse CLI arguments, separating track IDs from --scorer flag.
+    """Parse CLI arguments, separating track IDs from --scorer and --force flags.
 
     Defaults to ``late_fusion_v1`` when no ``--scorer`` is given, matching
     the live transition-ranking path.
+
+    Pass ``--force`` to recompute pairs that already exist at the current
+    descriptor version (e.g. after switching scorers).
     """
     scorer = ScorerName.LATE_FUSION_V1
+    force = False
     track_ids = set()
     i = 1
     while i < len(argv):
         if argv[i] == "--scorer" and i + 1 < len(argv):
             scorer = ScorerName(argv[i + 1])
             i += 2
+        elif argv[i] == "--force":
+            force = True
+            i += 1
         else:
             track_ids.add(int(argv[i]))
             i += 1
-    return track_ids, scorer
+    return track_ids, scorer, force
 
 
 if __name__ == "__main__":
     _session = database.create_session()
-    _track_ids, _scorer = _parse_args(sys.argv)
-    run(_track_ids, _session, scorer_name=_scorer)
+    _track_ids, _scorer, _force = _parse_args(sys.argv)
+    run(_track_ids, _session, scorer_name=_scorer, force=_force)

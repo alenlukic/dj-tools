@@ -6,6 +6,8 @@ const CAMELOT_CODES = [
   '09A','09B','10A','10B','11A','11B','12A','12B',
 ];
 
+const RANGE_DEBOUNCE_MS = 300;
+
 interface Props {
   camelotCodes: string[];
   bpm: number | undefined;
@@ -30,6 +32,18 @@ export function FilterBar({
   const [camelotOpen, setCamelotOpen] = useState(false);
   const camelotRef = useRef<HTMLDivElement>(null);
 
+  const [minText, setMinText] = useState(bpmMin != null ? String(bpmMin) : '');
+  const [maxText, setMaxText] = useState(bpmMax != null ? String(bpmMax) : '');
+  const minTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const maxTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(minTimer.current);
+      clearTimeout(maxTimer.current);
+    };
+  }, []);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (camelotRef.current && !camelotRef.current.contains(e.target as Node)) {
@@ -52,6 +66,30 @@ export function FilterBar({
   function parseNum(val: string): number | undefined {
     const n = parseFloat(val);
     return Number.isNaN(n) ? undefined : n;
+  }
+
+  function handleMinChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const text = e.target.value;
+    setMinText(text);
+    clearTimeout(minTimer.current);
+    minTimer.current = setTimeout(() => setBpmMin(parseNum(text)), RANGE_DEBOUNCE_MS);
+  }
+
+  function handleMaxChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const text = e.target.value;
+    setMaxText(text);
+    clearTimeout(maxTimer.current);
+    maxTimer.current = setTimeout(() => setBpmMax(parseNum(text)), RANGE_DEBOUNCE_MS);
+  }
+
+  function handleMinBlur() {
+    clearTimeout(minTimer.current);
+    setBpmMin(parseNum(minText));
+  }
+
+  function handleMaxBlur() {
+    clearTimeout(maxTimer.current);
+    setBpmMax(parseNum(maxText));
   }
 
   return (
@@ -103,16 +141,18 @@ export function FilterBar({
             type="number"
             className="filter-input mono"
             placeholder="Min"
-            value={bpmMin ?? ''}
-            onChange={(e) => setBpmMin(parseNum(e.target.value))}
+            value={minText}
+            onChange={handleMinChange}
+            onBlur={handleMinBlur}
           />
           <span className="range-sep">–</span>
           <input
             type="number"
             className="filter-input mono"
             placeholder="Max"
-            value={bpmMax ?? ''}
-            onChange={(e) => setBpmMax(parseNum(e.target.value))}
+            value={maxText}
+            onChange={handleMaxChange}
+            onBlur={handleMaxBlur}
           />
         </div>
       </div>

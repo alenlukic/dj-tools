@@ -26,14 +26,32 @@ STARTED_ES=false
 cleanup() {
   echo ""
   echo "Shutting down..."
-  [[ -n "${CLIENT_PID:-}" ]] && kill "$CLIENT_PID" 2>/dev/null && echo "  Stopped client (PID $CLIENT_PID)"
-  [[ -n "${API_PID:-}" ]] && kill "$API_PID" 2>/dev/null && echo "  Stopped API (PID $API_PID)"
+  for pid_var in CLIENT_PID API_PID; do
+    pid="${!pid_var:-}"
+    [[ -z "$pid" ]] && continue
+    kill -- -"$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+    echo "  Stopped ${pid_var} (PID $pid)"
+  done
   if [[ "$STARTED_ES" == true ]]; then
     docker stop "$ES_CONTAINER" >/dev/null 2>&1 && echo "  Stopped Elasticsearch container"
   fi
   echo "Done."
 }
 trap cleanup EXIT
+
+free_port() {
+  local port=$1 label=$2
+  local pids
+  pids=$(lsof -ti:"$port" 2>/dev/null || true)
+  [[ -z "$pids" ]] && return
+  echo "  Port $port ($label) already in use — killing PID(s): $pids"
+  echo "$pids" | xargs kill -9 2>/dev/null || true
+  sleep 1
+  pids=$(lsof -ti:"$port" 2>/dev/null || true)
+  if [[ -n "$pids" ]]; then
+    echo "  ERROR: Could not free port $port"; exit 1
+  fi
+}
 
 # -- Activate venv --
 if [[ -d ".venv" ]]; then
@@ -100,20 +118,29 @@ fi
 # -- API server --
 echo ""
 echo "==> API server"
+free_port "$API_PORT" "API"
+set -m
 python -m src.scripts.run_api &
 API_PID=$!
+set +m
 sleep 3
+if ! kill -0 "$API_PID" 2>/dev/null; then
+  echo "  ERROR: API server failed to start on port $API_PORT"; exit 1
+fi
 echo "  API running at http://127.0.0.1:$API_PORT (PID $API_PID)"
 
 # -- Client dev server --
 echo ""
 echo "==> Client dev server"
+free_port "$CLIENT_PORT" "Client"
 if [[ ! -d "client/node_modules" ]]; then
   echo "  Installing client dependencies..."
   npm --prefix client install --silent
 fi
+set -m
 npm --prefix client run dev &
 CLIENT_PID=$!
+set +m
 sleep 2
 echo "  Client running at http://localhost:$CLIENT_PORT (PID $CLIENT_PID)"
 

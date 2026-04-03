@@ -21,8 +21,13 @@ import numpy as np
 import pytest
 
 from src.feature_extraction.config import (
-    TRAIT_PREDICTION_THRESHOLD,
+    GENRE_ALLOWED_FAMILIES,
+    GENRE_DISPLAY_THRESHOLD,
+    GENRE_TOP_K,
+    MOOD_DISPLAY_THRESHOLD,
+    MOOD_TOP_K,
     TRAIT_SAMPLE_RATE,
+    TRAIT_STORAGE_THRESHOLD,
     TRAIT_VERSION,
 )
 from src.feature_extraction.trait_extractor import (
@@ -35,6 +40,10 @@ from src.feature_extraction.trait_extractor import (
     _patch_mel_for_effnet,
     _patch_mel_for_maest,
     compute_mel_spectrogram,
+    filter_genre,
+    filter_instruments,
+    filter_mood,
+    filter_multilabel,
 )
 
 _TEST_DATA = pathlib.Path(__file__).parent.parent.parent / ".test_data"
@@ -94,7 +103,7 @@ def _is_valid_trait_dict(traits: dict) -> None:
     assert isinstance(traits["spectral_flatness"], float)
     assert 0.0 <= traits["spectral_flatness"] <= 1.0
 
-    # JSONB multi-label dicts: dict or None; if dict, values in [threshold, 1]
+    # JSONB multi-label dicts: dict or None; stored values use TRAIT_STORAGE_THRESHOLD
     for key in ("mood_theme", "genre", "instruments"):
         v = traits[key]
         if v is not None:
@@ -102,8 +111,8 @@ def _is_valid_trait_dict(traits: dict) -> None:
             for label, prob in v.items():
                 assert isinstance(label, str), "label should be str"
                 assert isinstance(prob, float), "prob should be float"
-                assert prob >= TRAIT_PREDICTION_THRESHOLD, (
-                    "%s prob %s below threshold" % (key, prob)
+                assert prob >= TRAIT_STORAGE_THRESHOLD, (
+                    "%s prob %s below storage threshold %s" % (key, prob, TRAIT_STORAGE_THRESHOLD)
                 )
                 assert prob <= 1.0, "%s prob %s > 1.0" % (key, prob)
 
@@ -287,16 +296,18 @@ class TestBinaryProb:
 
 
 class TestMultilabelDict:
+    """_multilabel_dict is now storage-only: threshold filter, no display logic."""
+
     def test_above_threshold_included(self):
-        probs = np.array([0.5, 0.2, 0.05])
+        probs = np.array([0.5, 0.2, 0.005])
         labels = ["a", "b", "c"]
         result = _multilabel_dict(probs, labels)
         assert "a" in result
         assert "b" in result
-        assert "c" not in result
+        assert "c" not in result  # below 0.01 storage threshold
 
     def test_exactly_at_threshold_included(self):
-        probs = np.array([TRAIT_PREDICTION_THRESHOLD])
+        probs = np.array([TRAIT_STORAGE_THRESHOLD])
         result = _multilabel_dict(probs, ["x"])
         assert "x" in result
 
@@ -312,9 +323,150 @@ class TestMultilabelDict:
 
     def test_handles_shorter_labels(self):
         probs = np.array([0.9, 0.8, 0.7])
-        labels = ["a", "b"]  # fewer labels than probs
+        labels = ["a", "b"]
         result = _multilabel_dict(probs, labels)
         assert set(result.keys()) <= {"a", "b"}
+
+    def test_custom_threshold(self):
+        probs = np.array([0.005, 0.02, 0.05])
+        labels = ["a", "b", "c"]
+        result = _multilabel_dict(probs, labels, threshold=0.01)
+        assert "a" not in result
+        assert "b" in result
+        assert "c" in result
+
+    def test_stores_all_above_low_floor(self):
+        probs = np.array([0.02, 0.05, 0.10, 0.50])
+        labels = ["a", "b", "c", "d"]
+        result = _multilabel_dict(probs, labels)
+        assert len(result) == 4
+
+
+class TestFilterMultilabel:
+    """Display-layer filter applied to stored {label: prob} dicts."""
+
+    def test_threshold_filters(self):
+        raw = {"a": 0.05, "b": 0.15, "c": 0.30}
+        result = filter_multilabel(raw, threshold=0.10)
+        assert "a" not in result
+        assert "b" in result
+        assert "c" in result
+
+    def test_top_k_limits(self):
+        raw = {"a": 0.9, "b": 0.8, "c": 0.7, "d": 0.6, "e": 0.5}
+        result = filter_multilabel(raw, threshold=0.01, top_k=3)
+        assert len(result) == 3
+        assert set(result.keys()) == {"a", "b", "c"}
+
+    def test_top_k_no_op_when_fewer(self):
+        raw = {"a": 0.9, "b": 0.8}
+        result = filter_multilabel(raw, threshold=0.01, top_k=5)
+        assert len(result) == 2
+
+    def test_allowed_prefixes_filters_families(self):
+        raw = {
+            "Electronic---House": 0.9,
+            "Rock---Grindcore": 0.8,
+            "Electronic---Techno": 0.7,
+            "Blues---Delta Blues": 0.6,
+        }
+        result = filter_multilabel(raw, allowed_prefixes=frozenset({"Electronic"}))
+        assert "Electronic---House" in result
+        assert "Electronic---Techno" in result
+        assert "Rock---Grindcore" not in result
+        assert "Blues---Delta Blues" not in result
+
+    def test_labels_without_separator_always_pass(self):
+        raw = {"no_separator": 0.9, "Electronic---House": 0.8}
+        result = filter_multilabel(raw, allowed_prefixes=frozenset({"Electronic"}))
+        assert "no_separator" in result
+        assert "Electronic---House" in result
+
+    def test_combined_threshold_topk_and_prefix(self):
+        raw = {
+            "Electronic---House": 0.20,
+            "Rock---Grindcore": 0.18,
+            "Electronic---Techno": 0.16,
+            "Electronic---Ambient": 0.14,
+            "Rock---Noisecore": 0.12,
+            "Electronic---Trance": 0.25,
+        }
+        result = filter_multilabel(
+            raw,
+            threshold=0.15,
+            top_k=2,
+            allowed_prefixes=frozenset({"Electronic"}),
+        )
+        assert len(result) <= 2
+        assert "Rock---Grindcore" not in result
+        assert "Rock---Noisecore" not in result
+        assert "Electronic---Trance" in result
+        assert "Electronic---House" in result
+
+    def test_empty_input(self):
+        assert filter_multilabel({}) == {}
+        assert filter_multilabel(None) == {}
+
+
+class TestDisplayFilters:
+    """Verify config-driven filter_genre / filter_mood / filter_instruments."""
+
+    def test_filter_mood_threshold(self):
+        raw = {label: 0.12 for label in LABELS_MOOD_THEME}
+        result = filter_mood(raw)
+        assert len(result) == 0, "0.12 should be below MOOD_DISPLAY_THRESHOLD"
+
+    def test_filter_mood_passes_above_threshold(self):
+        raw = {"dark": 0.30, "energetic": 0.25, "melodic": 0.05}
+        result = filter_mood(raw)
+        assert "dark" in result
+        assert "energetic" in result
+        assert "melodic" not in result
+
+    def test_filter_mood_top_k(self):
+        raw = {label: 0.50 for label in LABELS_MOOD_THEME}
+        result = filter_mood(raw)
+        assert len(result) == MOOD_TOP_K
+
+    def test_filter_genre_rock_grindcore_blocked(self):
+        raw = {"Rock---Grindcore": 0.30, "Electronic---House": 0.25}
+        result = filter_genre(raw)
+        assert "Rock---Grindcore" not in result
+        assert "Electronic---House" in result
+
+    def test_filter_genre_rock_noisecore_blocked(self):
+        raw = {"Rock---Noisecore": 0.50}
+        result = filter_genre(raw)
+        assert "Rock---Noisecore" not in result
+
+    def test_filter_genre_electronic_passes(self):
+        raw = {
+            "Electronic---House": 0.40,
+            "Electronic---Techno": 0.35,
+            "Electronic---Trance": 0.30,
+        }
+        result = filter_genre(raw)
+        for g in raw:
+            assert g in result
+
+    def test_filter_genre_hip_hop_passes(self):
+        raw = {"Hip Hop---Trap": 0.25}
+        result = filter_genre(raw)
+        assert "Hip Hop---Trap" in result
+
+    def test_filter_genre_classical_blocked(self):
+        raw = {"Classical---Baroque": 0.40}
+        result = filter_genre(raw)
+        assert "Classical---Baroque" not in result
+
+    def test_filter_genre_top_k(self):
+        raw = {g: 0.50 for g in LABELS_GENRE_DISCOGS519 if g.startswith("Electronic---")}
+        result = filter_genre(raw)
+        assert len(result) == GENRE_TOP_K
+
+    def test_allowed_families_coverage(self):
+        expected = {"Electronic", "Hip Hop", "Funk / Soul", "Pop", "Reggae", "Stage & Screen"}
+        assert GENRE_ALLOWED_FAMILIES == expected
 
 
 class TestComputeMelFromSignal:
@@ -488,6 +640,75 @@ class TestZeroSampleGuard:
         traits = extractor.compute(str(silent_path))
         assert traits["onset_density"] == 0.0 or traits["onset_density"] >= 0.0
         assert traits["spectral_flatness"] == 0.0
+
+
+class TestMigrationAndBackfill:
+    """Unit tests for migration/backfill correctness and idempotency."""
+
+    def test_migration_marks_non_current_rows_as_outdated(self):
+        """Migration SQL sets trait_version to 'outdated' for non-current rows."""
+        import importlib
+        from unittest.mock import MagicMock, patch
+
+        migration = importlib.import_module(
+            "src.scripts.migrations.20260403_update_genre_mood_filtering"
+        )
+
+        mock_engine = MagicMock()
+        mock_engine.execute.return_value = MagicMock(rowcount=3)
+
+        with patch.object(migration, "database") as mock_db:
+            mock_db.engine = mock_engine
+            migration.run()
+
+        mock_engine.execute.assert_called_once()
+        sql = mock_engine.execute.call_args[0][0]
+        assert "SET trait_version = 'outdated'" in sql
+        assert "WHERE trait_version != '%s'" % TRAIT_VERSION in sql
+
+    def test_migration_is_idempotent(self):
+        """Second run is a no-op — SQL only targets non-current rows."""
+        import importlib
+        from unittest.mock import MagicMock, patch
+
+        migration = importlib.import_module(
+            "src.scripts.migrations.20260403_update_genre_mood_filtering"
+        )
+
+        mock_engine = MagicMock()
+        mock_engine.execute.side_effect = [
+            MagicMock(rowcount=3),
+            MagicMock(rowcount=0),
+        ]
+
+        with patch.object(migration, "database") as mock_db:
+            mock_db.engine = mock_engine
+            migration.run()
+            migration.run()
+
+        assert mock_engine.execute.call_count == 2
+        calls = mock_engine.execute.call_args_list
+        assert calls[0] == calls[1], "Both runs must execute identical SQL"
+
+    def test_backfill_skips_current_version_rows(self):
+        """Backfill spawns no workers when all rows are current."""
+        import importlib
+        from unittest.mock import MagicMock, patch
+
+        backfill = importlib.import_module(
+            "src.scripts.feature_extraction.backfill_genre_mood"
+        )
+
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.all.return_value = []
+        mock_session.query.return_value.all.return_value = []
+
+        with patch.object(backfill, "database") as mock_db, \
+             patch.object(backfill, "Process") as mock_process:
+            mock_db.create_session.return_value = mock_session
+            backfill.run()
+
+        mock_process.assert_not_called()
 
 
 # ------------------------------------------------------------------ #

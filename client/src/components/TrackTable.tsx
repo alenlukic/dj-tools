@@ -1,3 +1,4 @@
+import { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -5,43 +6,65 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import type { Track, SearchSuggestion } from '../types';
-import { cleanTitle } from '../utils';
+import { cleanTitle, formatFloat, displayGenre } from '../utils';
 
 const col = createColumnHelper<Track>();
+
+const FIXED_PX = 90;
+const FIXED_COUNT = 4;
+const FLEX_MINS = [180, 140, 100, 100];
+const TOTAL_FLEX = FLEX_MINS.reduce((a, b) => a + b, 0);
+const TOTAL_FIXED = FIXED_COUNT * FIXED_PX;
+const TOTAL_MIN = TOTAL_FIXED + TOTAL_FLEX;
+
+function computeColWidths(container: number): number[] {
+  if (container <= 0) {
+    return Array(FIXED_COUNT).fill(FIXED_PX).concat(FLEX_MINS);
+  }
+  if (container >= TOTAL_MIN) {
+    const flexBudget = container - TOTAL_FIXED;
+    return [
+      ...Array<number>(FIXED_COUNT).fill(FIXED_PX),
+      ...FLEX_MINS.map((m) => (m / TOTAL_FLEX) * flexBudget),
+    ];
+  }
+  const scale = container / TOTAL_MIN;
+  return [
+    ...Array<number>(FIXED_COUNT).fill(FIXED_PX * scale),
+    ...FLEX_MINS.map((m) => m * scale),
+  ];
+}
 
 const columns = [
   col.accessor('camelot_code', {
     header: 'Camelot',
-    size: 80,
     cell: (info) => <span className="mono">{info.getValue()}</span>,
   }),
   col.accessor('key', {
     header: 'Key',
-    size: 60,
     cell: (info) => <span className="mono">{info.getValue()}</span>,
   }),
   col.accessor('bpm', {
     header: 'BPM',
-    size: 70,
-    cell: (info) => <span className="mono">{info.getValue()}</span>,
+    cell: (info) => <span className="mono">{formatFloat(info.getValue())}</span>,
   }),
   col.accessor('energy', {
     header: 'Energy',
-    size: 70,
-    cell: (info) => <span className="mono">{info.getValue()}</span>,
+    cell: (info) => <span className="mono">{formatFloat(info.getValue())}</span>,
   }),
   col.accessor('title', {
     header: 'Title',
-    size: 280,
     cell: (info) => cleanTitle(info.getValue()),
   }),
   col.accessor('artist_names', {
     header: 'Artist',
-    size: 200,
     cell: (info) => info.getValue().join(', '),
   }),
-  col.accessor('label', { header: 'Label', size: 140 }),
-  col.accessor('genre', { header: 'Genre', size: 120 }),
+  col.accessor('label', { header: 'Label' }),
+  col.accessor('genre', {
+    header: 'Genre',
+    cell: (info) => displayGenre(info.getValue()),
+  }),
 ];
 
 interface Props {
@@ -52,6 +75,24 @@ interface Props {
 }
 
 export function TrackTable({ tracks, loading, selectedTrack, selectTrack }: Props) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    setContainerWidth(el.clientWidth);
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const colWidths = useMemo(() => computeColWidths(containerWidth), [containerWidth]);
+
   const table = useReactTable({
     data: tracks,
     columns,
@@ -59,13 +100,18 @@ export function TrackTable({ tracks, loading, selectedTrack, selectTrack }: Prop
   });
 
   return (
-    <div className="track-table-wrapper">
+    <div className="track-table-wrapper" ref={wrapperRef}>
       <table className="track-table">
+        <colgroup>
+          {colWidths.map((w, i) => (
+            <col key={i} style={{ width: w }} />
+          ))}
+        </colgroup>
         <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
               {hg.headers.map((header) => (
-                <th key={header.id} style={{ width: header.getSize() }}>
+                <th key={header.id}>
                   {flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
               ))}

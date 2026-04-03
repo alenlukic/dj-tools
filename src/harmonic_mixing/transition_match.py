@@ -4,6 +4,11 @@ from src.models.track_descriptor import TrackDescriptor
 from src.models.track_trait import TrackTrait
 from src.data_management.config import TrackDBCols
 from src.feature_extraction.config import DESCRIPTOR_VERSION, TRAIT_VERSION
+from src.feature_extraction.trait_extractor import (
+    filter_genre,
+    filter_instruments,
+    filter_mood,
+)
 from src.harmonic_mixing.config import (
     SAME_LOWER_BOUND,
     SAME_UPPER_BOUND,
@@ -68,52 +73,49 @@ class TransitionMatch:
 
     def get_score(self):
         if self.score is None:
-            if self.cur_track_md[TrackDBCols.TITLE] == self.metadata[TrackDBCols.TITLE]:
-                self.score = 100
-            else:
-                score_weights = [
-                    (
-                        self.get_camelot_priority_score(),
-                        MATCH_WEIGHTS[MatchFactors.CAMELOT.name],
-                    ),
-                    (self.get_bpm_score(), MATCH_WEIGHTS[MatchFactors.BPM.name]),
-                    (
-                        self.get_similarity_score(),
-                        MATCH_WEIGHTS[MatchFactors.SIMILARITY.name],
-                    ),
-                    (
-                        self.get_freshness_score(),
-                        MATCH_WEIGHTS[MatchFactors.FRESHNESS.name],
-                    ),
-                    (self.get_energy_score(), MATCH_WEIGHTS[MatchFactors.ENERGY.name]),
-                    (
-                        self.get_genre_similarity_score(),
-                        MATCH_WEIGHTS[MatchFactors.GENRE_SIMILARITY.name],
-                    ),
-                    (
-                        self.get_mood_continuity_score(),
-                        MATCH_WEIGHTS[MatchFactors.MOOD_CONTINUITY.name],
-                    ),
-                    (
-                        self.get_vocal_clash_score(),
-                        MATCH_WEIGHTS[MatchFactors.VOCAL_CLASH.name],
-                    ),
-                    (
-                        self.get_danceability_score(),
-                        MATCH_WEIGHTS[MatchFactors.DANCEABILITY.name],
-                    ),
-                    (
-                        self.get_timbre_score(),
-                        MATCH_WEIGHTS[MatchFactors.TIMBRE.name],
-                    ),
-                    (
-                        self.get_instrument_similarity_score(),
-                        MATCH_WEIGHTS[MatchFactors.INSTRUMENT_SIMILARITY.name],
-                    ),
-                ]
-                self.score = 100 * sum(
-                    [score * weight for score, weight in score_weights]
-                )
+            score_weights = [
+                (
+                    self.get_camelot_priority_score(),
+                    MATCH_WEIGHTS[MatchFactors.CAMELOT.name],
+                ),
+                (self.get_bpm_score(), MATCH_WEIGHTS[MatchFactors.BPM.name]),
+                (
+                    self.get_similarity_score(),
+                    MATCH_WEIGHTS[MatchFactors.SIMILARITY.name],
+                ),
+                (
+                    self.get_freshness_score(),
+                    MATCH_WEIGHTS[MatchFactors.FRESHNESS.name],
+                ),
+                (self.get_energy_score(), MATCH_WEIGHTS[MatchFactors.ENERGY.name]),
+                (
+                    self.get_genre_similarity_score(),
+                    MATCH_WEIGHTS[MatchFactors.GENRE_SIMILARITY.name],
+                ),
+                (
+                    self.get_mood_continuity_score(),
+                    MATCH_WEIGHTS[MatchFactors.MOOD_CONTINUITY.name],
+                ),
+                (
+                    self.get_vocal_clash_score(),
+                    MATCH_WEIGHTS[MatchFactors.VOCAL_CLASH.name],
+                ),
+                (
+                    self.get_danceability_score(),
+                    MATCH_WEIGHTS[MatchFactors.DANCEABILITY.name],
+                ),
+                (
+                    self.get_timbre_score(),
+                    MATCH_WEIGHTS[MatchFactors.TIMBRE.name],
+                ),
+                (
+                    self.get_instrument_similarity_score(),
+                    MATCH_WEIGHTS[MatchFactors.INSTRUMENT_SIMILARITY.name],
+                ),
+            ]
+            self.score = 100 * sum(
+                [score * weight for score, weight in score_weights]
+            )
 
         return self.score
 
@@ -300,7 +302,8 @@ class TransitionMatch:
             return 0.0
 
         result = jsonb_cosine_similarity(
-            on_deck.genre or {}, candidate.genre or {}
+            filter_genre(on_deck.genre or {}),
+            filter_genre(candidate.genre or {}),
         )
         self.factors[MatchFactors.GENRE_SIMILARITY] = result
         return result
@@ -316,7 +319,8 @@ class TransitionMatch:
             return 0.0
 
         result = jsonb_cosine_similarity(
-            on_deck.mood_theme or {}, candidate.mood_theme or {}
+            filter_mood(on_deck.mood_theme or {}),
+            filter_mood(candidate.mood_theme or {}),
         )
         self.factors[MatchFactors.MOOD_CONTINUITY] = result
         return result
@@ -394,7 +398,8 @@ class TransitionMatch:
             return 0.0
 
         result = jsonb_cosine_similarity(
-            on_deck.instruments or {}, candidate.instruments or {}
+            filter_instruments(on_deck.instruments or {}),
+            filter_instruments(candidate.instruments or {}),
         )
         self.factors[MatchFactors.INSTRUMENT_SIMILARITY] = result
         return result
