@@ -4,6 +4,11 @@ from src.models.track_descriptor import TrackDescriptor
 from src.models.track_trait import TrackTrait
 from src.data_management.config import TrackDBCols
 from src.feature_extraction.config import DESCRIPTOR_VERSION, TRAIT_VERSION
+from src.feature_extraction.trait_extractor import (
+    filter_genre,
+    filter_instruments,
+    filter_mood,
+)
 from src.harmonic_mixing.config import (
     SAME_LOWER_BOUND,
     SAME_UPPER_BOUND,
@@ -297,7 +302,8 @@ class TransitionMatch:
             return 0.0
 
         result = jsonb_cosine_similarity(
-            on_deck.genre or {}, candidate.genre or {}
+            filter_genre(on_deck.genre or {}),
+            filter_genre(candidate.genre or {}),
         )
         self.factors[MatchFactors.GENRE_SIMILARITY] = result
         return result
@@ -313,7 +319,8 @@ class TransitionMatch:
             return 0.0
 
         result = jsonb_cosine_similarity(
-            on_deck.mood_theme or {}, candidate.mood_theme or {}
+            filter_mood(on_deck.mood_theme or {}),
+            filter_mood(candidate.mood_theme or {}),
         )
         self.factors[MatchFactors.MOOD_CONTINUITY] = result
         return result
@@ -391,7 +398,8 @@ class TransitionMatch:
             return 0.0
 
         result = jsonb_cosine_similarity(
-            on_deck.instruments or {}, candidate.instruments or {}
+            filter_instruments(on_deck.instruments or {}),
+            filter_instruments(candidate.instruments or {}),
         )
         self.factors[MatchFactors.INSTRUMENT_SIMILARITY] = result
         return result

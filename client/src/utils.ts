@@ -11,3 +11,14 @@ export function cleanTitle(title: string): string {
   const dashParts = afterPrefix.split(' - ');
   return dashParts.length > 1 ? dashParts.slice(1).join(' - ') : afterPrefix;
 }
+
+export function formatFloat(value: number | null | undefined): string {
+  if (value == null) return '—';
+  return value.toFixed(2);
+}
+
+export function displayGenre(genre: string | null | undefined): string | null {
+  if (genre == null) return null;
+  const idx = genre.lastIndexOf('---');
+  return idx >= 0 ? genre.substring(idx + 3) : genre;
+}

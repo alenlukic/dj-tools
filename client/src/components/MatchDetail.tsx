@@ -6,6 +6,7 @@ import type {
   MatchDetail as MatchDetailData,
 } from '../types';
 import { fetchMatchDetail } from '../api/http';
+import { formatFloat, displayGenre } from '../utils';
 
 interface Props {
   sourceTrack: Track | SearchSuggestion | null;
@@ -17,7 +18,7 @@ function renderValue(value: unknown): React.ReactNode {
   if (value === null || value === undefined)
     return <span className="text-muted">—</span>;
   if (typeof value === 'number')
-    return <span className="mono">{value.toFixed(4)}</span>;
+    return <span className="mono">{formatFloat(value)}</span>;
   if (typeof value === 'string') return <span>{value}</span>;
   if (typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>);
@@ -31,7 +32,7 @@ function renderValue(value: unknown): React.ReactNode {
             <div key={k} className="json-row">
               <span className="json-key">{k}</span>
               <span className="mono json-val">
-                {typeof v === 'number' ? v.toFixed(4) : String(v)}
+                {typeof v === 'number' ? formatFloat(v) : String(v)}
               </span>
             </div>
           ))}
@@ -104,7 +105,7 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
       <div className="detail-header">
         <h2 className="detail-title">
           Match Detail —{' '}
-          <span className="mono">{detail.overall_score.toFixed(1)}</span>
+          <span className="mono">{formatFloat(detail.overall_score)}</span>
         </h2>
         <div className="detail-tracks-summary">
           <span>{detail.on_deck.title}</span>
@@ -128,9 +129,9 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
             {detail.factors.map((f) => (
               <tr key={f.name}>
                 <td>{f.name}</td>
-                <td className="mono">{(f.score * 100).toFixed(1)}%</td>
-                <td className="mono">{(f.weight * 100).toFixed(0)}%</td>
-                <td className="mono">{(f.score * f.weight * 100).toFixed(1)}</td>
+                <td className="mono">{(f.score * 100).toFixed(2)}%</td>
+                <td className="mono">{(f.weight * 100).toFixed(2)}%</td>
+                <td className="mono">{(f.score * f.weight * 100).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -149,7 +150,7 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
                   ['Key', track.key],
                   ['Camelot', track.camelot_code],
                   ['Energy', track.energy],
-                  ['Genre', track.genre],
+                  ['Genre', displayGenre(track.genre)],
                   ['Label', track.label],
                 ].map(([label, val]) => (
                   <div key={label as string} className="detail-field">

@@ -6,7 +6,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import type { Track, SearchSuggestion } from '../types';
-import { cleanTitle } from '../utils';
+import { cleanTitle, formatFloat, displayGenre } from '../utils';
 
 const col = createColumnHelper<Track>();
 
@@ -46,11 +46,11 @@ const columns = [
   }),
   col.accessor('bpm', {
     header: 'BPM',
-    cell: (info) => <span className="mono">{info.getValue()}</span>,
+    cell: (info) => <span className="mono">{formatFloat(info.getValue())}</span>,
   }),
   col.accessor('energy', {
     header: 'Energy',
-    cell: (info) => <span className="mono">{info.getValue()}</span>,
+    cell: (info) => <span className="mono">{formatFloat(info.getValue())}</span>,
   }),
   col.accessor('title', {
     header: 'Title',
@@ -61,7 +61,10 @@ const columns = [
     cell: (info) => info.getValue().join(', '),
   }),
   col.accessor('label', { header: 'Label' }),
-  col.accessor('genre', { header: 'Genre' }),
+  col.accessor('genre', {
+    header: 'Genre',
+    cell: (info) => displayGenre(info.getValue()),
+  }),
 ];
 
 interface Props {

@@ -25,8 +25,8 @@ from src.feature_extraction import model_manager
 from src.feature_extraction.config import (
     TRAIT_CLASSIFIER_MAEST,
     TRAIT_CLASSIFIERS_EFFNET,
-    TRAIT_PREDICTION_THRESHOLD,
     TRAIT_SAMPLE_RATE,
+    TRAIT_STORAGE_THRESHOLD,
     TRAIT_VERSION,
 )
 
@@ -825,14 +825,92 @@ def _binary_prob(probs: np.ndarray) -> float:
     return float(probs[0])
 
 
-def _multilabel_dict(probs: np.ndarray, labels: list) -> dict:
-    """Build {label: probability} dict for entries above the threshold."""
+def _multilabel_dict(
+    probs: np.ndarray,
+    labels: list,
+    threshold: float = TRAIT_STORAGE_THRESHOLD,
+) -> dict:
+    """Build {label: probability} dict for all entries above a storage threshold.
+
+    Stores raw model output without display-layer filtering. Downstream
+    consumers apply their own threshold, top-K, and family-prefix logic.
+    """
     n = min(len(probs), len(labels))
     return {
         labels[i]: round(float(probs[i]), 4)
         for i in range(n)
-        if float(probs[i]) >= TRAIT_PREDICTION_THRESHOLD
+        if float(probs[i]) >= threshold
     }
+
+
+# ------------------------------------------------------------------ #
+# Display-layer filters — applied by consumers, not at storage time    #
+# ------------------------------------------------------------------ #
+
+
+def filter_multilabel(
+    raw: dict,
+    threshold: float = 0.1,
+    top_k: int = None,
+    allowed_prefixes: frozenset = None,
+) -> dict:
+    """Apply display-layer filtering to a stored {label: prob} dict.
+
+    Used by API serializers, transition matching, and any other consumer
+    that needs a curated subset of the raw stored predictions.
+    """
+    if not raw:
+        return {}
+
+    result = {}
+    for label, prob in raw.items():
+        if prob < threshold:
+            continue
+        if allowed_prefixes is not None and "---" in label:
+            family = label.split("---", 1)[0]
+            if family not in allowed_prefixes:
+                continue
+        result[label] = prob
+
+    if top_k is not None and len(result) > top_k:
+        sorted_items = sorted(result.items(), key=lambda kv: kv[1], reverse=True)
+        result = dict(sorted_items[:top_k])
+
+    return result
+
+
+def filter_genre(raw: dict) -> dict:
+    """Filter stored genre predictions for display using current config."""
+    from src.feature_extraction.config import (
+        GENRE_ALLOWED_FAMILIES,
+        GENRE_DISPLAY_THRESHOLD,
+        GENRE_TOP_K,
+    )
+    return filter_multilabel(
+        raw,
+        threshold=GENRE_DISPLAY_THRESHOLD,
+        top_k=GENRE_TOP_K,
+        allowed_prefixes=GENRE_ALLOWED_FAMILIES,
+    )
+
+
+def filter_mood(raw: dict) -> dict:
+    """Filter stored mood predictions for display using current config."""
+    from src.feature_extraction.config import (
+        MOOD_DISPLAY_THRESHOLD,
+        MOOD_TOP_K,
+    )
+    return filter_multilabel(
+        raw,
+        threshold=MOOD_DISPLAY_THRESHOLD,
+        top_k=MOOD_TOP_K,
+    )
+
+
+def filter_instruments(raw: dict) -> dict:
+    """Filter stored instrument predictions for display using current config."""
+    from src.feature_extraction.config import INSTRUMENT_DISPLAY_THRESHOLD
+    return filter_multilabel(raw, threshold=INSTRUMENT_DISPLAY_THRESHOLD)
 
 
 class TraitExtractor:

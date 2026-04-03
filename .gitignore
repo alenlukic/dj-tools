@@ -148,6 +148,7 @@ models/traits/
 .harness/state/
 .harness/change_summaries/
 .harness/pr_descriptions/
+.harness/docs/prompts/
 
 # Node / Vite
 node_modules/
