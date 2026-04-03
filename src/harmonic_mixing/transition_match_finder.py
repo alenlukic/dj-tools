@@ -175,6 +175,7 @@ class TransitionMatchFinder:
 
     def _get_matches_for_code(self, harmonic_codes, cur_track_md, sort_results):
         bpm = cur_track_md[TrackDBCols.BPM]
+        source_id = cur_track_md.get(TrackDBCols.ID)
         same_key = []
         higher_key = []
         lower_key = []
@@ -187,18 +188,24 @@ class TransitionMatchFinder:
             for md in self._get_matches(
                 bpm, camelot_code, SAME_UPPER_BOUND, SAME_LOWER_BOUND
             ):
+                if source_id is not None and md.get(TrackDBCols.ID) == source_id:
+                    continue
                 match = TransitionMatch(md, cur_track_md, priority)
                 same_key.append(match)
 
             for md in self._get_matches(
                 bpm, hk_code, DOWN_KEY_UPPER_BOUND, DOWN_KEY_LOWER_BOUND
             ):
+                if source_id is not None and md.get(TrackDBCols.ID) == source_id:
+                    continue
                 match = TransitionMatch(md, cur_track_md, priority)
                 higher_key.append(match)
 
             for md in self._get_matches(
                 bpm, lk_code, UP_KEY_UPPER_BOUND, UP_KEY_LOWER_BOUND
             ):
+                if source_id is not None and md.get(TrackDBCols.ID) == source_id:
+                    continue
                 match = TransitionMatch(md, cur_track_md, priority)
                 lower_key.append(match)
 
