@@ -16,7 +16,7 @@ from src.harmonic_mixing.config import (
     MATCH_WEIGHTS,
     MatchFactors,
 )
-from src.feature_extraction.compact_descriptor import cosine_similarity, unpack_vector
+from src.feature_extraction.compact_descriptor import compute_similarity, unpack_vector
 
 
 def jsonb_cosine_similarity(d1: dict, d2: dict) -> float:
@@ -251,7 +251,7 @@ class TransitionMatch:
         if on_deck_desc is not None and candidate_desc is not None:
             v1 = unpack_vector(on_deck_desc.global_vector)
             v2 = unpack_vector(candidate_desc.global_vector)
-            result = cosine_similarity(v1, v2)
+            result = compute_similarity(v1, v2)
         else:
             result = 0.0
 

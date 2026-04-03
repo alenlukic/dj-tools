@@ -5,19 +5,14 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import type { Track, SearchSuggestion } from '../types';
+import { cleanTitle } from '../utils';
 
 const col = createColumnHelper<Track>();
 
 const columns = [
-  col.accessor('title', { header: 'Title', size: 280 }),
-  col.accessor('artist_names', {
-    header: 'Artists',
-    size: 200,
-    cell: (info) => info.getValue().join(', '),
-  }),
-  col.accessor('bpm', {
-    header: 'BPM',
-    size: 70,
+  col.accessor('camelot_code', {
+    header: 'Camelot',
+    size: 80,
     cell: (info) => <span className="mono">{info.getValue()}</span>,
   }),
   col.accessor('key', {
@@ -25,18 +20,28 @@ const columns = [
     size: 60,
     cell: (info) => <span className="mono">{info.getValue()}</span>,
   }),
-  col.accessor('camelot_code', {
-    header: 'Camelot',
-    size: 80,
+  col.accessor('bpm', {
+    header: 'BPM',
+    size: 70,
     cell: (info) => <span className="mono">{info.getValue()}</span>,
   }),
-  col.accessor('genre', { header: 'Genre', size: 120 }),
-  col.accessor('label', { header: 'Label', size: 140 }),
   col.accessor('energy', {
     header: 'Energy',
     size: 70,
     cell: (info) => <span className="mono">{info.getValue()}</span>,
   }),
+  col.accessor('title', {
+    header: 'Title',
+    size: 280,
+    cell: (info) => cleanTitle(info.getValue()),
+  }),
+  col.accessor('artist_names', {
+    header: 'Artist',
+    size: 200,
+    cell: (info) => info.getValue().join(', '),
+  }),
+  col.accessor('label', { header: 'Label', size: 140 }),
+  col.accessor('genre', { header: 'Genre', size: 120 }),
 ];
 
 interface Props {

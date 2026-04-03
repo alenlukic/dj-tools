@@ -256,8 +256,8 @@ class TestSimilarityScoreCacheIntegration:
             match = TransitionMatch(cand_md, cur_md, CamelotPriority.SAME_KEY)
 
             result = match.get_similarity_score()
-            assert result == pytest.approx(1.0, abs=1e-6)
-            assert cache.get(300, 400) == pytest.approx(1.0, abs=1e-6)
+            assert result == pytest.approx(0.7, abs=1e-6)
+            assert cache.get(300, 400) == pytest.approx(0.7, abs=1e-6)
         finally:
             TransitionMatch.db_session = original_db_session
             TransitionMatch.cosine_cache = original_cosine_cache

@@ -137,18 +137,20 @@ Delivery work uses this default flow:
 
 The harness includes a repo-aware bootstrap and docs-sync system under `.harness/state/` and `.harness/bin/bootstrap.py`.
 
-| What | Where |
-|---|---|
-| Repo profile | `.harness/state/repo-profile.yaml` |
-| Raw inventory | `.harness/state/repo-inventory.json` |
-| Module map | `.harness/state/module-map.yaml` |
-| Command registry | `.harness/state/command-registry.json` |
-| Docs sync state | `.harness/state/docs-sync-state.json` |
-| Pending doc updates | `.harness/state/pending-doc-updates.yaml` |
-| Open findings | `.harness/docs/quality/findings/open-items.yaml` |
-| Bootstrap tool | `python3 .harness/bin/bootstrap.py <scan|plan|apply|sync|doctor>` |
-| Design doc | `.harness/docs/design-docs/bootstrap-docs-sync.md` |
-| Usage guide | `.harness/docs/bootstrap-usage.md` |
+
+| What                | Where                                              |
+| ------------------- | -------------------------------------------------- |
+| Repo profile        | `.harness/state/repo-profile.yaml`                 |
+| Raw inventory       | `.harness/state/repo-inventory.json`               |
+| Module map          | `.harness/state/module-map.yaml`                   |
+| Command registry    | `.harness/state/command-registry.json`             |
+| Docs sync state     | `.harness/state/docs-sync-state.json`              |
+| Pending doc updates | `.harness/state/pending-doc-updates.yaml`          |
+| Open findings       | `.harness/docs/quality/findings/open-items.yaml`   |
+| Bootstrap tool      | `python3 .harness/bin/bootstrap.py <scan           |
+| Design doc          | `.harness/docs/design-docs/bootstrap-docs-sync.md` |
+| Usage guide         | `.harness/docs/bootstrap-usage.md`                 |
+
 
 Generated doc sections use explicit markers. See `.harness/docs/bootstrap-usage.md` for the marker model.
 

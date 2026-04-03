@@ -138,6 +138,30 @@ def cosine_similarity(v1, v2):
     return max(0.0, raw)
 
 
+def compute_similarity(vec_a, vec_b, scorer=None):
+    """Compute similarity between two descriptor vectors using the named scorer.
+
+    Parameters
+    ----------
+    vec_a, vec_b : np.ndarray
+        75-D descriptor vectors.
+    scorer : ScorerName or None
+        Scorer to use. Defaults to ``ScorerName.LATE_FUSION_V1``.
+
+    Returns
+    -------
+    float
+        Similarity score (bounded, typically in [0, 1]).
+    """
+    from src.feature_extraction.track_similarity import (
+        ScorerName,
+        compute_similarity as _compute,
+    )
+    if scorer is None:
+        scorer = ScorerName.LATE_FUSION_V1
+    return _compute(vec_a, vec_b, scorer=scorer)
+
+
 class CompactDescriptor:
     """Extracts and holds a compact 75-dim audio descriptor for a track.
 

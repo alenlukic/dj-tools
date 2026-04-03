@@ -251,6 +251,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 HIGH_RISK_KINDS = {"infra", "deploy", "migration"}
 
+INSTRUCTION_SURFACES = {"AGENTS.md", "HUMANS.md", "CLAUDE.md"}
+
 
 def _check_has_blocking_finding(repo_root: str) -> bool:
     oi = open_items_path(repo_root)
@@ -340,6 +342,9 @@ def cmd_apply(args: argparse.Namespace) -> int:
             is_generated = has_section(text, section_id) if section_id else False
         else:
             text = ""
+
+        if not is_generated and target in INSTRUCTION_SURFACES:
+            is_generated = True
 
         touches_high_risk = _check_touches_high_risk(repo_root, target)
         has_duplicate = _check_has_duplicate_source(repo_root, section_id)
