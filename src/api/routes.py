@@ -1,16 +1,23 @@
-"""API route definitions for the three endpoints."""
+"""API route definitions."""
 
 import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from src.api.schemas import SearchSuggestion, TrackResponse, TransitionMatchResponse
+from src.api.schemas import (
+    MatchDetailResponse,
+    SearchSuggestion,
+    TrackResponse,
+    TransitionMatchResponse,
+)
 from src.api.queries import get_tracks
 from src.api.serializers import (
-    serialize_track_row,
+    serialize_match_detail_track,
     serialize_matches,
+    serialize_track_row,
 )
+from src.data_management.config import TrackDBCols
 
 logger = logging.getLogger(__name__)
 
@@ -98,5 +105,76 @@ def api_matches(track_id: int):
 
         (same_key, higher_key, lower_key), _ = result
         return serialize_matches(same_key, higher_key, lower_key)
+    finally:
+        session.close()
+
+
+@router.get(
+    "/tracks/{track_id}/match-detail/{candidate_id}",
+    response_model=MatchDetailResponse,
+)
+def api_match_detail(track_id: int, candidate_id: int):
+    from src.models.track import Track
+    from src.models.track_trait import TrackTrait
+    from src.feature_extraction.config import TRAIT_VERSION
+    from src.harmonic_mixing.config import MATCH_WEIGHTS, MatchFactors
+
+    session = _get_session()
+    try:
+        source_track = session.query(Track).filter_by(id=track_id).first()
+        if source_track is None:
+            raise HTTPException(status_code=404, detail="Source track not found")
+
+        candidate_track = session.query(Track).filter_by(id=candidate_id).first()
+        if candidate_track is None:
+            raise HTTPException(status_code=404, detail="Candidate track not found")
+
+        finder = _get_match_finder()
+        result = finder.get_transition_matches(source_track)
+        if result is None:
+            raise HTTPException(status_code=404, detail="No matches found")
+
+        (same_key, higher_key, lower_key), _ = result
+
+        target_match = None
+        for match in same_key + higher_key + lower_key:
+            if match.metadata.get(TrackDBCols.ID) == candidate_id:
+                target_match = match
+                break
+
+        if target_match is None:
+            raise HTTPException(
+                status_code=404, detail="Match not found for this track pair"
+            )
+
+        target_match.get_score()
+
+        factors = []
+        for factor in MatchFactors:
+            weight = MATCH_WEIGHTS.get(factor.name, 0)
+            score = target_match.factors.get(factor, 0)
+            factors.append({
+                "name": factor.value,
+                "score": round(score, 4),
+                "weight": round(weight, 4),
+            })
+
+        source_trait = (
+            session.query(TrackTrait)
+            .filter_by(track_id=track_id, trait_version=TRAIT_VERSION)
+            .first()
+        )
+        candidate_trait = (
+            session.query(TrackTrait)
+            .filter_by(track_id=candidate_id, trait_version=TRAIT_VERSION)
+            .first()
+        )
+
+        return {
+            "overall_score": round(target_match.get_score(), 2),
+            "factors": factors,
+            "on_deck": serialize_match_detail_track(source_track, source_trait),
+            "candidate": serialize_match_detail_track(candidate_track, candidate_trait),
+        }
     finally:
         session.close()

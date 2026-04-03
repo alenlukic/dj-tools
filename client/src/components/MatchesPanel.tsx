@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -6,54 +7,71 @@ import {
 } from '@tanstack/react-table';
 import type { Track, SearchSuggestion, TransitionMatch } from '../types';
 
+type BucketKey = 'same_key' | 'higher_key' | 'lower_key';
+
+const BUCKET_TABS: { key: BucketKey; label: string }[] = [
+  { key: 'same_key', label: 'Same' },
+  { key: 'higher_key', label: 'Higher' },
+  { key: 'lower_key', label: 'Lower' },
+];
+
 const col = createColumnHelper<TransitionMatch>();
 
-const columns = [
-  col.accessor('title', { header: 'Track', size: 240 }),
-  col.accessor('overall_score', {
-    header: 'Score',
-    size: 70,
-    cell: (info) => <span className="mono">{info.getValue().toFixed(1)}</span>,
-  }),
-  col.accessor('bucket', {
-    header: 'Bucket',
-    size: 100,
-    cell: (info) => {
-      const v = info.getValue();
-      const labels: Record<string, string> = {
-        same_key: 'Same key',
-        higher_key: 'Higher',
-        lower_key: 'Lower',
-      };
-      return labels[v] ?? v;
-    },
-  }),
-  col.accessor('camelot_score', {
-    header: 'Camelot',
-    size: 80,
-    cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(0)}%</span>,
-  }),
-  col.accessor('bpm_score', {
-    header: 'BPM',
-    size: 60,
-    cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(0)}%</span>,
-  }),
-  col.accessor('energy_score', {
-    header: 'Energy',
-    size: 70,
-    cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(0)}%</span>,
-  }),
-];
+function makeColumns(onScoreClick: (match: TransitionMatch) => void) {
+  return [
+    col.accessor('title', { header: 'Track', size: 240 }),
+    col.accessor('overall_score', {
+      header: 'Score',
+      size: 70,
+      cell: (info) => (
+        <span
+          className="mono score-link"
+          onClick={(e) => {
+            e.stopPropagation();
+            onScoreClick(info.row.original);
+          }}
+        >
+          {info.getValue().toFixed(1)}
+        </span>
+      ),
+    }),
+    col.accessor('camelot_score', {
+      header: 'Camelot',
+      size: 80,
+      cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(0)}%</span>,
+    }),
+    col.accessor('bpm_score', {
+      header: 'BPM',
+      size: 60,
+      cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(0)}%</span>,
+    }),
+    col.accessor('energy_score', {
+      header: 'Energy',
+      size: 70,
+      cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(0)}%</span>,
+    }),
+  ];
+}
 
 interface Props {
   selectedTrack: Track | SearchSuggestion | null;
   matches: TransitionMatch[];
   loading: boolean;
+  onScoreClick: (match: TransitionMatch) => void;
 }
 
-export function MatchesPanel({ selectedTrack, matches, loading }: Props) {
+export function MatchesPanel({ selectedTrack, matches, loading, onScoreClick }: Props) {
+  const [bucketTab, setBucketTab] = useState<BucketKey>('same_key');
+
+  const bucketMatches = useMemo(
+    () => matches.filter((m) => m.bucket === bucketTab),
+    [matches, bucketTab],
+  );
+
+  const columns = useMemo(() => makeColumns(onScoreClick), [onScoreClick]);
+
   const table = useReactTable({
-    data: matches,
+    data: bucketMatches,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -61,7 +79,6 @@ export function MatchesPanel({ selectedTrack, matches, loading }: Props) {
   if (!selectedTrack) {
     return (
       <div className="matches-panel">
-        <h2 className="panel-title">Transition Matches</h2>
         <p className="matches-empty">Select a track to see matches</p>
       </div>
     );
@@ -72,6 +89,20 @@ export function MatchesPanel({ selectedTrack, matches, loading }: Props) {
       <h2 className="panel-title">
         Matches for <span className="matches-track-name">{selectedTrack.title}</span>
       </h2>
+      <div className="bucket-tabs">
+        {BUCKET_TABS.map((bt) => (
+          <button
+            key={bt.key}
+            className={`bucket-tab${bucketTab === bt.key ? ' active' : ''}`}
+            onClick={() => setBucketTab(bt.key)}
+          >
+            {bt.label}
+            <span className="bucket-count">
+              {matches.filter((m) => m.bucket === bt.key).length}
+            </span>
+          </button>
+        ))}
+      </div>
       <div className="matches-table-wrapper">
         <table className="matches-table">
           <thead>
@@ -92,10 +123,10 @@ export function MatchesPanel({ selectedTrack, matches, loading }: Props) {
                   Loading matches…
                 </td>
               </tr>
-            ) : matches.length === 0 ? (
+            ) : bucketMatches.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="table-status">
-                  No matches found
+                  No matches in this bucket
                 </td>
               </tr>
             ) : (

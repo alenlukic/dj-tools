@@ -35,6 +35,7 @@ from src.models.track_descriptor import TrackDescriptor  # noqa: E402
 from src.models.track_cosine_similarity import TrackCosineSimilarity  # noqa: E402
 from src.feature_extraction.config import COSINE_WORKERS, DESCRIPTOR_VERSION  # noqa: E402
 from src.feature_extraction.compact_descriptor import cosine_similarity, unpack_vector  # noqa: E402
+from src.feature_extraction.track_similarity import ScorerName, compute_similarity  # noqa: E402
 from src.harmonic_mixing.transition_match_finder import TransitionMatchFinder  # noqa: E402
 from src.data_management.config import TrackDBCols  # noqa: E402
 from src.errors import handle  # noqa: E402
@@ -89,7 +90,7 @@ def _classify_existing_pairs(rows, descriptor_version):
     return existing, stale
 
 
-def _compute_cosine_batch(chunk, all_track_ids, result_transmitter):
+def _compute_cosine_batch(chunk, all_track_ids, result_transmitter, scorer_name=None):
     """Worker: compute cosine similarities for a chunk of track IDs.
 
     all_track_ids is the full set of IDs being processed across all workers.
@@ -193,7 +194,10 @@ def _compute_cosine_batch(chunk, all_track_ids, result_transmitter):
                             continue
 
                         cand_vec = unpack_vector(cand_desc.global_vector)
-                        sim = cosine_similarity(source_vec, cand_vec)
+                        if scorer_name is not None:
+                            sim = compute_similarity(source_vec, cand_vec, scorer=scorer_name)
+                        else:
+                            sim = compute_similarity(source_vec, cand_vec)
 
                         if (id1, id2) in stale_pair_keys:
                             try:
@@ -280,7 +284,7 @@ def _get_tracks_for_processing(track_ids, session):
     )
 
 
-def run(track_ids, session):
+def run(track_ids, session, scorer_name=None):
     try:
         tracks_to_process = _get_tracks_for_processing(track_ids, session)
 
@@ -303,7 +307,7 @@ def run(track_ids, session):
             aggregators.append(receiver)
             worker = Process(
                 target=_compute_cosine_batch,
-                args=(chunk, all_track_ids, transmitter),
+                args=(chunk, all_track_ids, transmitter, scorer_name),
             )
             worker.daemon = True
             workers.append(worker)
@@ -334,7 +338,26 @@ def run(track_ids, session):
         session.close()
 
 
+def _parse_args(argv):
+    """Parse CLI arguments, separating track IDs from --scorer flag.
+
+    Defaults to ``late_fusion_v1`` when no ``--scorer`` is given, matching
+    the live transition-ranking path.
+    """
+    scorer = ScorerName.LATE_FUSION_V1
+    track_ids = set()
+    i = 1
+    while i < len(argv):
+        if argv[i] == "--scorer" and i + 1 < len(argv):
+            scorer = ScorerName(argv[i + 1])
+            i += 2
+        else:
+            track_ids.add(int(argv[i]))
+            i += 1
+    return track_ids, scorer
+
+
 if __name__ == "__main__":
     _session = database.create_session()
-    _args = sys.argv
-    run(set(int(t) for t in _args[1:]) if len(_args) > 1 else set(), _session)
+    _track_ids, _scorer = _parse_args(sys.argv)
+    run(_track_ids, _session, scorer_name=_scorer)

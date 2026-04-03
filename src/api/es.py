@@ -104,49 +104,29 @@ def bulk_index_tracks(client: Elasticsearch, track_docs: List[Dict[str, Any]]) -
 
 
 def search(query: str, limit: int = 10, client: Optional[Elasticsearch] = None) -> List[Dict[str, Any]]:
-    """Search tracks with title-weighted multi-field matching."""
+    """Search tracks with title-weighted multi-field matching and BPM support."""
     es = client or get_client()
+
+    should: List[Dict[str, Any]] = [
+        {"match": {"title": {"query": query, "boost": TITLE_BOOST}}},
+        {"match": {"title.exact": {"query": query, "boost": TITLE_BOOST * 2}}},
+        {"match": {"artist_names": {"query": query, "boost": ARTIST_BOOST}}},
+        {"match": {"genre": {"query": query, "boost": 0.5}}},
+        {"match": {"label": {"query": query, "boost": 0.5}}},
+        {"term": {"camelot_code": {"value": query.upper(), "boost": 1.0}}},
+    ]
+
+    try:
+        bpm_val = float(query)
+        should.append({"term": {"bpm": {"value": bpm_val, "boost": 1.5}}})
+    except ValueError:
+        pass
 
     body = {
         "size": limit,
         "query": {
             "bool": {
-                "should": [
-                    {
-                        "match": {
-                            "title": {
-                                "query": query,
-                                "boost": TITLE_BOOST,
-                            },
-                        },
-                    },
-                    {
-                        "match": {
-                            "title.exact": {
-                                "query": query,
-                                "boost": TITLE_BOOST * 2,
-                            },
-                        },
-                    },
-                    {
-                        "match": {
-                            "artist_names": {
-                                "query": query,
-                                "boost": ARTIST_BOOST,
-                            },
-                        },
-                    },
-                    {"match": {"genre": {"query": query, "boost": 0.5}}},
-                    {"match": {"label": {"query": query, "boost": 0.5}}},
-                    {
-                        "term": {
-                            "camelot_code": {
-                                "value": query.upper(),
-                                "boost": 1.0,
-                            },
-                        },
-                    },
-                ],
+                "should": should,
                 "minimum_should_match": 1,
             },
         },

@@ -1,28 +1,61 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { SearchSuggestion, Track } from '../types';
 import { searchTracks } from '../api/http';
 
+/**
+ * Session-scoped cache for `/api/search` (autocomplete) responses keyed by
+ * trimmed query string. Eliminates redundant Elasticsearch round-trips when a
+ * user revisits a previously-typed query within the same page session.
+ * Resets naturally on page reload since it is module-level state.
+ */
+const searchCache = new Map<string, SearchSuggestion[]>();
+
 interface Props {
+  query: string;
+  setQuery: (q: string) => void;
   selectTrack: (track: Track | SearchSuggestion) => void;
 }
 
-export function SearchPanel({ selectTrack }: Props) {
-  const [query, setQuery] = useState('');
+export function SearchPanel({ query, setQuery, selectTrack }: Props) {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const userTypedRef = useRef(false);
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      userTypedRef.current = true;
+      setQuery(e.target.value);
+    },
+    [setQuery],
+  );
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) {
+
+    if (!userTypedRef.current) return;
+    userTypedRef.current = false;
+
+    const trimmed = query.trim();
+    if (!trimmed) {
       setSuggestions([]);
       setOpen(false);
       return;
     }
+
+    const cached = searchCache.get(trimmed);
+    if (cached) {
+      setSuggestions(cached);
+      setOpen(cached.length > 0);
+      setActiveIdx(-1);
+      return;
+    }
+
     debounceRef.current = setTimeout(() => {
       searchTracks(query).then((results) => {
+        searchCache.set(trimmed, results);
         setSuggestions(results);
         setOpen(results.length > 0);
         setActiveIdx(-1);
@@ -43,7 +76,6 @@ export function SearchPanel({ selectTrack }: Props) {
 
   function handleSelect(suggestion: SearchSuggestion) {
     selectTrack(suggestion);
-    setQuery(suggestion.title);
     setOpen(false);
   }
 
@@ -64,14 +96,13 @@ export function SearchPanel({ selectTrack }: Props) {
   }
 
   return (
-    <div className="search-panel" ref={containerRef}>
-      <h2 className="panel-title">Search</h2>
+    <div className="search-bar-wrapper" ref={containerRef}>
       <input
         type="text"
         className="search-input"
         placeholder="Search tracks…"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={handleInputChange}
         onFocus={() => suggestions.length > 0 && setOpen(true)}
         onKeyDown={handleKeyDown}
       />
