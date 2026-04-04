@@ -4,21 +4,39 @@ import { FilterBar } from './components/FilterBar';
 import { TrackTable } from './components/TrackTable';
 import { MatchesPanel } from './components/MatchesPanel';
 import { MatchDetail } from './components/MatchDetail';
+import { WeightControls } from './components/WeightControls';
+import { AdminDashboard } from './components/AdminDashboard';
 import { useSelectedTrack } from './hooks/useSelectedTrack';
 import { useTrackFilters } from './hooks/useTrackFilters';
 import { useCollectionCache } from './hooks/useCollectionCache';
+import { useCacheStats } from './hooks/useCacheStats';
+import { useWeights } from './hooks/useWeights';
 import type { Track, SearchSuggestion, TransitionMatch } from './types';
+
+type TabKey = 'matches' | 'browse' | 'admin';
 
 export default function App() {
   const { allTracks, loading: collectionLoading } = useCollectionCache();
+
+  const [activeTab, setActiveTab] = useState<TabKey>('matches');
+  const [detailMatch, setDetailMatch] = useState<TransitionMatch | null>(null);
+
+  const {
+    stats: cacheStats,
+    loading: cacheLoading,
+    error: cacheError,
+    refresh: refreshCacheStats,
+  } = useCacheStats(activeTab === 'admin');
+
   const {
     selectedTrack,
     matches,
     matchesLoading,
     selectTrack,
-    searchQuery,
-    setSearchQuery,
-  } = useSelectedTrack();
+    clearSelectedTrack,
+    refetchMatches,
+  } = useSelectedTrack(refreshCacheStats);
+
   const {
     filters,
     filteredTracks,
@@ -28,13 +46,21 @@ export default function App() {
     setBpmMax,
   } = useTrackFilters(allTracks);
 
-  const [activeTab, setActiveTab] = useState<'matches' | 'browse'>('matches');
-  const [detailMatch, setDetailMatch] = useState<TransitionMatch | null>(null);
+  const {
+    weights,
+    loading: weightsLoading,
+    saving: weightsSaving,
+    setWeight,
+    rawSum,
+    isSumValid,
+    normalizeWeights,
+  } = useWeights(refetchMatches);
 
   const handleSelectTrack = useCallback(
     (track: Track | SearchSuggestion) => {
       setDetailMatch(null);
       selectTrack(track);
+      setActiveTab('matches');
     },
     [selectTrack],
   );
@@ -49,10 +75,21 @@ export default function App() {
 
   return (
     <div className="app-shell-v2">
+      {!weightsLoading && Object.keys(weights).length > 0 && (
+        <WeightControls
+          weights={weights}
+          setWeight={setWeight}
+          isSumValid={isSumValid}
+          rawSum={rawSum}
+          saving={weightsSaving}
+          normalizeWeights={normalizeWeights}
+        />
+      )}
+
       <SearchPanel
-        query={searchQuery}
-        setQuery={setSearchQuery}
+        selectedTrack={selectedTrack}
         selectTrack={handleSelectTrack}
+        clearSelectedTrack={clearSelectedTrack}
       />
 
       <div className="tab-bar">
@@ -70,6 +107,12 @@ export default function App() {
           onClick={() => setActiveTab('browse')}
         >
           Browse
+        </button>
+        <button
+          className={`tab${activeTab === 'admin' ? ' active' : ''}`}
+          onClick={() => setActiveTab('admin')}
+        >
+          Admin
         </button>
       </div>
 
@@ -102,12 +145,19 @@ export default function App() {
               setBpmMax={setBpmMax}
             />
             <TrackTable
-              tracks={filteredTracks}
+              tracks={selectedTrack ? allTracks.filter(t => t.id === selectedTrack.id) : filteredTracks}
               loading={collectionLoading}
               selectedTrack={selectedTrack}
               selectTrack={handleBrowseSelect}
             />
           </>
+        )}
+        {activeTab === 'admin' && (
+          <AdminDashboard
+            stats={cacheStats}
+            loading={cacheLoading}
+            error={cacheError}
+          />
         )}
       </div>
     </div>

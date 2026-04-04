@@ -198,6 +198,88 @@ class TestWarmFromDb:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Admin metrics instrumentation
+# ---------------------------------------------------------------------------
+
+
+class TestCacheAdminStats:
+    def test_stats_shape_on_empty_cache(self):
+        cache = CosineCache(max_entries=100)
+        stats = cache.get_stats()
+        assert stats["used"] == 0
+        assert stats["capacity"] == 100
+        assert stats["usage_ratio"] == 0.0
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+        assert stats["hit_rate"] == 0.0
+        assert stats["hit_rate_basis"] == "process_lifetime"
+        assert stats["recent_entries"] == []
+        assert stats["recent_exits"] == []
+
+    def test_hit_miss_counting(self):
+        cache = CosineCache()
+        cache.put(1, 2, 0.5)
+        cache.get(1, 2)  # hit
+        cache.get(1, 2)  # hit
+        cache.get(3, 4)  # miss
+        stats = cache.get_stats()
+        assert stats["hits"] == 2
+        assert stats["misses"] == 1
+        assert stats["hit_rate"] == pytest.approx(2 / 3, abs=1e-6)
+        assert stats["hit_rate_numerator"] == 2
+        assert stats["hit_rate_denominator"] == 3
+
+    def test_recent_entries_recorded(self):
+        cache = CosineCache()
+        cache.put(1, 2, 0.5)
+        cache.put(3, 4, 0.6)
+        stats = cache.get_stats()
+        assert len(stats["recent_entries"]) == 2
+        assert stats["recent_entries"][0]["pair"] == (3, 4)
+        assert stats["recent_entries"][1]["pair"] == (1, 2)
+
+    def test_recent_entries_capped_at_10(self):
+        cache = CosineCache()
+        for i in range(15):
+            cache.put(i, i + 1000, float(i))
+        stats = cache.get_stats()
+        assert len(stats["recent_entries"]) == 10
+
+    def test_recent_exits_on_eviction(self):
+        cache = CosineCache(max_entries=3)
+        cache.put(1, 2, 0.1)
+        cache.put(3, 4, 0.2)
+        cache.put(5, 6, 0.3)
+        cache.put(7, 8, 0.4)
+        stats = cache.get_stats()
+        assert len(stats["recent_exits"]) == 1
+        assert stats["recent_exits"][0]["pair"] == (1, 2)
+        assert stats["recent_exits"][0]["reason"] == "lru_eviction"
+
+    def test_usage_ratio(self):
+        cache = CosineCache(max_entries=10)
+        cache.put(1, 2, 0.5)
+        cache.put(3, 4, 0.6)
+        stats = cache.get_stats()
+        assert stats["usage_ratio"] == pytest.approx(0.2)
+
+    def test_get_cached_track_ids(self):
+        cache = CosineCache()
+        cache.put(10, 20, 0.5)
+        cache.put(10, 30, 0.6)
+        cache.put(40, 50, 0.7)
+        ids = cache.get_cached_track_ids()
+        assert ids == {10, 20, 30, 40, 50}
+
+    def test_overwrite_does_not_add_duplicate_entry_event(self):
+        cache = CosineCache()
+        cache.put(1, 2, 0.5)
+        cache.put(1, 2, 0.9)
+        stats = cache.get_stats()
+        assert len(stats["recent_entries"]) == 1
+
+
 class TestSimilarityScoreCacheIntegration:
     def test_cache_hit_skips_db(self):
         """When cache has a value, get_similarity_score must return it
@@ -227,7 +309,7 @@ class TestSimilarityScoreCacheIntegration:
             TransitionMatch.cosine_cache = original_cosine_cache
 
     def test_cache_miss_falls_through_to_compute_and_stores(self):
-        """On cache miss, the score must be computed and stored in cache."""
+        """On cache miss with no DB row, the score must be computed and stored in cache."""
         from src.harmonic_mixing.transition_match import TransitionMatch
         from src.data_management.config import TrackDBCols
         from src.harmonic_mixing.config import CamelotPriority
@@ -239,7 +321,15 @@ class TestSimilarityScoreCacheIntegration:
         import numpy as np
         mock_desc.global_vector = np.ones(75, dtype=np.float32).tobytes()
 
-        mock_session.query.return_value.filter_by.return_value.first.return_value = mock_desc
+        def filter_by_side_effect(**kwargs):
+            mock_filtered = MagicMock()
+            if "track_id" in kwargs:
+                mock_filtered.first.return_value = mock_desc
+            else:
+                mock_filtered.first.return_value = None
+            return mock_filtered
+
+        mock_session.query.return_value.filter_by.side_effect = filter_by_side_effect
 
         original_db_session = TransitionMatch.db_session
         original_cosine_cache = TransitionMatch.cosine_cache
@@ -255,7 +345,8 @@ class TestSimilarityScoreCacheIntegration:
             cand_md = {TrackDBCols.ID: 400, TrackDBCols.TITLE: "Track D"}
             match = TransitionMatch(cand_md, cur_md, CamelotPriority.SAME_KEY)
 
-            result = match.get_similarity_score()
+            with patch.object(TransitionMatch, "_persist_similarity"):
+                result = match.get_similarity_score()
             assert result == pytest.approx(0.7, abs=1e-6)
             assert cache.get(300, 400) == pytest.approx(0.7, abs=1e-6)
         finally:

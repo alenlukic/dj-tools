@@ -6,7 +6,7 @@ Run with:
 
 from collections import defaultdict
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -70,6 +70,7 @@ class _MatchFixture:
             "collection_metadata": TransitionMatch.collection_metadata,
             "db_session": TransitionMatch.db_session,
             "cosine_cache": TransitionMatch.cosine_cache,
+            "effective_weights": TransitionMatch.effective_weights,
             "od_desc": TransitionMatch._on_deck_descriptor_cache.copy(),
             "cd_desc": TransitionMatch._candidate_descriptor_cache.copy(),
             "od_trait": TransitionMatch._on_deck_trait_cache.copy(),
@@ -78,6 +79,7 @@ class _MatchFixture:
         TransitionMatch.collection_metadata = self._collection_md
         TransitionMatch.db_session = MagicMock()
         TransitionMatch.cosine_cache = None
+        TransitionMatch.effective_weights = None
         TransitionMatch._on_deck_descriptor_cache.clear()
         TransitionMatch._candidate_descriptor_cache.clear()
         TransitionMatch._on_deck_trait_cache.clear()
@@ -88,6 +90,7 @@ class _MatchFixture:
         TransitionMatch.collection_metadata = self._originals["collection_metadata"]
         TransitionMatch.db_session = self._originals["db_session"]
         TransitionMatch.cosine_cache = self._originals["cosine_cache"]
+        TransitionMatch.effective_weights = self._originals["effective_weights"]
         TransitionMatch._on_deck_descriptor_cache = self._originals["od_desc"]
         TransitionMatch._candidate_descriptor_cache = self._originals["cd_desc"]
         TransitionMatch._on_deck_trait_cache = self._originals["od_trait"]
@@ -365,3 +368,247 @@ class TestNonSelfScoring:
                 MatchFactors.TIMBRE, MatchFactors.INSTRUMENT_SIMILARITY,
             }
             assert set(match.factors.keys()) == expected_factors
+
+
+# ---------------------------------------------------------------------------
+# 7. DB-backed score retrieval
+# ---------------------------------------------------------------------------
+
+
+class TestDBBackedScoreRetrieval:
+    """Score retrieval must check DB before computing from descriptors."""
+
+    def test_db_hit_returns_persisted_value(self):
+        """When DB has the similarity row, it should be returned directly."""
+        with _MatchFixture():
+            db_row = MagicMock()
+            db_row.cosine_similarity = 0.77
+
+            def filter_by_side_effect(**kwargs):
+                mock_filtered = MagicMock()
+                if "id1" in kwargs and "id2" in kwargs:
+                    mock_filtered.first.return_value = db_row
+                else:
+                    mock_filtered.first.return_value = None
+                return mock_filtered
+
+            TransitionMatch.db_session.query.return_value.filter_by.side_effect = (
+                filter_by_side_effect
+            )
+
+            md_a = _make_md(100, title="A")
+            md_b = _make_md(200, title="B")
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+
+            with patch.object(TransitionMatch, "_persist_similarity"):
+                result = match.get_similarity_score()
+
+            assert result == 0.77
+            assert match.factors[MatchFactors.SIMILARITY] == 0.77
+
+    def test_db_hit_warms_cache(self):
+        """DB hit should place the value into the in-memory cache."""
+        from src.harmonic_mixing.cosine_cache import CosineCache
+
+        cache = CosineCache()
+        with _MatchFixture():
+            TransitionMatch.cosine_cache = cache
+            db_row = MagicMock()
+            db_row.cosine_similarity = 0.65
+
+            def filter_by_side_effect(**kwargs):
+                mock_filtered = MagicMock()
+                if "id1" in kwargs and "id2" in kwargs:
+                    mock_filtered.first.return_value = db_row
+                else:
+                    mock_filtered.first.return_value = None
+                return mock_filtered
+
+            TransitionMatch.db_session.query.return_value.filter_by.side_effect = (
+                filter_by_side_effect
+            )
+
+            md_a = _make_md(100, title="A")
+            md_b = _make_md(200, title="B")
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+
+            with patch.object(TransitionMatch, "_persist_similarity"):
+                match.get_similarity_score()
+
+            assert cache.get(100, 200) == 0.65
+
+    @patch.object(TransitionMatch, "_persist_similarity")
+    def test_db_miss_computes_and_persists(self, mock_persist):
+        """On DB miss, score is computed from descriptors and persisted."""
+        import numpy as np
+
+        with _MatchFixture():
+            mock_desc = MagicMock()
+            mock_desc.global_vector = np.ones(75, dtype=np.float32).tobytes()
+
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+
+            TransitionMatch._on_deck_descriptor_cache.clear()
+            TransitionMatch._candidate_descriptor_cache.clear()
+
+            md_a = _make_md(300, title="A")
+            md_b = _make_md(400, title="B")
+
+            call_count = {"n": 0}
+
+            def filter_by_side_effect(**kwargs):
+                call_count["n"] += 1
+                mock_filtered = MagicMock()
+                if "track_id" in kwargs:
+                    mock_filtered.first.return_value = mock_desc
+                else:
+                    mock_filtered.first.return_value = None
+                return mock_filtered
+
+            TransitionMatch.db_session.query.return_value.filter_by.side_effect = (
+                filter_by_side_effect
+            )
+
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            result = match.get_similarity_score()
+
+            assert result > 0
+            mock_persist.assert_called_once()
+            args = mock_persist.call_args[0]
+            assert min(args[0], args[1]) == 300
+            assert max(args[0], args[1]) == 400
+
+    def test_symmetric_pair_lookup_uses_canonical_order(self):
+        """Swapped IDs must produce the same canonical DB lookup."""
+        with _MatchFixture():
+            db_row = MagicMock()
+            db_row.cosine_similarity = 0.55
+
+            filter_by_calls = []
+
+            def filter_by_side_effect(**kwargs):
+                filter_by_calls.append(kwargs)
+                mock_filtered = MagicMock()
+                if "id1" in kwargs:
+                    mock_filtered.first.return_value = db_row
+                else:
+                    mock_filtered.first.return_value = None
+                return mock_filtered
+
+            TransitionMatch.db_session.query.return_value.filter_by.side_effect = (
+                filter_by_side_effect
+            )
+
+            md_a = _make_md(500, title="A")
+            md_b = _make_md(300, title="B")
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+
+            with patch.object(TransitionMatch, "_persist_similarity"):
+                match.get_similarity_score()
+
+            db_lookup = [c for c in filter_by_calls if "id1" in c]
+            assert len(db_lookup) >= 1
+            assert db_lookup[0]["id1"] == 300
+            assert db_lookup[0]["id2"] == 500
+
+
+# ---------------------------------------------------------------------------
+# 7b. Descriptor-missing fallback must not persist stale zeros
+# ---------------------------------------------------------------------------
+
+
+class TestDescriptorMissingNoPersist:
+    """When descriptors are absent, 0.0 is returned as the factor but must NOT
+    be persisted or cached — otherwise backfilled descriptors would never
+    trigger recomputation."""
+
+    @patch.object(TransitionMatch, "_persist_similarity")
+    def test_missing_descriptors_not_persisted(self, mock_persist):
+        with _MatchFixture():
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+            TransitionMatch._on_deck_descriptor_cache.clear()
+            TransitionMatch._candidate_descriptor_cache.clear()
+
+            md_a = _make_md(600, title="A")
+            md_b = _make_md(700, title="B")
+
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            result = match.get_similarity_score()
+
+            assert result == 0.0
+            assert match.factors[MatchFactors.SIMILARITY] == 0.0
+            mock_persist.assert_not_called()
+
+    def test_missing_descriptors_not_cached(self):
+        from src.harmonic_mixing.cosine_cache import CosineCache
+
+        cache = CosineCache()
+        with _MatchFixture():
+            TransitionMatch.cosine_cache = cache
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+            TransitionMatch._on_deck_descriptor_cache.clear()
+            TransitionMatch._candidate_descriptor_cache.clear()
+
+            md_a = _make_md(600, title="A")
+            md_b = _make_md(700, title="B")
+
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            result = match.get_similarity_score()
+
+            assert result == 0.0
+            assert cache.get(600, 700) is None
+
+
+# ---------------------------------------------------------------------------
+# 8. Effective weight override in scoring
+# ---------------------------------------------------------------------------
+
+
+class TestEffectiveWeightOverride:
+    def test_effective_weights_used_when_set(self):
+        """When effective_weights is set, get_score uses them."""
+        with _MatchFixture() as fx:
+            trait = _make_trait()
+            fx.seed_traits(1, trait)
+            fx.seed_traits(2, trait)
+
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+
+            custom_weights = {f.name: 0.0 for f in MatchFactors}
+            custom_weights[MatchFactors.BPM.name] = 1.0
+            TransitionMatch.effective_weights = custom_weights
+
+            md_a = _make_md(1, title="A", bpm=128.0, energy=7,
+                            date_added=_BASE_TIME + timedelta(days=100))
+            md_b = _make_md(2, title="B", bpm=128.0, energy=6,
+                            date_added=_BASE_TIME + timedelta(days=200))
+
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            score = match.get_score()
+
+            assert score == pytest.approx(100 * 1.0 * match.factors[MatchFactors.BPM])
+
+    def test_none_effective_weights_falls_back_to_config(self):
+        """When effective_weights is None, MATCH_WEIGHTS from config is used."""
+        from src.harmonic_mixing.config import MATCH_WEIGHTS as cfg_weights
+
+        with _MatchFixture() as fx:
+            trait = _make_trait()
+            fx.seed_traits(1, trait)
+            fx.seed_traits(2, trait)
+
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+            TransitionMatch.effective_weights = None
+
+            md_a = _make_md(1, title="A", bpm=128.0, energy=7,
+                            date_added=_BASE_TIME + timedelta(days=100))
+            md_b = _make_md(2, title="B", bpm=128.0, energy=6,
+                            date_added=_BASE_TIME + timedelta(days=200))
+
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            score = match.get_score()
+
+            expected = 100 * sum(
+                match.factors[f] * cfg_weights[f.name] for f in MatchFactors
+            )
+            assert score == pytest.approx(expected, abs=0.01)

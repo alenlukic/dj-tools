@@ -6,7 +6,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import type { Track, SearchSuggestion, TransitionMatch } from '../types';
-import { formatFloat } from '../utils';
+import { formatFloat, formatScore } from '../utils';
 
 type BucketKey = 'same_key' | 'higher_key' | 'lower_key';
 
@@ -39,17 +39,17 @@ function makeColumns(onScoreClick: (match: TransitionMatch) => void) {
     col.accessor('camelot_score', {
       header: 'Camelot',
       size: 80,
-      cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(2)}%</span>,
+      cell: (info) => <span className="mono">{formatScore(info.getValue())}</span>,
     }),
     col.accessor('bpm_score', {
       header: 'BPM',
       size: 60,
-      cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(2)}%</span>,
+      cell: (info) => <span className="mono">{formatScore(info.getValue())}</span>,
     }),
     col.accessor('energy_score', {
       header: 'Energy',
       size: 70,
-      cell: (info) => <span className="mono">{(info.getValue() * 100).toFixed(2)}%</span>,
+      cell: (info) => <span className="mono">{formatScore(info.getValue())}</span>,
     }),
   ];
 }

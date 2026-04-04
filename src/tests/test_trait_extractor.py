@@ -22,9 +22,7 @@ import pytest
 
 from src.feature_extraction.config import (
     GENRE_ALLOWED_FAMILIES,
-    GENRE_DISPLAY_THRESHOLD,
     GENRE_TOP_K,
-    MOOD_DISPLAY_THRESHOLD,
     MOOD_TOP_K,
     TRAIT_SAMPLE_RATE,
     TRAIT_STORAGE_THRESHOLD,
@@ -41,7 +39,6 @@ from src.feature_extraction.trait_extractor import (
     _patch_mel_for_maest,
     compute_mel_spectrogram,
     filter_genre,
-    filter_instruments,
     filter_mood,
     filter_multilabel,
 )

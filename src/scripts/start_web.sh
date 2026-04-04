@@ -23,29 +23,64 @@ API_PORT=8000
 CLIENT_PORT=5173
 STARTED_ES=false
 
+CLEANED_UP=false
 cleanup() {
+  "$CLEANED_UP" && return
+  CLEANED_UP=true
+  trap '' INT TERM
+
   echo ""
   echo "Shutting down..."
+
   for pid_var in CLIENT_PID API_PID; do
     pid="${!pid_var:-}"
     [[ -z "$pid" ]] && continue
     kill -- -"$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+  done
+
+  for pid_var in CLIENT_PID API_PID; do
+    pid="${!pid_var:-}"
+    [[ -z "$pid" ]] && continue
+    local tries=10
+    while (( tries-- > 0 )) && kill -0 "$pid" 2>/dev/null; do
+      sleep 0.5
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -9 -- -"$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null || true
+    fi
+    wait "$pid" 2>/dev/null || true
     echo "  Stopped ${pid_var} (PID $pid)"
   done
+
   if [[ "$STARTED_ES" == true ]]; then
     docker stop "$ES_CONTAINER" >/dev/null 2>&1 && echo "  Stopped Elasticsearch container"
   fi
   echo "Done."
 }
+trap 'cleanup; exit 0' INT TERM
 trap cleanup EXIT
 
 free_port() {
   local port=$1 label=$2
-  local pids
+  local pids safe_pids
   pids=$(lsof -ti:"$port" 2>/dev/null || true)
   [[ -z "$pids" ]] && return
-  echo "  Port $port ($label) already in use — killing PID(s): $pids"
-  echo "$pids" | xargs kill -9 2>/dev/null || true
+
+  safe_pids=""
+  for pid in $pids; do
+    local cmd
+    cmd=$(ps -p "$pid" -o comm= 2>/dev/null || echo "")
+    if [[ "$cmd" == *"docker"* ]] || [[ "$cmd" == *"com.docker"* ]] || [[ "$cmd" == *"vpnkit"* ]]; then
+      echo "  Port $port ($label): skipping Docker process $pid ($cmd)"
+      echo "  ERROR: Port $port is used by a Docker container. Stop the container first."
+      exit 1
+    fi
+    safe_pids="$safe_pids $pid"
+  done
+
+  [[ -z "${safe_pids// /}" ]] && return
+  echo "  Port $port ($label) already in use — killing PID(s):$safe_pids"
+  echo "$safe_pids" | xargs kill -9 2>/dev/null || true
   sleep 1
   pids=$(lsof -ti:"$port" 2>/dev/null || true)
   if [[ -n "$pids" ]]; then

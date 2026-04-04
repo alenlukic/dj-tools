@@ -2,67 +2,71 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { SearchSuggestion, Track } from '../types';
 import { searchTracks } from '../api/http';
 
-/**
- * Session-scoped cache for `/api/search` (autocomplete) responses keyed by
- * trimmed query string. Eliminates redundant Elasticsearch round-trips when a
- * user revisits a previously-typed query within the same page session.
- * Resets naturally on page reload since it is module-level state.
- */
 const searchCache = new Map<string, SearchSuggestion[]>();
 
 interface Props {
-  query: string;
-  setQuery: (q: string) => void;
+  selectedTrack: Track | SearchSuggestion | null;
   selectTrack: (track: Track | SearchSuggestion) => void;
+  clearSelectedTrack: () => void;
 }
 
-export function SearchPanel({ query, setQuery, selectTrack }: Props) {
+export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack }: Props) {
+  const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const userTypedRef = useRef(false);
+
+  const [prevTrackId, setPrevTrackId] = useState<number | null>(null);
+  const trackId = selectedTrack?.id ?? null;
+  if (trackId !== prevTrackId) {
+    setPrevTrackId(trackId);
+    if (selectedTrack) {
+      setQuery(selectedTrack.title);
+    }
+  }
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      userTypedRef.current = true;
-      setQuery(e.target.value);
+      const newQuery = e.target.value;
+      setQuery(newQuery);
+      clearSelectedTrack();
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      const trimmed = newQuery.trim();
+      if (!trimmed) {
+        setSuggestions([]);
+        setOpen(false);
+        return;
+      }
+
+      const cached = searchCache.get(trimmed);
+      if (cached) {
+        setSuggestions(cached);
+        setOpen(cached.length > 0);
+        setActiveIdx(-1);
+        return;
+      }
+
+      debounceRef.current = setTimeout(() => {
+        searchTracks(newQuery).then((results) => {
+          searchCache.set(trimmed, results);
+          setSuggestions(results);
+          setOpen(results.length > 0);
+          setActiveIdx(-1);
+        });
+      }, 200);
     },
-    [setQuery],
+    [clearSelectedTrack],
   );
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (!userTypedRef.current) return;
-    userTypedRef.current = false;
-
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
-
-    const cached = searchCache.get(trimmed);
-    if (cached) {
-      setSuggestions(cached);
-      setOpen(cached.length > 0);
-      setActiveIdx(-1);
-      return;
-    }
-
-    debounceRef.current = setTimeout(() => {
-      searchTracks(query).then((results) => {
-        searchCache.set(trimmed, results);
-        setSuggestions(results);
-        setOpen(results.length > 0);
-        setActiveIdx(-1);
-      });
-    }, 200);
-    return () => clearTimeout(debounceRef.current ?? undefined);
-  }, [query]);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
