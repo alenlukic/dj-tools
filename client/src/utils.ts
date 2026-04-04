@@ -18,13 +18,21 @@ export function formatFloat(value: number | null | undefined): string {
 }
 
 /**
- * Format a 0–1 factor score for display on a 0–100 scale.
- * Up to 2 decimal places, trailing zeroes suppressed, no percent sign.
+ * Format a 0–1 factor score for display on a 0–100 integer scale.
+ * Standard half-up rounding, no decimal places, no percent sign.
  */
 export function formatScore(value: number | null | undefined): string {
   if (value == null) return '—';
-  const scaled = value * 100;
-  return parseFloat(scaled.toFixed(2)).toString();
+  return Math.round(value * 100).toString();
+}
+
+/**
+ * Format an already-0–100 overall score as an integer.
+ * Use this for `overall_score` which the API returns pre-scaled.
+ */
+export function formatOverallScore(value: number | null | undefined): string {
+  if (value == null) return '—';
+  return Math.round(value).toString();
 }
 
 export function displayGenre(genre: string | null | undefined): string | null {

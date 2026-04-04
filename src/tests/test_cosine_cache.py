@@ -141,22 +141,19 @@ class TestWarmFromDb:
             _make_sim_row(30, 50, 0.5),
         ]
 
-        def query_side_effect(model):
-            return mock_session._query_result
-
         mock_query = MagicMock()
         mock_session.query.return_value = mock_query
 
         call_count = {"n": 0}
         results_sequence = [depth1_rows, depth2_rows_for_20, depth2_rows_for_30]
 
-        def filter_by_side_effect(**kwargs):
+        def filter_side_effect(*args, **kwargs):
             mock_filtered = MagicMock()
             mock_filtered.all.return_value = results_sequence[call_count["n"]]
             call_count["n"] += 1
             return mock_filtered
 
-        mock_query.filter_by.side_effect = filter_by_side_effect
+        mock_query.filter.side_effect = filter_side_effect
 
         cache = CosineCache()
         cache.warm_from_db(10)
@@ -173,7 +170,7 @@ class TestWarmFromDb:
         mock_db_module.create_session.return_value = mock_session
         mock_query = MagicMock()
         mock_session.query.return_value = mock_query
-        mock_query.filter_by.return_value.all.return_value = []
+        mock_query.filter.return_value.all.return_value = []
 
         cache = CosineCache()
         cache.warm_from_db(42)
@@ -191,6 +188,76 @@ class TestWarmFromDb:
         cache.warm_from_db(1)
 
         mock_session.close.assert_called_once()
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_depth1_finds_neighbor_in_id2_column(self, mock_db_module):
+        """Regression: track appearing in id2 must still be discovered.
+
+        Row (50, 200) has track 200 in id2.  Querying for track 200 must
+        find this row and identify 50 as a depth-1 neighbor.
+        """
+        mock_session = MagicMock()
+        mock_db_module.create_session.return_value = mock_session
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+
+        depth1_rows = [_make_sim_row(50, 200, 0.9)]
+        depth2_rows_for_50 = [_make_sim_row(30, 50, 0.85)]
+
+        call_count = {"n": 0}
+        results_sequence = [depth1_rows, depth2_rows_for_50]
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            mock_filtered.all.return_value = results_sequence[call_count["n"]]
+            call_count["n"] += 1
+            return mock_filtered
+
+        mock_query.filter.side_effect = filter_side_effect
+
+        cache = CosineCache()
+        cache.warm_from_db(200)
+
+        assert cache.get(50, 200) == 0.9, "depth-1 pair where track is in id2"
+        assert cache.get(30, 50) == 0.85, "depth-2 pair via neighbor 50"
+        assert cache.size() == 2
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_depth2_expands_through_id2_neighbor(self, mock_db_module):
+        """Regression: depth-2 expansion must work when both the seed and
+        intermediate neighbors appear in the id2 column.
+
+        Graph:  track 300 -- (100, 300) -- neighbor 100 -- (80, 100) -- 80
+        Both canonical rows have the traversed node in id2.
+        """
+        mock_session = MagicMock()
+        mock_db_module.create_session.return_value = mock_session
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+
+        depth1_rows = [_make_sim_row(100, 300, 0.75)]
+        depth2_rows_for_100 = [
+            _make_sim_row(80, 100, 0.65),
+            _make_sim_row(100, 300, 0.75),
+        ]
+
+        call_count = {"n": 0}
+        results_sequence = [depth1_rows, depth2_rows_for_100]
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            mock_filtered.all.return_value = results_sequence[call_count["n"]]
+            call_count["n"] += 1
+            return mock_filtered
+
+        mock_query.filter.side_effect = filter_side_effect
+
+        cache = CosineCache()
+        cache.warm_from_db(300)
+
+        assert cache.get(100, 300) == 0.75, "depth-1 pair"
+        assert cache.get(80, 100) == 0.65, "depth-2 pair via id2 neighbor"
+        assert cache.size() == 2
 
 
 # ---------------------------------------------------------------------------

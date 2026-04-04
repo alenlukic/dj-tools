@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 const FACTOR_LABELS: Record<string, string> = {
   CAMELOT: 'Camelot',
   BPM: 'BPM',
-  SIMILARITY: 'Similarity',
+  SIMILARITY: 'Fusion',
   FRESHNESS: 'Freshness',
   ENERGY: 'Energy',
   GENRE_SIMILARITY: 'Genre',
@@ -14,10 +14,33 @@ const FACTOR_LABELS: Record<string, string> = {
   INSTRUMENT_SIMILARITY: 'Instrument',
 };
 
+export const FUSION_WEIGHT_HARMONIC = 0.30;
+export const FUSION_WEIGHT_RHYTHM = 0.25;
+export const FUSION_WEIGHT_TIMBRE = 0.30;
+export const FUSION_WEIGHT_ENERGY = 0.15;
+
+const GAUGE_ROWS: { factors: string[]; colorClass: string }[] = [
+  { factors: ['BPM', 'CAMELOT', 'GENRE_SIMILARITY'], colorClass: 'weight-gauge--crimson' },
+  {
+    factors: ['ENERGY', 'DANCEABILITY', 'MOOD_CONTINUITY', 'TIMBRE', 'INSTRUMENT_SIMILARITY', 'VOCAL_CLASH'],
+    colorClass: 'weight-gauge--teal',
+  },
+];
+
+const FUSION_CONSTITUENTS = [
+  { label: 'Harmonic', value: FUSION_WEIGHT_HARMONIC * 100 },
+  { label: 'Rhythm', value: FUSION_WEIGHT_RHYTHM * 100 },
+  { label: 'Timbre', value: FUSION_WEIGHT_TIMBRE * 100 },
+  { label: 'Energy', value: FUSION_WEIGHT_ENERGY * 100 },
+];
+
 interface GaugeProps {
   factor: string;
   value: number;
   onChange: (factor: string, value: number) => void;
+  colorClass?: string;
+  readOnly?: boolean;
+  label?: string;
 }
 
 const ARC_RADIUS = 24;
@@ -38,7 +61,7 @@ function arcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: nu
   return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
 }
 
-function WeightGauge({ factor, value, onChange }: GaugeProps) {
+function WeightGauge({ factor, value, onChange, colorClass, readOnly, label }: GaugeProps) {
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState('');
   const svgRef = useRef<SVGSVGElement>(null);
@@ -50,6 +73,7 @@ function WeightGauge({ factor, value, onChange }: GaugeProps) {
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (readOnly) return;
       const svg = svgRef.current;
       if (!svg) return;
       e.preventDefault();
@@ -75,7 +99,7 @@ function WeightGauge({ factor, value, onChange }: GaugeProps) {
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     },
-    [factor, onChange],
+    [factor, onChange, readOnly],
   );
 
   const handleInputBlur = useCallback(() => {
@@ -94,13 +118,17 @@ function WeightGauge({ factor, value, onChange }: GaugeProps) {
     [handleInputBlur],
   );
 
+  const displayLabel = label ?? FACTOR_LABELS[factor] ?? factor;
+  const gaugeClass = ['weight-gauge', colorClass].filter(Boolean).join(' ');
+
   return (
-    <div className="weight-gauge">
+    <div className={gaugeClass}>
       <svg
         ref={svgRef}
         viewBox="0 0 60 42"
         className="weight-gauge-svg"
         onPointerDown={handlePointerDown}
+        style={readOnly ? { cursor: 'default' } : undefined}
       >
         <path
           d={arcPath(cx, cy, ARC_RADIUS, START_ANGLE, END_ANGLE)}
@@ -113,13 +141,17 @@ function WeightGauge({ factor, value, onChange }: GaugeProps) {
           <path
             d={arcPath(cx, cy, ARC_RADIUS, START_ANGLE, valueAngle)}
             fill="none"
-            stroke="var(--accent)"
+            stroke="var(--gauge-accent, var(--accent))"
             strokeWidth={ARC_STROKE}
             strokeLinecap="round"
           />
         )}
       </svg>
-      {editing ? (
+      {readOnly ? (
+        <span className="weight-gauge-num" style={{ cursor: 'default' }}>
+          {Math.round(clamped)}
+        </span>
+      ) : editing ? (
         <input
           type="number"
           className="weight-gauge-input"
@@ -142,7 +174,7 @@ function WeightGauge({ factor, value, onChange }: GaugeProps) {
           {Math.round(clamped)}
         </button>
       )}
-      <span className="weight-gauge-label">{FACTOR_LABELS[factor] ?? factor}</span>
+      <span className="weight-gauge-label">{displayLabel}</span>
     </div>
   );
 }
@@ -155,6 +187,8 @@ interface Props {
   saving: boolean;
   normalizeWeights: () => void;
 }
+
+const NOOP_CHANGE = () => {};
 
 export function WeightControls({
   weights,
@@ -169,10 +203,53 @@ export function WeightControls({
 
   return (
     <div className="weight-controls-row">
-      <div className="weight-gauges">
-        {factors.map((f) => (
-          <WeightGauge key={f} factor={f} value={weights[f]} onChange={setWeight} />
-        ))}
+      <div className="gauge-rows">
+        <div className="gauge-row">
+          {GAUGE_ROWS[0].factors
+            .filter((f) => f in weights)
+            .map((f) => (
+              <WeightGauge
+                key={f}
+                factor={f}
+                value={weights[f]}
+                onChange={setWeight}
+                colorClass={GAUGE_ROWS[0].colorClass}
+              />
+            ))}
+          <div className="gauge-row-sep" />
+          {GAUGE_ROWS[1].factors
+            .filter((f) => f in weights)
+            .map((f) => (
+              <WeightGauge
+                key={f}
+                factor={f}
+                value={weights[f]}
+                onChange={setWeight}
+                colorClass={GAUGE_ROWS[1].colorClass}
+              />
+            ))}
+        </div>
+        <div className="gauge-row">
+          {factors.includes('SIMILARITY') && (
+            <WeightGauge
+              factor="SIMILARITY"
+              value={weights['SIMILARITY']}
+              onChange={setWeight}
+              colorClass="weight-gauge--violet"
+            />
+          )}
+          {FUSION_CONSTITUENTS.map((c) => (
+            <WeightGauge
+              key={c.label}
+              factor={c.label}
+              value={c.value}
+              onChange={NOOP_CHANGE}
+              colorClass="weight-gauge--white"
+              readOnly
+              label={c.label}
+            />
+          ))}
+        </div>
       </div>
       <div className="weight-actions">
         <button

@@ -565,6 +565,26 @@ body,
   color: var(--text-muted);
 }
 
+.trait-table-wrapper {
+  display: table;
+  border-spacing: 0 2px;
+  width: 100%;
+}
+
+.trait-table-wrapper .json-grid {
+  display: table-row-group;
+}
+
+.trait-table-wrapper .json-row {
+  display: table-row;
+}
+
+.trait-table-wrapper .json-key,
+.trait-table-wrapper .json-val {
+  display: table-cell;
+  padding: 1px 4px 1px 0;
+}
+
 .json-grid {
   display: flex;
   flex-direction: column;
@@ -596,13 +616,40 @@ body,
   gap: 16px;
 }
 
-.weight-gauges {
+.gauge-rows {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 6px;
   flex: 1;
   min-width: 0;
+}
+
+.gauge-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.gauge-row-sep {
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.weight-gauge--crimson {
+  --gauge-accent: #dc3545;
+}
+
+.weight-gauge--teal {
+  --gauge-accent: #20c997;
+}
+
+.weight-gauge--violet {
+  --gauge-accent: #8b5cf6;
+}
+
+.weight-gauge--white {
+  --gauge-accent: var(--text);
 }
 
 .weight-gauge {

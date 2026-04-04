@@ -113,9 +113,11 @@ class CosineCache:
     def warm_from_db(self, track_id: int) -> None:
         """BFS-warm the cache from ``track_cosine_similarity`` rows.
 
-        Depth 1: rows where ``id1 == track_id``; cache each pair.
-        Depth 2: for every depth-1 neighbor *n*, rows where ``id1 == n``;
-                 cache those pairs.
+        Depth 1: all rows incident to *track_id* (in either id1 or id2).
+        Depth 2: for every depth-1 neighbor *n*, all rows incident to *n*.
+
+        Rows are stored in canonical order (id1 < id2), so a track can
+        appear in either column; both must be checked.
 
         Creates its own DB session so it never shares a session across threads.
         """
@@ -123,19 +125,28 @@ class CosineCache:
         try:
             depth1_rows = (
                 session.query(TrackCosineSimilarity)
-                .filter_by(id1=track_id, descriptor_version=DESCRIPTOR_VERSION)
+                .filter(
+                    (TrackCosineSimilarity.id1 == track_id)
+                    | (TrackCosineSimilarity.id2 == track_id),
+                    TrackCosineSimilarity.descriptor_version == DESCRIPTOR_VERSION,
+                )
                 .all()
             )
 
             depth1_neighbors = []
             for row in depth1_rows:
                 self.put(row.id1, row.id2, row.cosine_similarity)
-                depth1_neighbors.append(row.id2)
+                neighbor_id = row.id2 if row.id1 == track_id else row.id1
+                depth1_neighbors.append(neighbor_id)
 
             for neighbor_id in depth1_neighbors:
                 depth2_rows = (
                     session.query(TrackCosineSimilarity)
-                    .filter_by(id1=neighbor_id, descriptor_version=DESCRIPTOR_VERSION)
+                    .filter(
+                        (TrackCosineSimilarity.id1 == neighbor_id)
+                        | (TrackCosineSimilarity.id2 == neighbor_id),
+                        TrackCosineSimilarity.descriptor_version == DESCRIPTOR_VERSION,
+                    )
                     .all()
                 )
                 for row in depth2_rows:
