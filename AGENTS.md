@@ -18,6 +18,7 @@ Backed by PostgreSQL via SQLAlchemy.
 | Operating principles   | [.harness/docs/core-beliefs.md](.harness/docs/core-beliefs.md) |
 | Harness knowledge base | [.harness/docs/index.md](.harness/docs/index.md)               |
 | Architecture           | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                   |
+| Workflows              | [docs/WORKFLOWS.md](docs/WORKFLOWS.md)                        |
 | Conventions            | [docs/CONVENTIONS.md](docs/CONVENTIONS.md)                     |
 | Golden principles      | [docs/golden-principles.md](docs/golden-principles.md)         |
 
@@ -78,6 +79,14 @@ Restructure, research, and PR agents:
 | PR Description Generator | [.harness/agents/pr-description-generator.md](.harness/agents/pr-description-generator.md) | Branch PR descriptions        |
 
 
+Prompt utility agents:
+
+
+| Agent             | File                                                                         | Role                                         |
+| ----------------- | ---------------------------------------------------------------------------- | -------------------------------------------- |
+| Prompt Decomposer | [.harness/agents/prompt-decomposer.md](.harness/agents/prompt-decomposer.md) | Decompose complex DEVDSL prompts into minimal child prompts |
+
+
 ## Pipeline Commands
 
 Commands live in `.harness/commands/`. In Cursor they are available as slash commands via the
@@ -93,6 +102,7 @@ Commands live in `.harness/commands/`. In Cursor they are available as slash com
 | Change summarizer    | [.harness/commands/run-change-summarizer.md](.harness/commands/run-change-summarizer.md)       | `/run-change-summarizer`    |
 | Repo research        | [.harness/commands/run-repo-research.md](.harness/commands/run-repo-research.md)               | `/run-repo-research`        |
 | Restructure pipeline | [.harness/commands/run-restructure-pipeline.md](.harness/commands/run-restructure-pipeline.md) | `/run-restructure-pipeline` |
+| Prompt decomposer    | [.harness/commands/run-prompt-decomposer.md](.harness/commands/run-prompt-decomposer.md)       | `/run-prompt-decomposer`    |
 
 
 ## Run Artifacts
@@ -160,6 +170,7 @@ Generated doc sections use explicit markers. See `.harness/docs/bootstrap-usage.
 | Document                                                                                   | Purpose                                 |
 | ------------------------------------------------------------------------------------------ | --------------------------------------- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                               | Domain map, layering, dependency rules  |
+| [docs/WORKFLOWS.md](docs/WORKFLOWS.md)                                                     | Ingestion, metadata, mixing, and UI workflows |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md)                                                 | Coding conventions and patterns         |
 | [docs/golden-principles.md](docs/golden-principles.md)                                     | Opinionated rules for agent consistency |
 | [docs/conventions/devdsl-macros.md](docs/conventions/devdsl-macros.md)                     | DEVDSL macro reference                  |

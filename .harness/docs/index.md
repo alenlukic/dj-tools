@@ -12,6 +12,14 @@ Start with [AGENTS.md](../../AGENTS.md) for the top-level map.
 | Delivery batch execution | [delivery-batch-execution.md](delivery-batch-execution.md) | MODE=multi batch execution: usage, semantics, and artifact schema |
 | Design docs | [design-docs/](design-docs/) | Harness design decisions and rationale |
 
+## Repository Documentation
+
+| Document | Description |
+|---|---|
+| [Architecture](../../docs/ARCHITECTURE.md) | Domain map, package layering, dependency rules |
+| [Workflows](../../docs/WORKFLOWS.md) | Ingestion pipeline, metadata agent, harmonic mixing, web client user flows |
+| [Conventions](../../docs/CONVENTIONS.md) | Coding conventions and patterns |
+
 ## Design Docs
 
 See [design-docs/index.md](design-docs/index.md) for the full catalog.
