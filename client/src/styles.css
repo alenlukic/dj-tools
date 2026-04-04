@@ -589,11 +589,11 @@ body,
 /* === Weight Controls === */
 .weight-controls-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
   padding: 12px 20px 8px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  gap: 16px;
 }
 
 .weight-gauges {
@@ -601,6 +601,8 @@ body,
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .weight-gauge {
@@ -617,11 +619,38 @@ body,
   touch-action: none;
 }
 
-.weight-gauge-value-text {
-  fill: var(--text);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
+.weight-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.weight-normalize-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.weight-normalize-btn:hover:not(.inactive) {
+  opacity: 0.85;
+}
+
+.weight-normalize-btn.inactive {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.4;
 }
 
 .weight-gauge-num {
@@ -670,24 +699,9 @@ body,
   white-space: nowrap;
 }
 
-.weight-status {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-  min-height: 18px;
-}
-
 .weight-saving {
   font-size: 11px;
   color: var(--text-muted);
-}
-
-.weight-warning {
-  font-size: 11px;
-  color: #e8a838;
-  max-width: 480px;
-  text-align: center;
 }
 
 /* === Admin Dashboard === */

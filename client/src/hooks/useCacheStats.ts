@@ -16,6 +16,8 @@ export function useCacheStats(enabled: boolean): CacheStatsState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const enabledRef = useRef(enabled);
+  useEffect(() => { enabledRef.current = enabled; }, [enabled]);
 
   const load = useCallback(() => {
     fetchCacheStats()
@@ -39,5 +41,10 @@ export function useCacheStats(enabled: boolean): CacheStatsState {
     };
   }, [enabled, load]);
 
-  return { stats, loading, error, refresh: load };
+  const refresh = useCallback(() => {
+    if (!enabledRef.current) return;
+    load();
+  }, [load]);
+
+  return { stats, loading, error, refresh };
 }

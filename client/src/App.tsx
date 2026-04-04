@@ -17,14 +17,26 @@ type TabKey = 'matches' | 'browse' | 'admin';
 
 export default function App() {
   const { allTracks, loading: collectionLoading } = useCollectionCache();
+
+  const [activeTab, setActiveTab] = useState<TabKey>('matches');
+  const [detailMatch, setDetailMatch] = useState<TransitionMatch | null>(null);
+
+  const {
+    stats: cacheStats,
+    loading: cacheLoading,
+    error: cacheError,
+    refresh: refreshCacheStats,
+  } = useCacheStats(activeTab === 'admin');
+
   const {
     selectedTrack,
     matches,
     matchesLoading,
     selectTrack,
-    searchQuery,
-    setSearchQuery,
-  } = useSelectedTrack();
+    clearSelectedTrack,
+    refetchMatches,
+  } = useSelectedTrack(refreshCacheStats);
+
   const {
     filters,
     filteredTracks,
@@ -34,28 +46,21 @@ export default function App() {
     setBpmMax,
   } = useTrackFilters(allTracks);
 
-  const [activeTab, setActiveTab] = useState<TabKey>('matches');
-  const [detailMatch, setDetailMatch] = useState<TransitionMatch | null>(null);
-
   const {
     weights,
     loading: weightsLoading,
     saving: weightsSaving,
     setWeight,
+    rawSum,
     isSumValid,
-    warningMessage,
-  } = useWeights();
-
-  const {
-    stats: cacheStats,
-    loading: cacheLoading,
-    error: cacheError,
-  } = useCacheStats(activeTab === 'admin');
+    normalizeWeights,
+  } = useWeights(refetchMatches);
 
   const handleSelectTrack = useCallback(
     (track: Track | SearchSuggestion) => {
       setDetailMatch(null);
       selectTrack(track);
+      setActiveTab('matches');
     },
     [selectTrack],
   );
@@ -75,15 +80,16 @@ export default function App() {
           weights={weights}
           setWeight={setWeight}
           isSumValid={isSumValid}
-          warningMessage={warningMessage}
+          rawSum={rawSum}
           saving={weightsSaving}
+          normalizeWeights={normalizeWeights}
         />
       )}
 
       <SearchPanel
-        query={searchQuery}
-        setQuery={setSearchQuery}
+        selectedTrack={selectedTrack}
         selectTrack={handleSelectTrack}
+        clearSelectedTrack={clearSelectedTrack}
       />
 
       <div className="tab-bar">
@@ -139,7 +145,7 @@ export default function App() {
               setBpmMax={setBpmMax}
             />
             <TrackTable
-              tracks={filteredTracks}
+              tracks={selectedTrack ? allTracks.filter(t => t.id === selectedTrack.id) : filteredTracks}
               loading={collectionLoading}
               selectedTrack={selectedTrack}
               selectTrack={handleBrowseSelect}

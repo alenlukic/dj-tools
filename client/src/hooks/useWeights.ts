@@ -12,15 +12,47 @@ interface WeightsState {
   rawSum: number;
   isSumValid: boolean;
   warningMessage: string | null;
+  normalizeWeights: () => void;
 }
 
-export function useWeights(): WeightsState {
+function normalizeToHundred(weights: Record<string, number>): Record<string, number> {
+  const entries = Object.entries(weights);
+  const sum = entries.reduce((s, [, v]) => s + v, 0);
+  if (sum === 0) return { ...weights };
+
+  const scaled = entries.map(([key, v]) => {
+    const ideal = (v / sum) * 100;
+    return { key, floored: Math.floor(ideal), remainder: ideal - Math.floor(ideal) };
+  });
+
+  let remaining = 100 - scaled.reduce((s, e) => s + e.floored, 0);
+  const sorted = [...scaled].sort(
+    (a, b) => b.remainder - a.remainder || a.key.localeCompare(b.key),
+  );
+
+  const result: Record<string, number> = {};
+  for (const entry of scaled) {
+    result[entry.key] = entry.floored;
+  }
+  for (const entry of sorted) {
+    if (remaining <= 0) break;
+    result[entry.key]++;
+    remaining--;
+  }
+  return result;
+}
+
+export function useWeights(onSaveSuccess?: () => void): WeightsState {
   const [weights, setWeights] = useState<Record<string, number>>({});
   const [serverState, setServerState] = useState<WeightsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSaveSuccessRef = useRef(onSaveSuccess);
+  useEffect(() => {
+    onSaveSuccessRef.current = onSaveSuccess;
+  }, [onSaveSuccess]);
 
   useEffect(() => {
     fetchWeights()
@@ -43,6 +75,7 @@ export function useWeights(): WeightsState {
         .then((data) => {
           setServerState(data);
           setError(null);
+          onSaveSuccessRef.current?.();
         })
         .catch((err) => {
           setError(err instanceof Error ? err.message : 'Failed to save weights');
@@ -68,6 +101,12 @@ export function useWeights(): WeightsState {
     serverState && !serverState.is_sum_valid ? serverState.message : null;
   const displayWarning = isSumValid ? null : (warningMessage ?? `Weights sum to ${parseFloat(rawSum.toFixed(1))}; target is 100`);
 
+  const normalizeWeights = useCallback(() => {
+    const normalized = normalizeToHundred(weights);
+    setWeights(normalized);
+    persistWeights(normalized);
+  }, [weights, persistWeights]);
+
   return {
     weights,
     serverState,
@@ -78,5 +117,6 @@ export function useWeights(): WeightsState {
     rawSum,
     isSumValid,
     warningMessage: displayWarning,
+    normalizeWeights,
   };
 }

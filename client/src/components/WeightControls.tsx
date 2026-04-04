@@ -118,15 +118,6 @@ function WeightGauge({ factor, value, onChange }: GaugeProps) {
             strokeLinecap="round"
           />
         )}
-        <text
-          x={cx}
-          y={cy - 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="weight-gauge-value-text"
-        >
-          {Math.round(clamped)}
-        </text>
       </svg>
       {editing ? (
         <input
@@ -160,16 +151,18 @@ interface Props {
   weights: Record<string, number>;
   setWeight: (factor: string, value: number) => void;
   isSumValid: boolean;
-  warningMessage: string | null;
+  rawSum: number;
   saving: boolean;
+  normalizeWeights: () => void;
 }
 
 export function WeightControls({
   weights,
   setWeight,
   isSumValid,
-  warningMessage,
+  rawSum,
   saving,
+  normalizeWeights,
 }: Props) {
   const factors = Object.keys(weights);
   if (factors.length === 0) return null;
@@ -181,11 +174,15 @@ export function WeightControls({
           <WeightGauge key={f} factor={f} value={weights[f]} onChange={setWeight} />
         ))}
       </div>
-      <div className="weight-status">
+      <div className="weight-actions">
+        <button
+          className={`weight-normalize-btn${isSumValid ? ' inactive' : ''}`}
+          disabled={isSumValid}
+          onClick={normalizeWeights}
+        >
+          Normalize{!isSumValid && ` (${parseFloat(rawSum.toFixed(1))})`}
+        </button>
         {saving && <span className="weight-saving">Saving…</span>}
-        {!isSumValid && warningMessage && (
-          <span className="weight-warning">{warningMessage}</span>
-        )}
       </div>
     </div>
   );

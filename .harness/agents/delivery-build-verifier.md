@@ -30,12 +30,15 @@ Optional:
 
 1. Confirm required verification commands were run.
 2. Read failures, if any.
-3. Decide whether build status is:
-   - PASS
-   - FAIL
-   - CONDITIONAL
+3. Check whether mandatory live-stack QA gates (`.harness/rules/30-live-qa-gates.mdc`) were verified.
+4. Decide whether build status is:
+   - PASS — all verification passed including live-stack gates
+   - FAIL — any verification failed or live-stack gates not verified
+   - CONDITIONAL — only when the unverified aspect is cosmetic/non-functional AND all live-stack gates were independently verified
 
-4. Write `BUILD_VERIFICATION.md`.
+   CONDITIONAL is NOT acceptable if live-stack gates have not been verified.
+
+5. Write `BUILD_VERIFICATION.md`.
 
 ## OUTPUT
 

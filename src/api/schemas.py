@@ -6,13 +6,13 @@ from pydantic import BaseModel, Field
 class TrackResponse(BaseModel):
     id: int
     title: str
-    artist_names: List[str]
-    bpm: Optional[float]
-    key: Optional[str]
-    camelot_code: Optional[str]
-    genre: Optional[str]
-    label: Optional[str]
-    energy: Optional[int]
+    artist_names: List[str] = Field(default_factory=list)
+    bpm: Optional[float] = None
+    key: Optional[str] = None
+    camelot_code: Optional[str] = None
+    genre: Optional[str] = None
+    label: Optional[str] = None
+    energy: Optional[int] = None
 
 
 class SearchSuggestion(BaseModel):

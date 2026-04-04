@@ -10,16 +10,11 @@ from src.feature_extraction.trait_extractor import (
 )
 
 
-def serialize_track_row(track, artist_names_str):
-    """Convert a (Track, artist_names_agg) query row to a response dict."""
-    names = []
-    if artist_names_str:
-        names = [n.strip() for n in artist_names_str.split(",") if n.strip()]
-
+def serialize_track_row(track):
+    """Convert a Track ORM instance to a response dict."""
     return {
         "id": track.id,
         "title": track.title,
-        "artist_names": names,
         "bpm": float(track.bpm) if track.bpm is not None else None,
         "key": track.key,
         "camelot_code": track.camelot_code,

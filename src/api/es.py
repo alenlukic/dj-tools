@@ -11,7 +11,7 @@ from elasticsearch import Elasticsearch, helpers
 logger = logging.getLogger(__name__)
 
 INDEX_NAME = os.getenv("ES_TRACK_INDEX", "dj_tracks")
-ES_URL = os.getenv("ES_URL", "http://localhost:9200")
+ES_URL = os.getenv("ES_URL", "http://127.0.0.1:9200")
 
 INDEX_SETTINGS = {
     "settings": {
@@ -66,8 +66,14 @@ TITLE_BOOST = 5.0
 ARTIST_BOOST = 2.0
 
 
+_client: Optional[Elasticsearch] = None
+
+
 def get_client() -> Elasticsearch:
-    return Elasticsearch(ES_URL)
+    global _client
+    if _client is None:
+        _client = Elasticsearch(ES_URL)
+    return _client
 
 
 def ensure_index(client: Optional[Elasticsearch] = None) -> None:

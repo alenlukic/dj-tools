@@ -32,6 +32,14 @@ Additional evidence as needed:
 - implementation notes, if present
 - repo-local run instructions, if discoverable
 
+## MANDATORY LIVE-STACK GATES
+
+Read and enforce `.harness/rules/30-live-qa-gates.mdc` before issuing any verdict.
+
+These gates are non-negotiable. If any fail, verdict is FAIL regardless of
+how clean the diff, tests, or code look. If the live stack cannot be started,
+verdict is FAIL — not CONDITIONAL, not PASS.
+
 ## SCOPE
 
 Validate requirement satisfaction only.
@@ -57,23 +65,22 @@ Do not:
 - inspect `TEST_REPORT.json`
 - inspect touched files only as needed to validate requirements
 
-3. Perform manual validation (when feasible)
+3. Perform manual validation (REQUIRED — not optional)
 
-3.1 Identify execution path
-- determine how to run the application or relevant subsystem
-- identify:
-  - local dev server command
-  - scripts (e.g. `npm run dev`, `yarn start`, `make run`, etc.)
-  - test endpoints or UI entry points
-- if no clear run path is discoverable, explicitly record this
+3.1 Start the live stack
+- run `bash src/scripts/start_web.sh` or equivalent
+- wait for all services (API, Elasticsearch, client) to report ready
+- if the stack cannot be started, verdict is FAIL — not CONDITIONAL
 
-3.2 Execute and observe behavior
-- run the app or relevant components locally when possible
-- exercise flows directly tied to the task
-- validate:
-  - expected user-visible behavior (UI, CLI, API responses)
-  - absence of obvious runtime errors
-  - integration between modified components
+3.2 Execute and observe behavior against live stack
+- exercise the core flows against the live running services:
+  - search query via search bar / GET /api/search (must return results, not 503)
+  - track selection and match loading (must return matches, not 404/500)
+  - cache population (verify via Admin tab or GET /api/admin/cache-stats)
+  - weight fetch/update if applicable
+- check server logs for any 4XX/5XX during these operations
+- verify response latency is within 500ms for search and filter changes
+- any API error during normal operations is a QA FAIL
 
 3.3 Perform UI inspection (if applicable)
 - visually inspect UI changes for:
@@ -94,7 +101,8 @@ Do not:
 - if manual validation is partial or blocked:
   - state exactly what could not be verified
   - explain why (missing scripts, env, data, etc.)
-  - treat this as QA-relevant uncertainty
+  - if any mandatory live-stack gate could not be verified, verdict is FAIL
+  - "could not test" is never grounds for PASS or CONDITIONAL on gated criteria
 
 4. Evaluate requirement satisfaction
 - map each requirement to evidence from:
@@ -110,11 +118,14 @@ Do not:
 5. Produce QA result
 - return `PASS` only when:
   - requirements are satisfied with sufficient evidence
+  - ALL mandatory live-stack gates passed (see .harness/rules/30-live-qa-gates.mdc)
   - no critical gaps remain from missing manual validation
 - return `FAIL` when:
   - a requirement is not met
   - evidence is insufficient
   - manual validation reveals incorrect behavior
+  - any mandatory live-stack gate failed or could not be verified
+  - the live stack could not be started
   - or validation could not be completed with sufficient confidence
 - when failing, include actionable kickback guidance
 

@@ -63,6 +63,14 @@ class TransitionMatch:
         cls._on_deck_trait_cache.clear()
         cls._candidate_trait_cache.clear()
 
+    def _safe_rollback(self):
+        """Roll back the shared session to clear PendingRollbackError state."""
+        if self.db_session is not None:
+            try:
+                self.db_session.rollback()
+            except Exception:
+                pass
+
     def __init__(self, metadata, cur_track_md, camelot_priority):
         self.metadata = metadata
         self.cur_track_md = cur_track_md
@@ -247,25 +255,31 @@ class TransitionMatch:
             )
             return row.cosine_similarity if row is not None else None
         except Exception:
+            self._safe_rollback()
             logger.debug("DB similarity lookup failed for (%s, %s)", lo, hi)
             return None
 
-    def _compute_similarity(self, on_deck_id: int, candidate_id: int) -> float:
-        if on_deck_id not in TransitionMatch._on_deck_descriptor_cache:
-            TransitionMatch._on_deck_descriptor_cache[on_deck_id] = (
-                self.db_session.query(TrackDescriptor)
-                .filter_by(track_id=on_deck_id, descriptor_version=DESCRIPTOR_VERSION)
-                .first()
-            )
-        on_deck_desc = TransitionMatch._on_deck_descriptor_cache[on_deck_id]
+    def _compute_similarity(self, on_deck_id: int, candidate_id: int):
+        try:
+            if on_deck_id not in TransitionMatch._on_deck_descriptor_cache:
+                TransitionMatch._on_deck_descriptor_cache[on_deck_id] = (
+                    self.db_session.query(TrackDescriptor)
+                    .filter_by(track_id=on_deck_id, descriptor_version=DESCRIPTOR_VERSION)
+                    .first()
+                )
+            on_deck_desc = TransitionMatch._on_deck_descriptor_cache[on_deck_id]
 
-        if candidate_id not in TransitionMatch._candidate_descriptor_cache:
-            TransitionMatch._candidate_descriptor_cache[candidate_id] = (
-                self.db_session.query(TrackDescriptor)
-                .filter_by(track_id=candidate_id, descriptor_version=DESCRIPTOR_VERSION)
-                .first()
-            )
-        candidate_desc = TransitionMatch._candidate_descriptor_cache[candidate_id]
+            if candidate_id not in TransitionMatch._candidate_descriptor_cache:
+                TransitionMatch._candidate_descriptor_cache[candidate_id] = (
+                    self.db_session.query(TrackDescriptor)
+                    .filter_by(track_id=candidate_id, descriptor_version=DESCRIPTOR_VERSION)
+                    .first()
+                )
+            candidate_desc = TransitionMatch._candidate_descriptor_cache[candidate_id]
+        except Exception:
+            self._safe_rollback()
+            logger.debug("DB descriptor lookup failed for (%s, %s)", on_deck_id, candidate_id)
+            return None
 
         if on_deck_desc is not None and candidate_desc is not None:
             v1 = unpack_vector(on_deck_desc.global_vector)
@@ -309,21 +323,31 @@ class TransitionMatch:
     def _get_on_deck_trait(self):
         on_deck_id = self.cur_track_md.get(TrackDBCols.ID)
         if on_deck_id not in TransitionMatch._on_deck_trait_cache:
-            TransitionMatch._on_deck_trait_cache[on_deck_id] = (
-                self.db_session.query(TrackTrait)
-                .filter_by(track_id=on_deck_id, trait_version=TRAIT_VERSION)
-                .first()
-            )
+            try:
+                TransitionMatch._on_deck_trait_cache[on_deck_id] = (
+                    self.db_session.query(TrackTrait)
+                    .filter_by(track_id=on_deck_id, trait_version=TRAIT_VERSION)
+                    .first()
+                )
+            except Exception:
+                self._safe_rollback()
+                logger.debug("DB trait lookup failed for on_deck=%s", on_deck_id)
+                return None
         return TransitionMatch._on_deck_trait_cache[on_deck_id]
 
     def _get_candidate_trait(self):
         candidate_id = self.metadata.get(TrackDBCols.ID)
         if candidate_id not in TransitionMatch._candidate_trait_cache:
-            TransitionMatch._candidate_trait_cache[candidate_id] = (
-                self.db_session.query(TrackTrait)
-                .filter_by(track_id=candidate_id, trait_version=TRAIT_VERSION)
-                .first()
-            )
+            try:
+                TransitionMatch._candidate_trait_cache[candidate_id] = (
+                    self.db_session.query(TrackTrait)
+                    .filter_by(track_id=candidate_id, trait_version=TRAIT_VERSION)
+                    .first()
+                )
+            except Exception:
+                self._safe_rollback()
+                logger.debug("DB trait lookup failed for candidate=%s", candidate_id)
+                return None
         return TransitionMatch._candidate_trait_cache[candidate_id]
 
     # ------------------------------------------------------------------ #

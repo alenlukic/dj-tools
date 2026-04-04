@@ -40,8 +40,9 @@ def _get_session():
 def _get_match_finder():
     global _match_finder
     if _match_finder is None:
+        from src.harmonic_mixing.cosine_cache import CosineCache
         from src.harmonic_mixing.transition_match_finder import TransitionMatchFinder
-        _match_finder = TransitionMatchFinder()
+        _match_finder = TransitionMatchFinder(cosine_cache=CosineCache())
     return _match_finder
 
 
@@ -89,7 +90,13 @@ def api_tracks(
             bpm_min=bpm_min,
             bpm_max=bpm_max,
         )
-        return [serialize_track_row(track, names) for track, names in rows]
+        return [serialize_track_row(track) for track in rows]
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        logger.exception("Track listing failed")
+        raise HTTPException(status_code=500, detail="Track listing failed")
     finally:
         session.close()
 
@@ -111,6 +118,12 @@ def api_matches(track_id: int):
 
         (same_key, higher_key, lower_key), _ = result
         return serialize_matches(same_key, higher_key, lower_key)
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        logger.exception("Match retrieval failed for track_id=%s", track_id)
+        raise HTTPException(status_code=500, detail="Match retrieval failed")
     finally:
         session.close()
 
@@ -188,6 +201,12 @@ def api_match_detail(track_id: int, candidate_id: int):
             "on_deck": serialize_match_detail_track(source_track, source_trait),
             "candidate": serialize_match_detail_track(candidate_track, candidate_trait),
         }
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        logger.exception("Match detail failed for track_id=%s, candidate_id=%s", track_id, candidate_id)
+        raise HTTPException(status_code=500, detail="Match detail retrieval failed")
     finally:
         session.close()
 
@@ -276,6 +295,10 @@ def _build_cache_distributions(cache):
                 })
 
         return key_dist, bpm_dist
+    except Exception:
+        session.rollback()
+        logger.exception("Cache distribution query failed")
+        return [], []
     finally:
         session.close()
 
