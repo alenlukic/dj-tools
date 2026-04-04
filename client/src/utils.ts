@@ -14,7 +14,17 @@ export function cleanTitle(title: string): string {
 
 export function formatFloat(value: number | null | undefined): string {
   if (value == null) return '—';
-  return value.toFixed(2);
+  return parseFloat(value.toFixed(2)).toString();
+}
+
+/**
+ * Format a 0–1 factor score for display on a 0–100 scale.
+ * Up to 2 decimal places, trailing zeroes suppressed, no percent sign.
+ */
+export function formatScore(value: number | null | undefined): string {
+  if (value == null) return '—';
+  const scaled = value * 100;
+  return parseFloat(scaled.toFixed(2)).toString();
 }
 
 export function displayGenre(genre: string | null | undefined): string | null {

@@ -22,47 +22,46 @@ export function SearchPanel({ query, setQuery, selectTrack }: Props) {
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const userTypedRef = useRef(false);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      userTypedRef.current = true;
-      setQuery(e.target.value);
+      const newQuery = e.target.value;
+      setQuery(newQuery);
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      const trimmed = newQuery.trim();
+      if (!trimmed) {
+        setSuggestions([]);
+        setOpen(false);
+        return;
+      }
+
+      const cached = searchCache.get(trimmed);
+      if (cached) {
+        setSuggestions(cached);
+        setOpen(cached.length > 0);
+        setActiveIdx(-1);
+        return;
+      }
+
+      debounceRef.current = setTimeout(() => {
+        searchTracks(newQuery).then((results) => {
+          searchCache.set(trimmed, results);
+          setSuggestions(results);
+          setOpen(results.length > 0);
+          setActiveIdx(-1);
+        });
+      }, 200);
     },
     [setQuery],
   );
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (!userTypedRef.current) return;
-    userTypedRef.current = false;
-
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
-
-    const cached = searchCache.get(trimmed);
-    if (cached) {
-      setSuggestions(cached);
-      setOpen(cached.length > 0);
-      setActiveIdx(-1);
-      return;
-    }
-
-    debounceRef.current = setTimeout(() => {
-      searchTracks(query).then((results) => {
-        searchCache.set(trimmed, results);
-        setSuggestions(results);
-        setOpen(results.length > 0);
-        setActiveIdx(-1);
-      });
-    }, 200);
-    return () => clearTimeout(debounceRef.current ?? undefined);
-  }, [query]);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

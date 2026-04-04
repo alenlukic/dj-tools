@@ -1,15 +1,19 @@
 """API route definitions."""
 
 import logging
+from collections import Counter
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 from src.api.schemas import (
+    CacheStatsResponse,
     MatchDetailResponse,
     SearchSuggestion,
     TrackResponse,
     TransitionMatchResponse,
+    WeightResponse,
+    WeightUpdateRequest,
 )
 from src.api.queries import get_tracks
 from src.api.serializers import (
@@ -24,6 +28,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
 _match_finder = None
+
+_BPM_BIN_WIDTH = 5
 
 
 def _get_session():
@@ -118,6 +124,7 @@ def api_match_detail(track_id: int, candidate_id: int):
     from src.models.track_trait import TrackTrait
     from src.feature_extraction.config import TRAIT_VERSION
     from src.harmonic_mixing.config import MATCH_WEIGHTS, MatchFactors
+    from src.harmonic_mixing.weight_service import WeightService
 
     session = _get_session()
     try:
@@ -149,9 +156,14 @@ def api_match_detail(track_id: int, candidate_id: int):
 
         target_match.get_score()
 
+        try:
+            active_weights = WeightService.instance().get_effective_weights_for_scoring()
+        except Exception:
+            active_weights = MATCH_WEIGHTS
+
         factors = []
         for factor in MatchFactors:
-            weight = MATCH_WEIGHTS.get(factor.name, 0)
+            weight = active_weights.get(factor.name, 0)
             score = target_match.factors.get(factor, 0)
             factors.append({
                 "name": factor.value,
@@ -178,3 +190,111 @@ def api_match_detail(track_id: int, candidate_id: int):
         }
     finally:
         session.close()
+
+
+# ---------------------------------------------------------------------------
+# Admin / cache stats
+# ---------------------------------------------------------------------------
+
+
+@router.get("/admin/cache-stats", response_model=CacheStatsResponse)
+def api_cache_stats():
+    finder = _get_match_finder()
+    cache = finder.cosine_cache
+    if cache is None:
+        return CacheStatsResponse(
+            used=0, capacity=0, usage_ratio=0.0,
+            hits=0, misses=0, hit_rate=0.0,
+            hit_rate_numerator=0, hit_rate_denominator=0,
+            hit_rate_basis="process_lifetime",
+            key_distribution=[], bpm_distribution=[],
+            recent_entries=[], recent_exits=[],
+        )
+
+    stats = cache.get_stats()
+
+    key_dist, bpm_dist = _build_cache_distributions(cache)
+
+    return CacheStatsResponse(
+        **{k: v for k, v in stats.items()
+           if k not in ("recent_entries", "recent_exits")},
+        key_distribution=key_dist,
+        bpm_distribution=bpm_dist,
+        recent_entries=[
+            {"pair": list(e["pair"]), "timestamp": e["timestamp"]}
+            for e in stats["recent_entries"]
+        ],
+        recent_exits=[
+            {"pair": list(e["pair"]), "timestamp": e["timestamp"],
+             "reason": e.get("reason")}
+            for e in stats["recent_exits"]
+        ],
+    )
+
+
+def _build_cache_distributions(cache):
+    from src.models.track import Track
+
+    track_ids = cache.get_cached_track_ids()
+    if not track_ids:
+        return [], []
+
+    session = _get_session()
+    try:
+        rows = (
+            session.query(Track)
+            .filter(Track.id.in_(track_ids))
+            .all()
+        )
+
+        key_counter: Counter = Counter()
+        bpms: list = []
+        for row in rows:
+            if row.camelot_code:
+                key_counter[row.camelot_code] += 1
+            if row.bpm is not None:
+                bpms.append(float(row.bpm))
+
+        key_dist = [
+            {"key": k, "count": c}
+            for k, c in key_counter.most_common()
+        ]
+
+        bpm_dist = []
+        if bpms:
+            min_bpm = int(min(bpms) // _BPM_BIN_WIDTH) * _BPM_BIN_WIDTH
+            max_bpm = int(max(bpms) // _BPM_BIN_WIDTH) * _BPM_BIN_WIDTH + _BPM_BIN_WIDTH
+            bins: Counter = Counter()
+            for b in bpms:
+                bin_start = int(b // _BPM_BIN_WIDTH) * _BPM_BIN_WIDTH
+                bins[bin_start] += 1
+            for b in range(min_bpm, max_bpm + 1, _BPM_BIN_WIDTH):
+                bpm_dist.append({
+                    "bin_start": float(b),
+                    "bin_end": float(b + _BPM_BIN_WIDTH),
+                    "count": bins.get(b, 0),
+                })
+
+        return key_dist, bpm_dist
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# Weight controls
+# ---------------------------------------------------------------------------
+
+
+@router.get("/weights", response_model=WeightResponse)
+def api_get_weights():
+    from src.harmonic_mixing.weight_service import WeightService
+    return WeightService.instance().get_weights()
+
+
+@router.put("/weights", response_model=WeightResponse)
+def api_update_weights(body: WeightUpdateRequest):
+    from src.harmonic_mixing.weight_service import WeightService
+    result = WeightService.instance().update_weights(body.weights)
+    finder = _get_match_finder()
+    finder._sync_effective_weights()
+    return result

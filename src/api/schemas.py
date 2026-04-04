@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TrackResponse(BaseModel):
@@ -65,3 +65,67 @@ class MatchDetailResponse(BaseModel):
     factors: List[MatchDetailFactorScore]
     on_deck: MatchDetailTrackInfo
     candidate: MatchDetailTrackInfo
+
+
+# ---------------------------------------------------------------------------
+# Admin / cache stats
+# ---------------------------------------------------------------------------
+
+
+class CacheEventEntry(BaseModel):
+    pair: List[int]
+    timestamp: float
+
+
+class CacheExitEntry(BaseModel):
+    pair: List[int]
+    timestamp: float
+    reason: Optional[str] = None
+
+
+class KeyDistributionEntry(BaseModel):
+    key: str
+    count: int
+
+
+class BpmBinEntry(BaseModel):
+    bin_start: float
+    bin_end: float
+    count: int
+
+
+class CacheStatsResponse(BaseModel):
+    used: int
+    capacity: int
+    usage_ratio: float
+    hits: int
+    misses: int
+    hit_rate: float
+    hit_rate_numerator: int
+    hit_rate_denominator: int
+    hit_rate_basis: str
+    key_distribution: List[KeyDistributionEntry]
+    bpm_distribution: List[BpmBinEntry]
+    recent_entries: List[CacheEventEntry]
+    recent_exits: List[CacheExitEntry]
+
+
+# ---------------------------------------------------------------------------
+# Weight controls
+# ---------------------------------------------------------------------------
+
+
+class WeightResponse(BaseModel):
+    raw_weights: Dict[str, float]
+    effective_weights: Dict[str, float]
+    raw_sum: float
+    target_sum: float = Field(default=100)
+    is_sum_valid: bool
+    message: Optional[str] = None
+
+
+class WeightUpdateRequest(BaseModel):
+    weights: Dict[str, float] = Field(
+        ...,
+        description="Factor name → value on 0-100 scale",
+    )

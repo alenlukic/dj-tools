@@ -1,6 +1,9 @@
+import logging
+
 import numpy as np
 
 from src.models.track_descriptor import TrackDescriptor
+from src.models.track_cosine_similarity import TrackCosineSimilarity
 from src.models.track_trait import TrackTrait
 from src.data_management.config import TrackDBCols
 from src.feature_extraction.config import DESCRIPTOR_VERSION, TRAIT_VERSION
@@ -23,6 +26,8 @@ from src.harmonic_mixing.config import (
 )
 from src.feature_extraction.compact_descriptor import compute_similarity, unpack_vector
 
+logger = logging.getLogger(__name__)
+
 
 def jsonb_cosine_similarity(d1: dict, d2: dict) -> float:
     """Cosine similarity between two sparse {label: probability} dicts."""
@@ -43,6 +48,7 @@ class TransitionMatch:
     collection_metadata = None
     db_session = None
     cosine_cache = None
+    effective_weights = None
     _on_deck_descriptor_cache = {}
     _candidate_descriptor_cache = {}
     _on_deck_trait_cache = {}
@@ -73,48 +79,22 @@ class TransitionMatch:
 
     def get_score(self):
         if self.score is None:
+            weights = TransitionMatch.effective_weights or MATCH_WEIGHTS
             score_weights = [
-                (
-                    self.get_camelot_priority_score(),
-                    MATCH_WEIGHTS[MatchFactors.CAMELOT.name],
-                ),
-                (self.get_bpm_score(), MATCH_WEIGHTS[MatchFactors.BPM.name]),
-                (
-                    self.get_similarity_score(),
-                    MATCH_WEIGHTS[MatchFactors.SIMILARITY.name],
-                ),
-                (
-                    self.get_freshness_score(),
-                    MATCH_WEIGHTS[MatchFactors.FRESHNESS.name],
-                ),
-                (self.get_energy_score(), MATCH_WEIGHTS[MatchFactors.ENERGY.name]),
-                (
-                    self.get_genre_similarity_score(),
-                    MATCH_WEIGHTS[MatchFactors.GENRE_SIMILARITY.name],
-                ),
-                (
-                    self.get_mood_continuity_score(),
-                    MATCH_WEIGHTS[MatchFactors.MOOD_CONTINUITY.name],
-                ),
-                (
-                    self.get_vocal_clash_score(),
-                    MATCH_WEIGHTS[MatchFactors.VOCAL_CLASH.name],
-                ),
-                (
-                    self.get_danceability_score(),
-                    MATCH_WEIGHTS[MatchFactors.DANCEABILITY.name],
-                ),
-                (
-                    self.get_timbre_score(),
-                    MATCH_WEIGHTS[MatchFactors.TIMBRE.name],
-                ),
-                (
-                    self.get_instrument_similarity_score(),
-                    MATCH_WEIGHTS[MatchFactors.INSTRUMENT_SIMILARITY.name],
-                ),
+                (self.get_camelot_priority_score(), weights[MatchFactors.CAMELOT.name]),
+                (self.get_bpm_score(), weights[MatchFactors.BPM.name]),
+                (self.get_similarity_score(), weights[MatchFactors.SIMILARITY.name]),
+                (self.get_freshness_score(), weights[MatchFactors.FRESHNESS.name]),
+                (self.get_energy_score(), weights[MatchFactors.ENERGY.name]),
+                (self.get_genre_similarity_score(), weights[MatchFactors.GENRE_SIMILARITY.name]),
+                (self.get_mood_continuity_score(), weights[MatchFactors.MOOD_CONTINUITY.name]),
+                (self.get_vocal_clash_score(), weights[MatchFactors.VOCAL_CLASH.name]),
+                (self.get_danceability_score(), weights[MatchFactors.DANCEABILITY.name]),
+                (self.get_timbre_score(), weights[MatchFactors.TIMBRE.name]),
+                (self.get_instrument_similarity_score(), weights[MatchFactors.INSTRUMENT_SIMILARITY.name]),
             ]
             self.score = 100 * sum(
-                [score * weight for score, weight in score_weights]
+                score * weight for score, weight in score_weights
             )
 
         return self.score
@@ -228,12 +208,49 @@ class TransitionMatch:
         on_deck_id = self.cur_track_md.get(TrackDBCols.ID)
         candidate_id = self.metadata.get(TrackDBCols.ID)
 
+        # 1) In-memory cache check
         if TransitionMatch.cosine_cache is not None:
             cached = TransitionMatch.cosine_cache.get(on_deck_id, candidate_id)
             if cached is not None:
                 self.factors[MatchFactors.SIMILARITY] = cached
                 return cached
 
+        # 2) Persisted DB check (canonical pair ordering)
+        db_result = self._lookup_persisted_similarity(on_deck_id, candidate_id)
+        if db_result is not None:
+            if TransitionMatch.cosine_cache is not None:
+                TransitionMatch.cosine_cache.put(on_deck_id, candidate_id, db_result)
+            self.factors[MatchFactors.SIMILARITY] = db_result
+            return db_result
+
+        # 3) Compute from descriptors (None when descriptors are absent)
+        computed = self._compute_similarity(on_deck_id, candidate_id)
+
+        if computed is not None:
+            self._persist_similarity(on_deck_id, candidate_id, computed)
+            if TransitionMatch.cosine_cache is not None:
+                TransitionMatch.cosine_cache.put(on_deck_id, candidate_id, computed)
+
+        result = computed if computed is not None else 0.0
+        self.factors[MatchFactors.SIMILARITY] = result
+        return result
+
+    def _lookup_persisted_similarity(self, id1: int, id2: int):
+        if self.db_session is None:
+            return None
+        lo, hi = min(id1, id2), max(id1, id2)
+        try:
+            row = (
+                self.db_session.query(TrackCosineSimilarity)
+                .filter_by(id1=lo, id2=hi, descriptor_version=DESCRIPTOR_VERSION)
+                .first()
+            )
+            return row.cosine_similarity if row is not None else None
+        except Exception:
+            logger.debug("DB similarity lookup failed for (%s, %s)", lo, hi)
+            return None
+
+    def _compute_similarity(self, on_deck_id: int, candidate_id: int) -> float:
         if on_deck_id not in TransitionMatch._on_deck_descriptor_cache:
             TransitionMatch._on_deck_descriptor_cache[on_deck_id] = (
                 self.db_session.query(TrackDescriptor)
@@ -253,15 +270,37 @@ class TransitionMatch:
         if on_deck_desc is not None and candidate_desc is not None:
             v1 = unpack_vector(on_deck_desc.global_vector)
             v2 = unpack_vector(candidate_desc.global_vector)
-            result = compute_similarity(v1, v2)
-        else:
-            result = 0.0
+            return compute_similarity(v1, v2)
+        return None
 
-        if TransitionMatch.cosine_cache is not None:
-            TransitionMatch.cosine_cache.put(on_deck_id, candidate_id, result)
-
-        self.factors[MatchFactors.SIMILARITY] = result
-        return result
+    @staticmethod
+    def _persist_similarity(id1: int, id2: int, value: float) -> None:
+        lo, hi = min(id1, id2), max(id1, id2)
+        try:
+            from src.db import database
+            session = database.create_session()
+            try:
+                existing = (
+                    session.query(TrackCosineSimilarity)
+                    .filter_by(id1=lo, id2=hi, descriptor_version=DESCRIPTOR_VERSION)
+                    .first()
+                )
+                if existing is None:
+                    row = TrackCosineSimilarity(
+                        id1=lo,
+                        id2=hi,
+                        cosine_similarity=value,
+                        descriptor_version=DESCRIPTOR_VERSION,
+                    )
+                    session.add(row)
+                    session.commit()
+            except Exception:
+                session.rollback()
+                logger.debug("Duplicate-safe persist skipped for (%s, %s)", lo, hi)
+            finally:
+                session.close()
+        except Exception:
+            logger.debug("Failed to persist similarity for (%s, %s)", lo, hi)
 
     # ------------------------------------------------------------------ #
     # TrackTrait cache helper                                              #

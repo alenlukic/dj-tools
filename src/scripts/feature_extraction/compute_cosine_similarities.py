@@ -37,7 +37,7 @@ from src.models.track import Track  # noqa: E402
 from src.models.track_descriptor import TrackDescriptor  # noqa: E402
 from src.models.track_cosine_similarity import TrackCosineSimilarity  # noqa: E402
 from src.feature_extraction.config import COSINE_WORKERS, DESCRIPTOR_VERSION  # noqa: E402
-from src.feature_extraction.compact_descriptor import cosine_similarity, unpack_vector  # noqa: E402
+from src.feature_extraction.compact_descriptor import unpack_vector  # noqa: E402
 from src.feature_extraction.track_similarity import ScorerName, compute_similarity  # noqa: E402
 from src.harmonic_mixing.transition_match_finder import TransitionMatchFinder  # noqa: E402
 from src.data_management.config import TrackDBCols  # noqa: E402

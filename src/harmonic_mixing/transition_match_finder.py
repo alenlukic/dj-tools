@@ -1,3 +1,5 @@
+import logging
+
 from src.db import database
 from src.models.track import Track
 from src.assistant.config import DASHED_LINE
@@ -23,6 +25,8 @@ from src.harmonic_mixing.utils import (
     get_bpm_bound,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class TransitionMatchFinder:
     """Encapsulates functionality for finding transition matches."""
@@ -44,6 +48,7 @@ class TransitionMatchFinder:
         TransitionMatch.db_session = self.session
         TransitionMatch.collection_metadata = self.collection_metadata
         TransitionMatch.cosine_cache = self.cosine_cache
+        self._sync_effective_weights()
 
     def reload_track_data(self):
         MappingRegistry.load(self.session)
@@ -51,6 +56,17 @@ class TransitionMatchFinder:
         self.camelot_map, self.collection_metadata = generate_camelot_map(self.tracks)
         TransitionMatch.collection_metadata = self.collection_metadata
         TransitionMatch.clear_descriptor_caches()
+        self._sync_effective_weights()
+
+    @staticmethod
+    def _sync_effective_weights():
+        try:
+            from src.harmonic_mixing.weight_service import WeightService
+            TransitionMatch.effective_weights = (
+                WeightService.instance().get_effective_weights_for_scoring()
+            )
+        except Exception:
+            logger.warning("Failed to sync effective weights from WeightService", exc_info=True)
 
     def get_transition_matches(self, track, sort_results=True):
         TransitionMatch.clear_descriptor_caches()

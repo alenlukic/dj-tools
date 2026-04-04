@@ -61,3 +61,50 @@ export interface MatchDetail {
   on_deck: MatchDetailTrackInfo;
   candidate: MatchDetailTrackInfo;
 }
+
+export interface KeyDistEntry {
+  key: string;
+  count: number;
+}
+
+export interface BpmDistEntry {
+  bin_start: number;
+  bin_end: number;
+  count: number;
+}
+
+export interface CacheEntry {
+  pair: [number, number];
+  timestamp: number;
+}
+
+export interface CacheExit {
+  pair: [number, number];
+  timestamp: number;
+  reason: string;
+}
+
+export interface CacheStats {
+  used: number;
+  capacity: number;
+  usage_ratio: number;
+  hits: number;
+  misses: number;
+  hit_rate: number;
+  hit_rate_numerator: number;
+  hit_rate_denominator: number;
+  hit_rate_basis: string;
+  key_distribution: KeyDistEntry[];
+  bpm_distribution: BpmDistEntry[];
+  recent_entries: CacheEntry[];
+  recent_exits: CacheExit[];
+}
+
+export interface WeightsResponse {
+  raw_weights: Record<string, number>;
+  effective_weights: Record<string, number>;
+  raw_sum: number;
+  target_sum: number;
+  is_sum_valid: boolean;
+  message: string | null;
+}

@@ -79,7 +79,7 @@ def main():
     )
     args = parser.parse_args()
 
-    from src.feature_extraction.track_similarity import BenchmarkHarness, list_scorers
+    from src.feature_extraction.track_similarity import BenchmarkHarness
 
     if args.fixture:
         print("Generating %d synthetic fixture vectors..." % args.fixture_size)

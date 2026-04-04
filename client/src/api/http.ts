@@ -1,4 +1,4 @@
-import type { Track, SearchSuggestion, TransitionMatch, MatchDetail } from '../types';
+import type { Track, SearchSuggestion, TransitionMatch, MatchDetail, CacheStats, WeightsResponse } from '../types';
 
 export async function fetchTracks(params: {
   camelot_code?: string;
@@ -34,5 +34,27 @@ export async function fetchMatches(trackId: number, signal?: AbortSignal): Promi
 export async function fetchMatchDetail(trackId: number, candidateId: number): Promise<MatchDetail> {
   const res = await fetch(`/api/tracks/${trackId}/match-detail/${candidateId}`);
   if (!res.ok) throw new Error(`Failed to fetch match detail: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchCacheStats(): Promise<CacheStats> {
+  const res = await fetch('/api/admin/cache-stats');
+  if (!res.ok) throw new Error(`Failed to fetch cache stats: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchWeights(): Promise<WeightsResponse> {
+  const res = await fetch('/api/weights');
+  if (!res.ok) throw new Error(`Failed to fetch weights: ${res.status}`);
+  return res.json();
+}
+
+export async function updateWeights(weights: Record<string, number>): Promise<WeightsResponse> {
+  const res = await fetch('/api/weights', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weights }),
+  });
+  if (!res.ok) throw new Error(`Failed to update weights: ${res.status}`);
   return res.json();
 }

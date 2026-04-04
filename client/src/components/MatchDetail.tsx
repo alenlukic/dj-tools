@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 import type {
   Track,
   SearchSuggestion,
@@ -6,7 +6,24 @@ import type {
   MatchDetail as MatchDetailData,
 } from '../types';
 import { fetchMatchDetail } from '../api/http';
-import { formatFloat, displayGenre } from '../utils';
+import { formatFloat, formatScore, displayGenre } from '../utils';
+
+type DetailState = { loading: boolean; detail: MatchDetailData | null };
+type DetailAction =
+  | { type: 'fetch' }
+  | { type: 'success'; detail: MatchDetailData }
+  | { type: 'error' };
+
+function detailReducer(_: DetailState, action: DetailAction): DetailState {
+  switch (action.type) {
+    case 'fetch':
+      return { loading: true, detail: null };
+    case 'success':
+      return { loading: false, detail: action.detail };
+    case 'error':
+      return { loading: false, detail: null };
+  }
+}
 
 interface Props {
   sourceTrack: Track | SearchSuggestion | null;
@@ -62,16 +79,17 @@ const TRAIT_LABELS: Record<string, string> = {
 };
 
 export function MatchDetail({ sourceTrack, match, onBack }: Props) {
-  const [detail, setDetail] = useState<MatchDetailData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [{ loading, detail }, dispatch] = useReducer(detailReducer, {
+    loading: true,
+    detail: null,
+  });
 
   useEffect(() => {
     if (!sourceTrack) return;
-    setLoading(true);
+    dispatch({ type: 'fetch' });
     fetchMatchDetail(sourceTrack.id, match.candidate_id)
-      .then(setDetail)
-      .catch(() => setDetail(null))
-      .finally(() => setLoading(false));
+      .then((result) => dispatch({ type: 'success', detail: result }))
+      .catch(() => dispatch({ type: 'error' }));
   }, [sourceTrack, match]);
 
   if (loading) {
@@ -129,9 +147,9 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
             {detail.factors.map((f) => (
               <tr key={f.name}>
                 <td>{f.name}</td>
-                <td className="mono">{(f.score * 100).toFixed(2)}%</td>
-                <td className="mono">{(f.weight * 100).toFixed(2)}%</td>
-                <td className="mono">{(f.score * f.weight * 100).toFixed(2)}</td>
+                <td className="mono">{formatScore(f.score)}</td>
+                <td className="mono">{formatScore(f.weight)}</td>
+                <td className="mono">{formatScore(f.score * f.weight)}</td>
               </tr>
             ))}
           </tbody>
