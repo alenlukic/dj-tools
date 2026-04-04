@@ -1,0 +1,77 @@
+---
+description: Mandatory live-stack QA gates for dj-tools delivery
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+LIVE-STACK QA GATES
+
+  These are hard QA failure criteria. Any agent performing QA or build verification
+  for this repository MUST verify these against the LIVE running stack, not mocks.
+
+  If any of these conditions are observed during manual/browser/runtime validation,
+  the QA verdict is FAIL. No exceptions. No CONDITIONAL. No "we couldn't test it."
+
+MANDATORY FAILURE CRITERIA
+
+  1. SEARCH AGAINST LIVE CLUSTER
+     Search via the search bar must return results from the live Elasticsearch cluster.
+     If search returns 4XX/5XX, times out, or returns no results for a known-good query,
+     QA verdict is FAIL.
+
+  2. SEARCH RESPONSIVENESS
+     Results must begin updating within 500ms of the user changing the search bar input.
+     Perceived lag greater than 500ms on keystroke -> QA FAIL.
+
+  3. FILTER RESPONSIVENESS
+     Changing key or BPM filters must produce updated results within 500ms.
+     Perceived lag greater than 500ms -> QA FAIL.
+
+  4. CACHE POPULATION
+     After selecting a track and loading matches, the cache must populate.
+     If the cache remains empty after match loading, QA verdict is FAIL.
+     Verify via the Admin tab cache stats or GET /api/admin/cache-stats.
+
+  5. FORMATTING COMPLIANCE
+     All numeric formatting must match the stated guidelines in the task prompt.
+     Any discrepancy (wrong decimal places, stray percent signs, wrong scale,
+     unsuppressed trailing zeros) -> QA FAIL.
+
+  6. API ERROR-FREE NORMAL OPERATIONS
+     Any API endpoint returning 4XX or 5XX during normal user operations
+     (search, track selection, match loading, weight fetch/update, admin stats)
+     is a QA FAIL. The only acceptable 404 is for genuinely nonexistent resources.
+
+  7. SERVICE LIFECYCLE
+     Starting and stopping the service (via start_web.sh or equivalent) must:
+     - properly clean up child processes on shutdown
+     - detect and handle port conflicts (not silently ignore them)
+     - not leave orphan processes
+     If any of these fail -> QA FAIL.
+
+VERIFICATION PROCEDURE
+
+  QA agents MUST:
+  1. Start the live stack (bash src/scripts/start_web.sh or equivalent)
+  2. Wait for all services to report ready
+  3. Perform a search query against the live search bar / search API
+  4. Select a track and load matches
+  5. Verify cache stats update (Admin tab or API)
+  6. Check for any 4XX/5XX in the server logs during the above
+  7. Verify response times are within the 500ms threshold
+  8. If any step fails, verdict is FAIL with concrete evidence
+
+  "Could not test" or "Docker not available" is NOT an acceptable reason to
+  skip these checks and still issue PASS or CONDITIONAL. If the live stack
+  cannot be started, the verdict is FAIL with an explicit note about what
+  blocked execution.
+
+BUILD VERIFIER IMPACT
+
+  Build verification status CONDITIONAL is only acceptable when:
+  - the specific untested aspect is cosmetic or non-functional
+  - all mandatory live-stack gates above have been independently verified
+
+  If live-stack gates have NOT been verified, CONDITIONAL is not acceptable.
+  The verdict is FAIL.
