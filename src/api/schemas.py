@@ -67,6 +67,11 @@ class MatchDetailResponse(BaseModel):
     candidate: MatchDetailTrackInfo
 
 
+class TrackTraitResponse(BaseModel):
+    track_id: int
+    traits: Optional[Dict[str, Any]]
+
+
 # ---------------------------------------------------------------------------
 # Admin / cache stats
 # ---------------------------------------------------------------------------

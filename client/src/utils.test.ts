@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatFloat, formatScore, displayGenre } from './utils';
+import { formatFloat, formatScore, formatOverallScore, displayGenre } from './utils';
 
 describe('formatFloat', () => {
   it('returns em-dash for null', () => {
@@ -31,19 +31,55 @@ describe('formatScore', () => {
     expect(formatScore(null)).toBe('—');
   });
 
-  it('scales to 100 and suppresses trailing zeroes', () => {
+  it('returns em-dash for undefined', () => {
+    expect(formatScore(undefined)).toBe('—');
+  });
+
+  it('scales to 100 and rounds to integer', () => {
     expect(formatScore(1.0)).toBe('100');
     expect(formatScore(0.9)).toBe('90');
-    expect(formatScore(0.612)).toBe('61.2');
-    expect(formatScore(0.6124)).toBe('61.24');
+    expect(formatScore(0.612)).toBe('61');
+    expect(formatScore(0.6124)).toBe('61');
+  });
+
+  it('uses standard half-up rounding at 0.5 threshold', () => {
+    expect(formatScore(0.615)).toBe('62');
+    expect(formatScore(0.005)).toBe('1');
+    expect(formatScore(0.004)).toBe('0');
   });
 
   it('does not include percent sign', () => {
     expect(formatScore(0.5)).not.toContain('%');
   });
 
+  it('does not include decimal places', () => {
+    expect(formatScore(0.612)).not.toContain('.');
+  });
+
   it('handles zero', () => {
     expect(formatScore(0)).toBe('0');
+  });
+});
+
+describe('formatOverallScore', () => {
+  it('returns em-dash for null', () => {
+    expect(formatOverallScore(null)).toBe('—');
+  });
+
+  it('returns em-dash for undefined', () => {
+    expect(formatOverallScore(undefined)).toBe('—');
+  });
+
+  it('rounds a 0-100 value to integer without scaling', () => {
+    expect(formatOverallScore(68.92)).toBe('69');
+    expect(formatOverallScore(100)).toBe('100');
+    expect(formatOverallScore(0)).toBe('0');
+    expect(formatOverallScore(50.5)).toBe('51');
+  });
+
+  it('does not double-scale (no multiply by 100)', () => {
+    expect(formatOverallScore(68.92)).toBe('69');
+    expect(Number(formatOverallScore(68.92))).toBeLessThan(200);
   });
 });
 

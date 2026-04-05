@@ -5,8 +5,9 @@ import type {
   TransitionMatch,
   MatchDetail as MatchDetailData,
 } from '../types';
+import type { TraitMap } from '../hooks/useCollectionCache';
 import { fetchMatchDetail } from '../api/http';
-import { formatFloat, formatScore, displayGenre } from '../utils';
+import { formatFloat, formatScore, formatOverallScore, displayGenre } from '../utils';
 
 type DetailState = { loading: boolean; detail: MatchDetailData | null };
 type DetailAction =
@@ -29,6 +30,7 @@ interface Props {
   sourceTrack: Track | SearchSuggestion | null;
   match: TransitionMatch;
   onBack: () => void;
+  traitMap: TraitMap;
 }
 
 function renderValue(value: unknown): React.ReactNode {
@@ -78,7 +80,7 @@ const TRAIT_LABELS: Record<string, string> = {
   instruments: 'Instruments',
 };
 
-export function MatchDetail({ sourceTrack, match, onBack }: Props) {
+export function MatchDetail({ sourceTrack, match, onBack, traitMap }: Props) {
   const [{ loading, detail }, dispatch] = useReducer(detailReducer, {
     loading: true,
     detail: null,
@@ -88,9 +90,15 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
     if (!sourceTrack) return;
     dispatch({ type: 'fetch' });
     fetchMatchDetail(sourceTrack.id, match.candidate_id)
-      .then((result) => dispatch({ type: 'success', detail: result }))
+      .then((result) => {
+        if (traitMap.size > 0) {
+          result.on_deck.traits = traitMap.get(result.on_deck.id) ?? result.on_deck.traits;
+          result.candidate.traits = traitMap.get(result.candidate.id) ?? result.candidate.traits;
+        }
+        dispatch({ type: 'success', detail: result });
+      })
       .catch(() => dispatch({ type: 'error' }));
-  }, [sourceTrack, match]);
+  }, [sourceTrack, match, traitMap]);
 
   if (loading) {
     return (
@@ -123,7 +131,7 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
       <div className="detail-header">
         <h2 className="detail-title">
           Match Detail —{' '}
-          <span className="mono">{formatFloat(detail.overall_score)}</span>
+          <span className="mono">{formatOverallScore(detail.overall_score)}</span>
         </h2>
         <div className="detail-tracks-summary">
           <span>{detail.on_deck.title}</span>
@@ -146,7 +154,7 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
           <tbody>
             {detail.factors.map((f) => (
               <tr key={f.name}>
-                <td>{f.name}</td>
+                <td>{f.name === 'Similarity' ? 'Fusion' : f.name}</td>
                 <td className="mono">{formatScore(f.score)}</td>
                 <td className="mono">{formatScore(f.weight)}</td>
                 <td className="mono">{formatScore(f.score * f.weight)}</td>
@@ -177,14 +185,31 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
                   </div>
                 ))}
                 {track.traits &&
-                  Object.entries(track.traits).map(([key, val]) => (
-                    <div key={key} className="detail-field">
-                      <span className="detail-field-label">
-                        {TRAIT_LABELS[key] ?? key}
-                      </span>
-                      {renderValue(val)}
-                    </div>
-                  ))}
+                  Object.entries(track.traits).map(([key, val]) => {
+                    const isTableTrait = key === 'genre' || key === 'instruments';
+                    let displayVal = val;
+                    if (key === 'genre' && val && typeof val === 'object') {
+                      const leafGenres: Record<string, unknown> = {};
+                      for (const [gk, gv] of Object.entries(val as Record<string, unknown>)) {
+                        leafGenres[displayGenre(gk) ?? gk] = gv;
+                      }
+                      displayVal = leafGenres;
+                    }
+                    return (
+                      <div key={key} className="detail-field">
+                        <span className="detail-field-label">
+                          {TRAIT_LABELS[key] ?? key}
+                        </span>
+                        {isTableTrait ? (
+                          <div className="trait-table-wrapper">
+                            {renderValue(displayVal)}
+                          </div>
+                        ) : (
+                          renderValue(displayVal)
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           ))}

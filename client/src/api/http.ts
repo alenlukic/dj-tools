@@ -1,4 +1,4 @@
-import type { Track, SearchSuggestion, TransitionMatch, MatchDetail, CacheStats, WeightsResponse } from '../types';
+import type { Track, SearchSuggestion, TransitionMatch, MatchDetail, CacheStats, WeightsResponse, TrackTraitEntry } from '../types';
 
 export async function fetchTracks(params: {
   camelot_code?: string;
@@ -34,6 +34,12 @@ export async function fetchMatches(trackId: number, signal?: AbortSignal): Promi
 export async function fetchMatchDetail(trackId: number, candidateId: number): Promise<MatchDetail> {
   const res = await fetch(`/api/tracks/${trackId}/match-detail/${candidateId}`);
   if (!res.ok) throw new Error(`Failed to fetch match detail: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchTrackTraits(): Promise<TrackTraitEntry[]> {
+  const res = await fetch('/api/track-traits');
+  if (!res.ok) throw new Error(`Failed to fetch track traits: ${res.status}`);
   return res.json();
 }
 

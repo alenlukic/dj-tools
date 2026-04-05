@@ -8,9 +8,13 @@ interface Props {
   selectedTrack: Track | SearchSuggestion | null;
   selectTrack: (track: Track | SearchSuggestion) => void;
   clearSelectedTrack: () => void;
+  normalizeWeights: () => void;
+  isSumValid: boolean;
+  rawSum: number;
+  onSearchTextChange?: (text: string) => void;
 }
 
-export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack }: Props) {
+export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack, normalizeWeights, isSumValid, rawSum, onSearchTextChange }: Props) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -32,6 +36,7 @@ export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack }: 
       const newQuery = e.target.value;
       setQuery(newQuery);
       clearSelectedTrack();
+      onSearchTextChange?.(newQuery);
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -59,7 +64,7 @@ export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack }: 
         });
       }, 200);
     },
-    [clearSelectedTrack],
+    [clearSelectedTrack, onSearchTextChange],
   );
 
   useEffect(() => {
@@ -101,34 +106,43 @@ export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack }: 
 
   return (
     <div className="search-bar-wrapper" ref={containerRef}>
-      <input
-        type="text"
-        className="search-input"
-        placeholder="Search tracks…"
-        value={query}
-        onChange={handleInputChange}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
-        onKeyDown={handleKeyDown}
-      />
-      {open && (
-        <ul className="search-dropdown">
-          {suggestions.map((s, i) => (
-            <li
-              key={s.id}
-              className={`search-item${i === activeIdx ? ' active' : ''}`}
-              onMouseDown={() => handleSelect(s)}
-              onMouseEnter={() => setActiveIdx(i)}
-            >
-              <span className="search-item-title">{s.title}</span>
-              <span className="search-item-meta">
-                {s.artist_names.join(', ')}
-                {s.camelot_code && <span className="mono"> · {s.camelot_code}</span>}
-                {s.bpm != null && <span className="mono"> · {s.bpm}</span>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="search-input-container">
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Search tracks…"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          onKeyDown={handleKeyDown}
+        />
+        {open && (
+          <ul className="search-dropdown">
+            {suggestions.map((s, i) => (
+              <li
+                key={s.id}
+                className={`search-item${i === activeIdx ? ' active' : ''}`}
+                onMouseDown={() => handleSelect(s)}
+                onMouseEnter={() => setActiveIdx(i)}
+              >
+                <span className="search-item-title">{s.title}</span>
+                <span className="search-item-meta">
+                  {s.artist_names.join(', ')}
+                  {s.camelot_code && <span className="mono"> · {s.camelot_code}</span>}
+                  {s.bpm != null && <span className="mono"> · {s.bpm}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <button
+        className={`weight-normalize-btn${isSumValid ? ' inactive' : ''}`}
+        disabled={isSumValid}
+        onClick={normalizeWeights}
+      >
+        Normalize Weights{!isSumValid && ` (${parseFloat(rawSum.toFixed(1))})`}
+      </button>
     </div>
   );
 }

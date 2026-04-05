@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect, useMemo } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -72,9 +72,11 @@ interface Props {
   loading: boolean;
   selectedTrack: Track | SearchSuggestion | null;
   selectTrack: (track: Track) => void;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
-export function TrackTable({ tracks, loading, selectedTrack, selectTrack }: Props) {
+export function TrackTable({ tracks, loading, selectedTrack, selectTrack, hasMore, onLoadMore }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -98,6 +100,20 @@ export function TrackTable({ tracks, loading, selectedTrack, selectTrack }: Prop
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore || !onLoadMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) {
+        onLoadMore();
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore, tracks.length]);
 
   return (
     <div className="track-table-wrapper" ref={wrapperRef}>
@@ -151,6 +167,11 @@ export function TrackTable({ tracks, loading, selectedTrack, selectTrack }: Prop
           )}
         </tbody>
       </table>
+      {hasMore && (
+        <div ref={sentinelRef} className="scroll-sentinel">
+          Loading more tracks…
+        </div>
+      )}
     </div>
   );
 }

@@ -20,10 +20,13 @@
       "CAMELOT": 0.19,
       "BPM": 0.17,
       "FRESHNESS": 0.14,
-      "LABEL": 0.12,
-      "GENRE": 0.08,
-      "ARTIST": 0.04,
-      "ENERGY": 0.02
+      "ENERGY": 0.02,
+      "GENRE_SIMILARITY": 0.08,
+      "MOOD_CONTINUITY": 0.06,
+      "VOCAL_CLASH": 0.04,
+      "DANCEABILITY": 0.03,
+      "TIMBRE": 0.02,
+      "INSTRUMENT_SIMILARITY": 0.01
     },
     "MAX_RESULTS": 50,
     "SCORE_THRESHOLD": 25,

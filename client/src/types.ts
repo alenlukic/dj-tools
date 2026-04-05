@@ -100,6 +100,11 @@ export interface CacheStats {
   recent_exits: CacheExit[];
 }
 
+export interface TrackTraitEntry {
+  track_id: number;
+  traits: Record<string, unknown> | null;
+}
+
 export interface WeightsResponse {
   raw_weights: Record<string, number>;
   effective_weights: Record<string, number>;

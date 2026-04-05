@@ -6,7 +6,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import type { Track, SearchSuggestion, TransitionMatch } from '../types';
-import { formatFloat, formatScore } from '../utils';
+import { formatScore, formatOverallScore } from '../utils';
 
 type BucketKey = 'same_key' | 'higher_key' | 'lower_key';
 
@@ -32,7 +32,7 @@ function makeColumns(onScoreClick: (match: TransitionMatch) => void) {
             onScoreClick(info.row.original);
           }}
         >
-          {formatFloat(info.getValue())}
+          {formatOverallScore(info.getValue())}
         </span>
       ),
     }),

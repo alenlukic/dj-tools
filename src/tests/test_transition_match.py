@@ -612,3 +612,168 @@ class TestEffectiveWeightOverride:
                 match.factors[f] * cfg_weights[f.name] for f in MatchFactors
             )
             assert score == pytest.approx(expected, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# 9. TrackTrait participation in scoring — canary tests
+# ---------------------------------------------------------------------------
+
+class TestTraitParticipationInScoring:
+    """Prove TrackTrait data is consumed by the active scoring path.
+
+    These tests would FAIL if trait-backed factors were removed, bypassed,
+    or hardcoded to a constant.
+    """
+
+    TRAIT_FACTORS = {
+        MatchFactors.GENRE_SIMILARITY,
+        MatchFactors.MOOD_CONTINUITY,
+        MatchFactors.VOCAL_CLASH,
+        MatchFactors.DANCEABILITY,
+        MatchFactors.TIMBRE,
+        MatchFactors.INSTRUMENT_SIMILARITY,
+    }
+
+    def test_all_trait_factors_zero_without_traits(self):
+        """When no TrackTrait rows exist, every trait-backed factor is 0.0."""
+        with _MatchFixture():
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+
+            md_a = _make_md(1, title="A", bpm=128.0, energy=7,
+                            date_added=_BASE_TIME + timedelta(days=100))
+            md_b = _make_md(2, title="B", bpm=129.0, energy=6,
+                            date_added=_BASE_TIME + timedelta(days=200))
+
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            match.get_score()
+
+            for factor in self.TRAIT_FACTORS:
+                assert match.factors[factor] == 0.0, (
+                    f"{factor.name} should be 0.0 without traits"
+                )
+
+    def test_trait_factors_nonzero_with_traits(self):
+        """When TrackTrait rows are present, trait-backed factors produce
+        non-zero scores — proving real data consumption."""
+        with _MatchFixture() as fx:
+            trait_a = _make_trait(
+                voice_instrumental=0.2,
+                danceability=0.7,
+                bright_dark=0.5,
+                genre={"house": 0.8, "techno": 0.2},
+                mood_theme={"energetic": 0.7, "dark": 0.3},
+                instruments={"synth": 0.9, "drums": 0.8},
+            )
+            trait_b = _make_trait(
+                voice_instrumental=0.3,
+                danceability=0.75,
+                bright_dark=0.55,
+                genre={"house": 0.6, "trance": 0.4},
+                mood_theme={"energetic": 0.5, "happy": 0.5},
+                instruments={"synth": 0.7, "bass guitar": 0.5},
+            )
+            fx.seed_traits(1, trait_a)
+            fx.seed_traits(2, trait_b)
+
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+
+            md_a = _make_md(1, title="A", bpm=128.0, energy=7,
+                            date_added=_BASE_TIME + timedelta(days=100))
+            md_b = _make_md(2, title="B", bpm=129.0, energy=6,
+                            date_added=_BASE_TIME + timedelta(days=200))
+
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            match.get_score()
+
+            for factor in self.TRAIT_FACTORS:
+                assert match.factors[factor] > 0.0, (
+                    f"{factor.name} should be > 0.0 with trait data present"
+                )
+
+    def test_total_score_higher_with_traits_than_without(self):
+        """The weighted total score must increase when TrackTrait data is
+        present, proving traits contribute to the final output."""
+        with _MatchFixture():
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+
+            md_a = _make_md(1, title="A", bpm=128.0, energy=7,
+                            date_added=_BASE_TIME + timedelta(days=100))
+            md_b = _make_md(2, title="B", bpm=129.0, energy=6,
+                            date_added=_BASE_TIME + timedelta(days=200))
+
+            match_no_traits = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            score_without = match_no_traits.get_score()
+
+        with _MatchFixture() as fx:
+            trait = _make_trait(
+                voice_instrumental=0.1,
+                danceability=0.7,
+                bright_dark=0.5,
+                genre={"house": 0.8},
+                mood_theme={"energetic": 0.7},
+                instruments={"synth": 0.9},
+            )
+            fx.seed_traits(1, trait)
+            fx.seed_traits(2, trait)
+
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+
+            md_a = _make_md(1, title="A", bpm=128.0, energy=7,
+                            date_added=_BASE_TIME + timedelta(days=100))
+            md_b = _make_md(2, title="B", bpm=129.0, energy=6,
+                            date_added=_BASE_TIME + timedelta(days=200))
+
+            match_with_traits = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+            score_with = match_with_traits.get_score()
+
+        assert score_with > score_without, (
+            f"Score with traits ({score_with}) must exceed score without ({score_without})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 10. TrackTrait version filtering
+# ---------------------------------------------------------------------------
+
+class TestTraitVersionFiltering:
+    """Verify that trait DB lookups use TRAIT_VERSION for row filtering."""
+
+    def test_trait_lookup_filters_by_version(self):
+        """The DB query for TrackTrait must include trait_version == TRAIT_VERSION."""
+        from src.feature_extraction.config import TRAIT_VERSION
+
+        with _MatchFixture():
+            mock_filter = TransitionMatch.db_session.query.return_value.filter_by
+            mock_filter.return_value.first.return_value = None
+
+            md_a = _make_md(1, title="A")
+            md_b = _make_md(2, title="B")
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+
+            match.get_genre_similarity_score()
+
+            version_filtered = [
+                c for c in mock_filter.call_args_list
+                if c.kwargs.get("trait_version") == TRAIT_VERSION
+            ]
+            assert len(version_filtered) >= 1, (
+                f"Expected filter_by(trait_version={TRAIT_VERSION!r}), "
+                f"got: {mock_filter.call_args_list}"
+            )
+
+    def test_all_six_trait_scorers_return_zero_when_trait_missing(self):
+        """Each trait scorer independently returns 0.0 when no TrackTrait
+        row is found — confirming no scorer has a hardcoded bypass."""
+        with _MatchFixture():
+            TransitionMatch.db_session.query.return_value.filter_by.return_value.first.return_value = None
+
+            md_a = _make_md(1, title="A")
+            md_b = _make_md(2, title="B")
+            match = TransitionMatch(md_b, md_a, CamelotPriority.SAME_KEY)
+
+            assert match.get_genre_similarity_score() == 0.0
+            assert match.get_mood_continuity_score() == 0.0
+            assert match.get_vocal_clash_score() == 0.0
+            assert match.get_danceability_score() == 0.0
+            assert match.get_timbre_score() == 0.0
+            assert match.get_instrument_similarity_score() == 0.0

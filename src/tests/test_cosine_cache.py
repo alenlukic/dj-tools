@@ -5,6 +5,7 @@ Run with:
 """
 
 import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -141,22 +142,19 @@ class TestWarmFromDb:
             _make_sim_row(30, 50, 0.5),
         ]
 
-        def query_side_effect(model):
-            return mock_session._query_result
-
         mock_query = MagicMock()
         mock_session.query.return_value = mock_query
 
         call_count = {"n": 0}
         results_sequence = [depth1_rows, depth2_rows_for_20, depth2_rows_for_30]
 
-        def filter_by_side_effect(**kwargs):
+        def filter_side_effect(*args, **kwargs):
             mock_filtered = MagicMock()
             mock_filtered.all.return_value = results_sequence[call_count["n"]]
             call_count["n"] += 1
             return mock_filtered
 
-        mock_query.filter_by.side_effect = filter_by_side_effect
+        mock_query.filter.side_effect = filter_side_effect
 
         cache = CosineCache()
         cache.warm_from_db(10)
@@ -173,7 +171,7 @@ class TestWarmFromDb:
         mock_db_module.create_session.return_value = mock_session
         mock_query = MagicMock()
         mock_session.query.return_value = mock_query
-        mock_query.filter_by.return_value.all.return_value = []
+        mock_query.filter.return_value.all.return_value = []
 
         cache = CosineCache()
         cache.warm_from_db(42)
@@ -191,6 +189,180 @@ class TestWarmFromDb:
         cache.warm_from_db(1)
 
         mock_session.close.assert_called_once()
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_depth1_finds_neighbor_in_id2_column(self, mock_db_module):
+        """Regression: track appearing in id2 must still be discovered.
+
+        Row (50, 200) has track 200 in id2.  Querying for track 200 must
+        find this row and identify 50 as a depth-1 neighbor.
+        """
+        mock_session = MagicMock()
+        mock_db_module.create_session.return_value = mock_session
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+
+        depth1_rows = [_make_sim_row(50, 200, 0.9)]
+        depth2_rows_for_50 = [_make_sim_row(30, 50, 0.85)]
+
+        call_count = {"n": 0}
+        results_sequence = [depth1_rows, depth2_rows_for_50]
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            mock_filtered.all.return_value = results_sequence[call_count["n"]]
+            call_count["n"] += 1
+            return mock_filtered
+
+        mock_query.filter.side_effect = filter_side_effect
+
+        cache = CosineCache()
+        cache.warm_from_db(200)
+
+        assert cache.get(50, 200) == 0.9, "depth-1 pair where track is in id2"
+        assert cache.get(30, 50) == 0.85, "depth-2 pair via neighbor 50"
+        assert cache.size() == 2
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_depth2_expands_through_id2_neighbor(self, mock_db_module):
+        """Regression: depth-2 expansion must work when both the seed and
+        intermediate neighbors appear in the id2 column.
+
+        Graph:  track 300 -- (100, 300) -- neighbor 100 -- (80, 100) -- 80
+        Both canonical rows have the traversed node in id2.
+        """
+        mock_session = MagicMock()
+        mock_db_module.create_session.return_value = mock_session
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+
+        depth1_rows = [_make_sim_row(100, 300, 0.75)]
+        depth2_rows_for_100 = [
+            _make_sim_row(80, 100, 0.65),
+            _make_sim_row(100, 300, 0.75),
+        ]
+
+        call_count = {"n": 0}
+        results_sequence = [depth1_rows, depth2_rows_for_100]
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            mock_filtered.all.return_value = results_sequence[call_count["n"]]
+            call_count["n"] += 1
+            return mock_filtered
+
+        mock_query.filter.side_effect = filter_side_effect
+
+        cache = CosineCache()
+        cache.warm_from_db(300)
+
+        assert cache.get(100, 300) == 0.75, "depth-1 pair"
+        assert cache.get(80, 100) == 0.65, "depth-2 pair via id2 neighbor"
+        assert cache.size() == 2
+
+
+# ---------------------------------------------------------------------------
+# Delayed BFS warm-up scheduler
+# ---------------------------------------------------------------------------
+
+
+class TestScheduleWarmup:
+    def test_delayed_start(self):
+        """Warm-up must not start immediately; it waits for the configured delay."""
+        cache = CosineCache(warmup_delay=0.3)
+        call_log = []
+
+        def tracking_worker(track_id, cancel):
+            call_log.append(track_id)
+
+        with patch.object(cache, '_warmup_worker', side_effect=tracking_worker):
+            cache.schedule_warmup(42)
+            time.sleep(0.05)
+            assert call_log == [], "worker should not fire before delay"
+            time.sleep(0.4)
+            assert call_log == [42], "worker should fire after delay"
+
+    def test_supersession_cancels_pending(self):
+        """A new schedule_warmup before the delay expires cancels the old one."""
+        cache = CosineCache(warmup_delay=0.3)
+        call_log = []
+
+        def tracking_worker(track_id, cancel):
+            call_log.append(track_id)
+
+        with patch.object(cache, '_warmup_worker', side_effect=tracking_worker):
+            cache.schedule_warmup(1)
+            time.sleep(0.05)
+            cache.schedule_warmup(2)
+            time.sleep(0.5)
+            assert call_log == [2], "only the second (superseding) warmup should fire"
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_active_cancellation_no_eviction(self, mock_db):
+        """Cancelling a running warm-up preserves already-added cache entries."""
+        mock_session = MagicMock()
+        mock_db.create_session.return_value = mock_session
+
+        root_rows = [_make_sim_row(10, 20, 0.8), _make_sim_row(10, 30, 0.7)]
+
+        call_count = {"n": 0}
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            if call_count["n"] == 0:
+                mock_filtered.all.return_value = root_rows
+                call_count["n"] += 1
+            else:
+                cancel_event.set()
+                mock_filtered.all.return_value = [_make_sim_row(20, 40, 0.6)]
+                call_count["n"] += 1
+            return mock_filtered
+
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+        mock_query.filter.side_effect = filter_side_effect
+
+        cancel_event = threading.Event()
+        cache = CosineCache()
+        cache._warmup_worker(10, cancel_event)
+
+        assert cache.get(10, 20) == 0.8, "entries added before cancel must persist"
+        assert cache.get(10, 30) == 0.7, "entries added before cancel must persist"
+        assert cache.size() == 2
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_bfs_depth2_with_explored_set(self, mock_db):
+        """BFS traverses to depth 2, explored set prevents redundant expansion."""
+        mock_session = MagicMock()
+        mock_db.create_session.return_value = mock_session
+
+        root_rows = [_make_sim_row(10, 20, 0.8), _make_sim_row(10, 30, 0.7)]
+        rows_for_20 = [_make_sim_row(20, 40, 0.6)]
+        rows_for_30 = [_make_sim_row(30, 50, 0.5), _make_sim_row(10, 30, 0.7)]
+
+        call_count = {"n": 0}
+        results = [root_rows, rows_for_20, rows_for_30]
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            mock_filtered.all.return_value = results[call_count["n"]]
+            call_count["n"] += 1
+            return mock_filtered
+
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+        mock_query.filter.side_effect = filter_side_effect
+
+        cancel = threading.Event()
+        cache = CosineCache()
+        cache._warmup_worker(10, cancel)
+
+        assert call_count["n"] == 3, "should query root + 2 depth-1 neighbors"
+        assert cache.get(10, 20) == 0.8
+        assert cache.get(10, 30) == 0.7
+        assert cache.get(20, 40) == 0.6
+        assert cache.get(30, 50) == 0.5
+        assert cache.size() == 4
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 _MAX_ENTRIES = 500_000
 _RECENT_EVENT_LIMIT = 10
+_WARMUP_DELAY = 10.0
+_MAX_BFS_DEPTH = 2
 
 
 class CosineCache:
@@ -24,8 +26,9 @@ class CosineCache:
     dashboard instrumentation.
     """
 
-    def __init__(self, max_entries: int = _MAX_ENTRIES):
+    def __init__(self, max_entries: int = _MAX_ENTRIES, warmup_delay: float = _WARMUP_DELAY):
         self._max_entries = max_entries
+        self._warmup_delay = warmup_delay
         self._lock = threading.Lock()
         self._store: OrderedDict[Tuple[int, int], float] = OrderedDict()
 
@@ -33,6 +36,10 @@ class CosineCache:
         self._misses = 0
         self._recent_entries: deque = deque(maxlen=_RECENT_EVENT_LIMIT)
         self._recent_exits: deque = deque(maxlen=_RECENT_EVENT_LIMIT)
+
+        self._warmup_lock = threading.Lock()
+        self._warmup_timer: Optional[threading.Timer] = None
+        self._warmup_cancel: Optional[threading.Event] = None
 
     @staticmethod
     def _key(id1: int, id2: int) -> Tuple[int, int]:
@@ -113,9 +120,11 @@ class CosineCache:
     def warm_from_db(self, track_id: int) -> None:
         """BFS-warm the cache from ``track_cosine_similarity`` rows.
 
-        Depth 1: rows where ``id1 == track_id``; cache each pair.
-        Depth 2: for every depth-1 neighbor *n*, rows where ``id1 == n``;
-                 cache those pairs.
+        Depth 1: all rows incident to *track_id* (in either id1 or id2).
+        Depth 2: for every depth-1 neighbor *n*, all rows incident to *n*.
+
+        Rows are stored in canonical order (id1 < id2), so a track can
+        appear in either column; both must be checked.
 
         Creates its own DB session so it never shares a session across threads.
         """
@@ -123,19 +132,28 @@ class CosineCache:
         try:
             depth1_rows = (
                 session.query(TrackCosineSimilarity)
-                .filter_by(id1=track_id, descriptor_version=DESCRIPTOR_VERSION)
+                .filter(
+                    (TrackCosineSimilarity.id1 == track_id)
+                    | (TrackCosineSimilarity.id2 == track_id),
+                    TrackCosineSimilarity.descriptor_version == DESCRIPTOR_VERSION,
+                )
                 .all()
             )
 
             depth1_neighbors = []
             for row in depth1_rows:
                 self.put(row.id1, row.id2, row.cosine_similarity)
-                depth1_neighbors.append(row.id2)
+                neighbor_id = row.id2 if row.id1 == track_id else row.id1
+                depth1_neighbors.append(neighbor_id)
 
             for neighbor_id in depth1_neighbors:
                 depth2_rows = (
                     session.query(TrackCosineSimilarity)
-                    .filter_by(id1=neighbor_id, descriptor_version=DESCRIPTOR_VERSION)
+                    .filter(
+                        (TrackCosineSimilarity.id1 == neighbor_id)
+                        | (TrackCosineSimilarity.id2 == neighbor_id),
+                        TrackCosineSimilarity.descriptor_version == DESCRIPTOR_VERSION,
+                    )
                     .all()
                 )
                 for row in depth2_rows:
@@ -143,5 +161,84 @@ class CosineCache:
 
         except Exception:
             logger.exception("Error warming cosine cache for track %s", track_id)
+        finally:
+            session.close()
+
+    # ------------------------------------------------------------------
+    # Delayed BFS warm-up scheduler
+    # ------------------------------------------------------------------
+
+    def schedule_warmup(self, track_id: int) -> None:
+        """Schedule a delayed BFS warm-up for *track_id*.
+
+        Cancels any pending scheduled warm-up and signals cancellation to
+        any actively running warm-up (without evicting already-added
+        cache entries).  A fresh 10-second delay begins for *track_id*.
+        """
+        with self._warmup_lock:
+            if self._warmup_timer is not None:
+                self._warmup_timer.cancel()
+                self._warmup_timer = None
+
+            if self._warmup_cancel is not None:
+                self._warmup_cancel.set()
+
+            cancel_event = threading.Event()
+            self._warmup_cancel = cancel_event
+
+            timer = threading.Timer(
+                self._warmup_delay,
+                self._warmup_worker,
+                args=(track_id, cancel_event),
+            )
+            timer.daemon = True
+            self._warmup_timer = timer
+            timer.start()
+
+    def _warmup_worker(self, track_id: int, cancel: threading.Event) -> None:
+        """BFS warm-up worker.  Populates cache incrementally to depth 2.
+
+        Checks *cancel* between nodes and between rows so a superseding
+        search can stop the traversal promptly.  Already-added cache
+        entries are never evicted on cancellation.
+        """
+        if cancel.is_set():
+            return
+
+        session = database.create_session()
+        try:
+            explored: Set[int] = {track_id}
+            queue: deque = deque()
+            queue.append((track_id, 0))
+
+            while queue:
+                if cancel.is_set():
+                    return
+
+                current_id, depth = queue.popleft()
+
+                rows = (
+                    session.query(TrackCosineSimilarity)
+                    .filter(
+                        (TrackCosineSimilarity.id1 == current_id)
+                        | (TrackCosineSimilarity.id2 == current_id),
+                        TrackCosineSimilarity.descriptor_version == DESCRIPTOR_VERSION,
+                    )
+                    .all()
+                )
+
+                for row in rows:
+                    if cancel.is_set():
+                        return
+                    self.put(row.id1, row.id2, row.cosine_similarity)
+                    neighbor_id = row.id2 if row.id1 == current_id else row.id1
+                    if depth + 1 < _MAX_BFS_DEPTH and neighbor_id not in explored:
+                        explored.add(neighbor_id)
+                        queue.append((neighbor_id, depth + 1))
+
+                del rows
+
+        except Exception:
+            logger.exception("Error during BFS warm-up for track %s", track_id)
         finally:
             session.close()

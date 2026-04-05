@@ -11,6 +11,7 @@ interface FilterState {
 interface TrackFiltersResult {
   filters: FilterState;
   filteredTracks: Track[];
+  filterCacheKey: string;
   setCamelotCodes: (codes: string[]) => void;
   setBpm: (bpm: number | undefined) => void;
   setBpmMin: (min: number | undefined) => void;
@@ -21,13 +22,15 @@ interface TrackFiltersResult {
  * Client-side filtering over the session-cached collection.
  * No server round-trips on filter change — all computation is local.
  */
-export function useTrackFilters(allTracks: Track[]): TrackFiltersResult {
+export function useTrackFilters(allTracks: Track[], searchText: string = ''): TrackFiltersResult {
   const [filters, setFilters] = useState<FilterState>({
     camelotCodes: [],
     bpm: undefined,
     bpmMin: undefined,
     bpmMax: undefined,
   });
+
+  const normalizedSearch = searchText.trim().toLowerCase();
 
   const filteredTracks = useMemo(() => {
     return allTracks.filter((track) => {
@@ -42,9 +45,26 @@ export function useTrackFilters(allTracks: Track[]): TrackFiltersResult {
         return false;
       if (filters.bpmMax != null && (track.bpm == null || track.bpm > filters.bpmMax))
         return false;
+      if (normalizedSearch) {
+        const title = track.title.toLowerCase();
+        const artists = track.artist_names.join(' ').toLowerCase();
+        if (!title.includes(normalizedSearch) && !artists.includes(normalizedSearch)) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [allTracks, filters]);
+  }, [allTracks, filters, normalizedSearch]);
+
+  const filterCacheKey = useMemo(() => {
+    return JSON.stringify({
+      searchText: normalizedSearch,
+      camelotCodes: [...filters.camelotCodes].sort(),
+      bpm: filters.bpm ?? null,
+      bpmMin: filters.bpmMin ?? null,
+      bpmMax: filters.bpmMax ?? null,
+    });
+  }, [normalizedSearch, filters]);
 
   const setCamelotCodes = useCallback((codes: string[]) => {
     setFilters((prev) => ({ ...prev, camelotCodes: codes }));
@@ -62,5 +82,5 @@ export function useTrackFilters(allTracks: Track[]): TrackFiltersResult {
     setFilters((prev) => ({ ...prev, bpmMax: max }));
   }, []);
 
-  return { filters, filteredTracks, setCamelotCodes, setBpm, setBpmMin, setBpmMax };
+  return { filters, filteredTracks, filterCacheKey, setCamelotCodes, setBpm, setBpmMin, setBpmMax };
 }
