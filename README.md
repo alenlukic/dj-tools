@@ -40,26 +40,29 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
-**Env vars:**
+**Env vars** (see `.env.example` for a ready-to-copy template):
 
 | Variable | Description |
 |---|---|
 | `DATA_ROOT` | Root directory for all data files |
 | `DATA_BACKUP_RESTORE_MUSIC_DIR` | Subdirectory for restored backup files |
 | `DATA_FILE_STAGING_DIR` | Temporary staging area for audio files |
-| `DB_NAME` | PostgreSQL database name (default: `music_collection`) |
+| `DB_NAME` | PostgreSQL database name |
 | `DB_USER` | PostgreSQL user |
 | `DB_PASSWORD` | PostgreSQL password |
 | `DB_HOST` | PostgreSQL host (default: `localhost`) |
 | `DB_PORT` | PostgreSQL port (default: `5432`) |
-| `HM_WEIGHT_SIMILARITY` | Harmonic mixing weight — cosine similarity (default: `0.24`) |
-| `HM_WEIGHT_CAMELOT` | Harmonic mixing weight — Camelot key compatibility (default: `0.19`) |
-| `HM_WEIGHT_BPM` | Harmonic mixing weight — BPM proximity (default: `0.17`) |
-| `HM_WEIGHT_FRESHNESS` | Harmonic mixing weight — track recency (default: `0.14`) |
-| `HM_WEIGHT_LABEL` | Harmonic mixing weight — same-label bonus (default: `0.12`) |
-| `HM_WEIGHT_GENRE` | Harmonic mixing weight — genre match (default: `0.08`) |
-| `HM_WEIGHT_ARTIST` | Harmonic mixing weight — shared artist (default: `0.04`) |
-| `HM_WEIGHT_ENERGY` | Harmonic mixing weight — energy level proximity (default: `0.02`) |
+| `HM_WEIGHT_SIMILARITY` | Harmonic mixing weight — cosine similarity (default: `0.18`) |
+| `HM_WEIGHT_CAMELOT` | Harmonic mixing weight — Camelot key compatibility (default: `0.20`) |
+| `HM_WEIGHT_BPM` | Harmonic mixing weight — BPM proximity (default: `0.20`) |
+| `HM_WEIGHT_FRESHNESS` | Harmonic mixing weight — track recency (default: `0.08`) |
+| `HM_WEIGHT_GENRE_SIMILARITY` | Harmonic mixing weight — genre similarity (default: `0.08`) |
+| `HM_WEIGHT_MOOD_CONTINUITY` | Harmonic mixing weight — mood continuity (default: `0.06`) |
+| `HM_WEIGHT_VOCAL_CLASH` | Harmonic mixing weight — vocal clash penalty (default: `0.05`) |
+| `HM_WEIGHT_DANCEABILITY` | Harmonic mixing weight — danceability proximity (default: `0.07`) |
+| `HM_WEIGHT_ENERGY` | Harmonic mixing weight — energy level proximity (default: `0.04`) |
+| `HM_WEIGHT_TIMBRE` | Harmonic mixing weight — timbre similarity (default: `0.04`) |
+| `HM_WEIGHT_INSTRUMENT_SIMILARITY` | Harmonic mixing weight — instrument similarity (default: `0.02`) |
 | `HM_MAX_RESULTS` | Max transition match candidates to return (default: `50`) |
 | `HM_SCORE_THRESHOLD` | Minimum composite score to include a candidate (default: `25`) |
 | `HM_RESULT_THRESHOLD` | Min result count before score threshold is enforced (default: `20`) |
@@ -73,8 +76,18 @@ cp .env.example .env
 | `TRACK_METADATA_PROCESSING_DIR` | Working directory for track-metadata (default: `processing`) |
 | `TRACK_METADATA_AUGMENTED_DIR` | Output directory for enriched tracks (default: `augmented`) |
 | `TRACK_METADATA_LOG_DIR` | Log directory for track-metadata (default: `logs`) |
+| `TRACK_METADATA_RUN_START` | Override timestamp for metadata run (default: current time) |
 | `LOG_LOCATION` | Global log file path (default: `logs/logs.txt`) |
 | `NUM_CORES` | CPU parallelism override (default: system CPU count) |
+| `ES_TRACK_INDEX` | Elasticsearch index name (default: `dj_tracks`) |
+| `ES_URL` | Elasticsearch URL (default: `http://127.0.0.1:9200`) |
+| `TRAIT_WORKERS` | Parallel workers for trait extraction (default: `2`) |
+| `COSINE_WORKERS` | Parallel workers for cosine similarity (default: `2`) |
+| `OPENAI_API_KEY` | OpenAI API key (optional — enables LLM metadata fallback) |
+| `OPENAI_METADATA_MODEL` | OpenAI model for metadata resolution (default: `gpt-5.4-mini`) |
+| `ACOUSTID_API_KEY` | AcoustID API key (optional — enables fingerprint lookup) |
+| `DISCOGS_TOKEN` | Discogs API token (optional — enables Discogs search) |
+| `MUSIC_METADATA_USER_AGENT` | HTTP User-Agent for metadata API requests |
 
 ---
 
