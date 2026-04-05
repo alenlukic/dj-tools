@@ -55,7 +55,6 @@ export default function App() {
   const {
     weights,
     loading: weightsLoading,
-    saving: weightsSaving,
     setWeight,
     rawSum,
     isSumValid,
@@ -76,6 +75,11 @@ export default function App() {
     const cap = Math.min(loadedPages, totalPages);
     return browsePages.slice(0, cap).flat();
   }, [browsePages, loadedPages, totalPages]);
+
+  const browseTracks = useMemo(
+    () => selectedTrack ? allTracks.filter(t => t.id === selectedTrack.id) : visibleTracks,
+    [selectedTrack, allTracks, visibleTracks],
+  );
 
   const hasMorePages = loadedPages < totalPages;
 
@@ -116,7 +120,6 @@ export default function App() {
         <WeightControls
           weights={weights}
           setWeight={setWeight}
-          saving={weightsSaving}
         />
       )}
 
@@ -184,7 +187,7 @@ export default function App() {
               setBpmMax={setBpmMax}
             />
             <TrackTable
-              tracks={selectedTrack ? allTracks.filter(t => t.id === selectedTrack.id) : visibleTracks}
+              tracks={browseTracks}
               loading={collectionLoading}
               selectedTrack={selectedTrack}
               selectTrack={handleBrowseSelect}

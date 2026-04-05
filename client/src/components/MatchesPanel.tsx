@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { memo, useState, useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -61,8 +61,18 @@ interface Props {
   onScoreClick: (match: TransitionMatch) => void;
 }
 
-export function MatchesPanel({ selectedTrack, matches, loading, onScoreClick }: Props) {
+export const MatchesPanel = memo(function MatchesPanel({ selectedTrack, matches, loading, onScoreClick }: Props) {
   const [bucketTab, setBucketTab] = useState<BucketKey>('same_key');
+
+  const bucketCounts = useMemo(
+    () => {
+      const counts: Record<string, number> = {};
+      for (const bt of BUCKET_TABS) counts[bt.key] = 0;
+      for (const m of matches) { if (m.bucket in counts) counts[m.bucket]++; }
+      return counts;
+    },
+    [matches],
+  );
 
   const bucketMatches = useMemo(
     () => matches.filter((m) => m.bucket === bucketTab),
@@ -99,7 +109,7 @@ export function MatchesPanel({ selectedTrack, matches, loading, onScoreClick }: 
           >
             {bt.label}
             <span className="bucket-count">
-              {matches.filter((m) => m.bucket === bt.key).length}
+              {bucketCounts[bt.key]}
             </span>
           </button>
         ))}
@@ -118,7 +128,7 @@ export function MatchesPanel({ selectedTrack, matches, loading, onScoreClick }: 
             ))}
           </thead>
           <tbody>
-            {loading ? (
+            {loading && bucketMatches.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="table-status">
                   Loading matches…
@@ -132,7 +142,7 @@ export function MatchesPanel({ selectedTrack, matches, loading, onScoreClick }: 
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} style={loading ? { opacity: 0.6 } : undefined}>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -146,4 +156,4 @@ export function MatchesPanel({ selectedTrack, matches, loading, onScoreClick }: 
       </div>
     </div>
   );
-}
+});

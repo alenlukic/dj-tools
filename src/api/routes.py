@@ -334,10 +334,28 @@ def api_get_weights():
     return WeightService.instance().get_weights()
 
 
+def _clear_similarity_cache():
+    from src.db import database
+    from src.models.track_cosine_similarity import TrackCosineSimilarity
+
+    session = database.create_session()
+    try:
+        session.query(TrackCosineSimilarity).delete()
+        session.commit()
+    except Exception:
+        session.rollback()
+        logger.exception("Failed to clear cosine similarity cache after weight update")
+    finally:
+        session.close()
+
+
 @router.put("/weights", response_model=WeightResponse)
 def api_update_weights(body: WeightUpdateRequest):
     from src.harmonic_mixing.weight_service import WeightService
     result = WeightService.instance().update_weights(body.weights)
     finder = _get_match_finder()
     finder._sync_effective_weights()
+    if finder.cosine_cache is not None:
+        finder.cosine_cache.clear()
+    _clear_similarity_cache()
     return result

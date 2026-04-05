@@ -117,6 +117,22 @@ class CosineCache:
             "recent_exits": recent_exits,
         }
 
+    def clear(self) -> None:
+        """Drop all cached entries and reset counters."""
+        with self._warmup_lock:
+            if self._warmup_timer is not None:
+                self._warmup_timer.cancel()
+                self._warmup_timer = None
+            if self._warmup_cancel is not None:
+                self._warmup_cancel.set()
+                self._warmup_cancel = None
+        with self._lock:
+            self._store.clear()
+            self._hits = 0
+            self._misses = 0
+            self._recent_entries.clear()
+            self._recent_exits.clear()
+
     def warm_from_db(self, track_id: int) -> None:
         """BFS-warm the cache from ``track_cosine_similarity`` rows.
 

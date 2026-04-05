@@ -1,4 +1,12 @@
-import { useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
+import { gaugeWeightToFill } from '../utils';
+
+const FUSION_SUBFACTOR_KEYS = [
+  { key: 'FUSION_HARMONIC', label: 'Harmonic' },
+  { key: 'FUSION_RHYTHM',   label: 'Rhythm' },
+  { key: 'FUSION_TIMBRE',   label: 'Timbre' },
+  { key: 'FUSION_ENERGY',   label: 'Energy' },
+] as const;
 
 const FACTOR_LABELS: Record<string, string> = {
   CAMELOT: 'Camelot',
@@ -14,24 +22,12 @@ const FACTOR_LABELS: Record<string, string> = {
   INSTRUMENT_SIMILARITY: 'Instrument',
 };
 
-export const FUSION_WEIGHT_HARMONIC = 0.30;
-export const FUSION_WEIGHT_RHYTHM = 0.25;
-export const FUSION_WEIGHT_TIMBRE = 0.30;
-export const FUSION_WEIGHT_ENERGY = 0.15;
-
 const GAUGE_ROWS: { factors: string[]; colorClass: string }[] = [
   { factors: ['BPM', 'CAMELOT', 'GENRE_SIMILARITY'], colorClass: 'weight-gauge--crimson' },
   {
     factors: ['ENERGY', 'DANCEABILITY', 'MOOD_CONTINUITY', 'TIMBRE', 'INSTRUMENT_SIMILARITY', 'VOCAL_CLASH'],
     colorClass: 'weight-gauge--teal',
   },
-];
-
-const FUSION_CONSTITUENTS = [
-  { label: 'Harmonic', value: FUSION_WEIGHT_HARMONIC * 100 },
-  { label: 'Rhythm', value: FUSION_WEIGHT_RHYTHM * 100 },
-  { label: 'Timbre', value: FUSION_WEIGHT_TIMBRE * 100 },
-  { label: 'Energy', value: FUSION_WEIGHT_ENERGY * 100 },
 ];
 
 interface GaugeProps {
@@ -50,6 +46,12 @@ const ARC_STROKE = 4;
 const START_ANGLE = -135;
 const END_ANGLE = 135;
 const SWEEP = END_ANGLE - START_ANGLE;
+// Drag sensitivity (weight units per degree) follows an exponential decay with a floor:
+//   sensitivity = max(FLOOR, BASE * exp(-weight * DECAY))
+// Profile:  weight=0 → 0.18,  weight=10 → ~0.13,  weight=25 → ~0.085,
+//           weight=50 → ~0.04, weight=100 → 0.03 (floor)
+const DRAG_SENSITIVITY_BASE = 0.18;
+const DRAG_DECAY = 0.03;
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -63,13 +65,18 @@ function arcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: nu
   return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
 }
 
-function WeightGauge({ factor, value, onChange, colorClass, readOnly, label, hideLabel, small }: GaugeProps) {
+function WeightGaugeBase({ factor, value, onChange, colorClass, readOnly, label, hideLabel }: GaugeProps) {
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState('');
+  // Local float drag state — keeps the visual smooth without triggering parent renders.
+  const [dragValue, setDragValue] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const clamped = Math.max(0, Math.min(100, value));
-  const valueAngle = START_ANGLE + (clamped / 100) * SWEEP;
+  // During a drag use the local float; only fall back to parent value when idle.
+  const displayValue = dragValue !== null ? dragValue : clamped;
+  const fillPct = gaugeWeightToFill(displayValue);
+  const valueAngle = START_ANGLE + (fillPct / 100) * SWEEP;
   const cx = 30;
   const cy = 30;
 
@@ -81,27 +88,45 @@ function WeightGauge({ factor, value, onChange, colorClass, readOnly, label, hid
       e.preventDefault();
       (e.target as Element).setPointerCapture(e.pointerId);
 
-      const update = (clientX: number, clientY: number) => {
+      // Work in weight-space so resistance is expressed as weight units per degree.
+      let currentWeight = clamped;
+
+      const getAngle = (clientX: number, clientY: number) => {
         const rect = svg.getBoundingClientRect();
         const mx = clientX - rect.left - cx * (rect.width / 60);
-        const my = clientY - rect.top - cy * (rect.height / 60);
-        let angle = (Math.atan2(mx, -my) * 180) / Math.PI;
-        angle = Math.max(START_ANGLE, Math.min(END_ANGLE, angle));
-        const pct = ((angle - START_ANGLE) / SWEEP) * 100;
-        onChange(factor, Math.round(pct));
+        const my = clientY - rect.top - cy * (rect.height / 42);
+        return (Math.atan2(mx, -my) * 180) / Math.PI;
       };
 
-      update(e.clientX, e.clientY);
+      let prevAngle = getAngle(e.clientX, e.clientY);
 
-      const onMove = (ev: PointerEvent) => update(ev.clientX, ev.clientY);
+      const onMove = (ev: PointerEvent) => {
+        const angle = getAngle(ev.clientX, ev.clientY);
+        let rawDelta = angle - prevAngle;
+        // Clamp to [-180, 180] so crossing the atan2 ±180° seam never causes a wild swing.
+        if (rawDelta > 180) rawDelta -= 360;
+        if (rawDelta < -180) rawDelta += 360;
+        prevAngle = angle;
+
+        // Resistance climbs as weight rises up to 25, then stays constant.
+        const sensitivity = DRAG_SENSITIVITY_BASE * Math.exp(-Math.min(currentWeight, 25) * DRAG_DECAY);
+        currentWeight = Math.max(0, Math.min(100, currentWeight + rawDelta * sensitivity));
+
+        // Update only local state — no parent call, no app-level re-render during drag.
+        setDragValue(currentWeight);
+      };
+
       const onUp = () => {
+        // Single parent commit on release; round only here, never during the drag.
+        onChange(factor, Math.round(currentWeight));
+        setDragValue(null);
         document.removeEventListener('pointermove', onMove);
         document.removeEventListener('pointerup', onUp);
       };
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     },
-    [factor, onChange, readOnly],
+    [factor, onChange, readOnly, clamped],
   );
 
   const handleInputBlur = useCallback(() => {
@@ -122,7 +147,6 @@ function WeightGauge({ factor, value, onChange, colorClass, readOnly, label, hid
 
   const displayLabel = label ?? FACTOR_LABELS[factor] ?? factor;
   const gaugeClass = ['weight-gauge', colorClass].filter(Boolean).join(' ');
-  const arcFontSize = small ? 8 : 10;
 
   return (
     <div className={gaugeClass}>
@@ -141,7 +165,7 @@ function WeightGauge({ factor, value, onChange, colorClass, readOnly, label, hid
             strokeWidth={ARC_STROKE}
             strokeLinecap="round"
           />
-          {clamped > 0 && (
+          {displayValue > 0 && (
             <path
               d={arcPath(cx, cy, ARC_RADIUS, START_ANGLE, valueAngle)}
               fill="none"
@@ -150,39 +174,35 @@ function WeightGauge({ factor, value, onChange, colorClass, readOnly, label, hid
               strokeLinecap="round"
             />
           )}
-          {!hideLabel && !editing && (
-            <text
-              x={cx}
-              y={28}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={arcFontSize}
-              fill="var(--text)"
-              fontFamily="var(--font-mono)"
-              style={readOnly ? undefined : { cursor: 'pointer' }}
-              onClick={readOnly ? undefined : (e: React.MouseEvent) => {
-                e.stopPropagation();
-                setInputVal(String(Math.round(clamped)));
-                setEditing(true);
-              }}
-              onPointerDown={readOnly ? undefined : (e: React.PointerEvent) => e.stopPropagation()}
-            >
-              {Math.round(clamped)}
-            </text>
-          )}
         </svg>
-        {!hideLabel && editing && (
-          <input
-            type="number"
-            className="weight-gauge-input weight-gauge-input-overlay"
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
-            onBlur={handleInputBlur}
-            onKeyDown={handleInputKeyDown}
-            min={0}
-            max={100}
-            autoFocus
-          />
+        {!hideLabel && (
+          <div className="gauge-value-overlay">
+            {editing ? (
+              <input
+                type="number"
+                className="weight-gauge-input"
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
+                min={0}
+                max={100}
+                autoFocus
+              />
+            ) : (
+              <span
+                className="gauge-value-display"
+                style={readOnly ? undefined : { cursor: 'pointer' }}
+                onClick={readOnly ? undefined : (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  setInputVal(String(Math.round(clamped)));
+                  setEditing(true);
+                }}
+              >
+                {Math.round(displayValue)}
+              </span>
+            )}
+          </div>
         )}
       </div>
       {!hideLabel && (
@@ -192,18 +212,16 @@ function WeightGauge({ factor, value, onChange, colorClass, readOnly, label, hid
   );
 }
 
+const WeightGauge = memo(WeightGaugeBase);
+
 interface Props {
   weights: Record<string, number>;
   setWeight: (factor: string, value: number) => void;
-  saving: boolean;
 }
 
-const NOOP_CHANGE = () => {};
-
-export function WeightControls({
+export const WeightControls = memo(function WeightControls({
   weights,
   setWeight,
-  saving,
 }: Props) {
   const factors = Object.keys(weights);
   if (factors.length === 0) return null;
@@ -246,15 +264,14 @@ export function WeightControls({
               colorClass="weight-gauge--violet"
             />
             <div className="fusion-subfactors">
-              {FUSION_CONSTITUENTS.map((c) => (
+              {FUSION_SUBFACTOR_KEYS.map((item) => (
                 <WeightGauge
-                  key={c.label}
-                  factor={c.label}
-                  value={c.value}
-                  onChange={NOOP_CHANGE}
+                  key={item.key}
+                  factor={item.key}
+                  value={weights[item.key] ?? 0}
+                  onChange={setWeight}
                   colorClass="weight-gauge--white"
-                  readOnly
-                  label={c.label}
+                  label={item.label}
                   small
                 />
               ))}
@@ -262,7 +279,6 @@ export function WeightControls({
           </div>
         )}
       </div>
-      {saving && <span className="weight-saving">Saving…</span>}
     </div>
   );
-}
+});

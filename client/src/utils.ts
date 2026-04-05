@@ -40,3 +40,34 @@ export function displayGenre(genre: string | null | undefined): string | null {
   const idx = genre.lastIndexOf('---');
   return idx >= 0 ? genre.substring(idx + 3) : genre;
 }
+
+// Checkpoint table is static — hoisted to avoid re-allocation on every call.
+const FILL_PTS: [number, number][] = [
+  [0, 0], [5, 25], [10, 45], [15, 60], [20, 70], [25, 75],
+];
+
+export function gaugeWeightToFill(weight: number): number {
+  /*
+   * Piecewise-linear mapping: weight (0–100) → visual fill % (0–100).
+   * Low weights are amplified so small values stay visible on the gauge arc.
+   * Above 25 the curve flattens to ~0.33 fill-% per weight unit.
+   *
+   * Checkpoints: 0→0  5→25  10→45  15→60  20→70  25→75
+   * Tail:        fill = 75 + (weight − 25) × 25/75, clamped to 100
+   */
+  if (weight <= 0) return 0;
+  if (weight >= 100) return 100;
+
+  if (weight <= 25) {
+    for (let i = 1; i < FILL_PTS.length; i++) {
+      if (weight <= FILL_PTS[i][0]) {
+        const [w0, f0] = FILL_PTS[i - 1];
+        const [w1, f1] = FILL_PTS[i];
+        return f0 + ((weight - w0) / (w1 - w0)) * (f1 - f0);
+      }
+    }
+  }
+
+  return Math.min(100, 75 + (weight - 25) * (25 / 75));
+}
+

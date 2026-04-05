@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 
 _TARGET_SUM = 100
 
+_FUSION_WEIGHT_DEFAULTS = {
+    'FUSION_HARMONIC': 0.30,
+    'FUSION_RHYTHM': 0.25,
+    'FUSION_TIMBRE': 0.30,
+    'FUSION_ENERGY': 0.15,
+}
+_FUSION_KEYS = frozenset(_FUSION_WEIGHT_DEFAULTS)
+
 
 class WeightService:
     _instance: Optional["WeightService"] = None
@@ -27,6 +35,7 @@ class WeightService:
     def __init__(self):
         self._lock = threading.Lock()
         self._raw_weights: Dict[str, float] = dict(MATCH_WEIGHTS)
+        self._fusion_weights: Dict[str, float] = dict(_FUSION_WEIGHT_DEFAULTS)
         self._load_from_db()
 
     @classmethod
@@ -56,19 +65,20 @@ class WeightService:
                 )
                 if row is not None:
                     saved: Dict[str, float] = json.loads(row.weights_json)
-                    stale_keys = [k for k in saved if k not in self._raw_weights]
+                    stale_keys = []
                     for k, v in saved.items():
-                        if k in self._raw_weights:
+                        if k in _FUSION_KEYS:
+                            self._fusion_weights[k] = v
+                        elif k in self._raw_weights:
                             self._raw_weights[k] = v
+                        else:
+                            stale_keys.append(k)
                     if stale_keys:
                         logger.warning(
                             "DB weight record contained stale factor(s) %s that are no longer "
-                            "in MatchFactors; renormalizing raw weights to sum to 1.0.",
+                            "in MatchFactors or fusion keys; ignoring them.",
                             stale_keys,
                         )
-                        total = sum(self._raw_weights.values())
-                        if total > 0:
-                            self._raw_weights = {k: v / total for k, v in self._raw_weights.items()}
             finally:
                 session.close()
         except Exception:
@@ -86,7 +96,7 @@ class WeightService:
                     .filter_by(scope="global")
                     .first()
                 )
-                payload = json.dumps(self._raw_weights)
+                payload = json.dumps({**self._raw_weights, **self._fusion_weights})
                 if row is not None:
                     row.weights_json = payload
                     session.commit()
@@ -107,8 +117,10 @@ class WeightService:
 
     def get_weights(self) -> Dict:
         with self._lock:
-            raw_100 = {k: round(v * 100, 4) for k, v in self._raw_weights.items()}
-            raw_sum = round(sum(raw_100.values()), 4)
+            main_100 = {k: round(v * 100, 4) for k, v in self._raw_weights.items()}
+            fusion_100 = {k: round(v * 100, 4) for k, v in self._fusion_weights.items()}
+
+            raw_sum = round(sum(main_100.values()), 4)
             is_valid = abs(raw_sum - _TARGET_SUM) < 0.01
 
             effective = self._compute_effective()
@@ -122,7 +134,7 @@ class WeightService:
                 )
 
             return {
-                "raw_weights": raw_100,
+                "raw_weights": {**main_100, **fusion_100},
                 "effective_weights": eff_100,
                 "raw_sum": raw_sum,
                 "target_sum": _TARGET_SUM,
@@ -132,13 +144,20 @@ class WeightService:
 
     def update_weights(self, new_weights: Dict[str, float]) -> Dict:
         """Accept weights on the 0-100 scale, persist, and return canonical state."""
-        valid_keys = {f.name for f in MatchFactors}
+        valid_main_keys = {f.name for f in MatchFactors}
         with self._lock:
             for k, v in new_weights.items():
-                if k in valid_keys:
+                if k in _FUSION_KEYS:
+                    self._fusion_weights[k] = v / 100.0
+                elif k in valid_main_keys:
                     self._raw_weights[k] = v / 100.0
         self._persist_to_db()
         return self.get_weights()
+
+    def get_fusion_weights(self) -> Dict[str, float]:
+        """Return fusion weights on 0-1 scale."""
+        with self._lock:
+            return dict(self._fusion_weights)
 
     def get_effective_weights_for_scoring(self) -> Dict[str, float]:
         """Return effective weights on 0-1 scale, summing to 1.0, for use by the scoring path."""
