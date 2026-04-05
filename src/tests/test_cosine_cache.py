@@ -5,6 +5,7 @@ Run with:
 """
 
 import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -258,6 +259,110 @@ class TestWarmFromDb:
         assert cache.get(100, 300) == 0.75, "depth-1 pair"
         assert cache.get(80, 100) == 0.65, "depth-2 pair via id2 neighbor"
         assert cache.size() == 2
+
+
+# ---------------------------------------------------------------------------
+# Delayed BFS warm-up scheduler
+# ---------------------------------------------------------------------------
+
+
+class TestScheduleWarmup:
+    def test_delayed_start(self):
+        """Warm-up must not start immediately; it waits for the configured delay."""
+        cache = CosineCache(warmup_delay=0.3)
+        call_log = []
+
+        def tracking_worker(track_id, cancel):
+            call_log.append(track_id)
+
+        with patch.object(cache, '_warmup_worker', side_effect=tracking_worker):
+            cache.schedule_warmup(42)
+            time.sleep(0.05)
+            assert call_log == [], "worker should not fire before delay"
+            time.sleep(0.4)
+            assert call_log == [42], "worker should fire after delay"
+
+    def test_supersession_cancels_pending(self):
+        """A new schedule_warmup before the delay expires cancels the old one."""
+        cache = CosineCache(warmup_delay=0.3)
+        call_log = []
+
+        def tracking_worker(track_id, cancel):
+            call_log.append(track_id)
+
+        with patch.object(cache, '_warmup_worker', side_effect=tracking_worker):
+            cache.schedule_warmup(1)
+            time.sleep(0.05)
+            cache.schedule_warmup(2)
+            time.sleep(0.5)
+            assert call_log == [2], "only the second (superseding) warmup should fire"
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_active_cancellation_no_eviction(self, mock_db):
+        """Cancelling a running warm-up preserves already-added cache entries."""
+        mock_session = MagicMock()
+        mock_db.create_session.return_value = mock_session
+
+        root_rows = [_make_sim_row(10, 20, 0.8), _make_sim_row(10, 30, 0.7)]
+
+        call_count = {"n": 0}
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            if call_count["n"] == 0:
+                mock_filtered.all.return_value = root_rows
+                call_count["n"] += 1
+            else:
+                cancel_event.set()
+                mock_filtered.all.return_value = [_make_sim_row(20, 40, 0.6)]
+                call_count["n"] += 1
+            return mock_filtered
+
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+        mock_query.filter.side_effect = filter_side_effect
+
+        cancel_event = threading.Event()
+        cache = CosineCache()
+        cache._warmup_worker(10, cancel_event)
+
+        assert cache.get(10, 20) == 0.8, "entries added before cancel must persist"
+        assert cache.get(10, 30) == 0.7, "entries added before cancel must persist"
+        assert cache.size() == 2
+
+    @patch("src.harmonic_mixing.cosine_cache.database")
+    def test_bfs_depth2_with_explored_set(self, mock_db):
+        """BFS traverses to depth 2, explored set prevents redundant expansion."""
+        mock_session = MagicMock()
+        mock_db.create_session.return_value = mock_session
+
+        root_rows = [_make_sim_row(10, 20, 0.8), _make_sim_row(10, 30, 0.7)]
+        rows_for_20 = [_make_sim_row(20, 40, 0.6)]
+        rows_for_30 = [_make_sim_row(30, 50, 0.5), _make_sim_row(10, 30, 0.7)]
+
+        call_count = {"n": 0}
+        results = [root_rows, rows_for_20, rows_for_30]
+
+        def filter_side_effect(*args, **kwargs):
+            mock_filtered = MagicMock()
+            mock_filtered.all.return_value = results[call_count["n"]]
+            call_count["n"] += 1
+            return mock_filtered
+
+        mock_query = MagicMock()
+        mock_session.query.return_value = mock_query
+        mock_query.filter.side_effect = filter_side_effect
+
+        cancel = threading.Event()
+        cache = CosineCache()
+        cache._warmup_worker(10, cancel)
+
+        assert call_count["n"] == 3, "should query root + 2 depth-1 neighbors"
+        assert cache.get(10, 20) == 0.8
+        assert cache.get(10, 30) == 0.7
+        assert cache.get(20, 40) == 0.6
+        assert cache.get(30, 50) == 0.5
+        assert cache.size() == 4
 
 
 # ---------------------------------------------------------------------------

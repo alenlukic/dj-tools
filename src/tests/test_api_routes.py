@@ -126,6 +126,73 @@ class TestCacheStatsEndpoint:
 
 
 # ---------------------------------------------------------------------------
+# GET /api/track-traits
+# ---------------------------------------------------------------------------
+
+
+class TestTrackTraitsEndpoint:
+    def test_returns_200_with_expected_shape(self):
+        mock_trait = MagicMock()
+        mock_trait.track_id = 1
+        mock_trait.voice_instrumental = 0.2
+        mock_trait.danceability = 0.8
+        mock_trait.bright_dark = 0.5
+        mock_trait.acoustic_electronic = None
+        mock_trait.tonal_atonal = None
+        mock_trait.reverb = None
+        mock_trait.onset_density = None
+        mock_trait.spectral_flatness = None
+        mock_trait.mood_theme = None
+        mock_trait.genre = None
+        mock_trait.instruments = None
+
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter_by.return_value.all.return_value = [
+            mock_trait
+        ]
+
+        finder = MagicMock()
+        finder.cosine_cache = None
+        finder._sync_effective_weights = MagicMock()
+
+        with patch("src.api.routes._get_match_finder", return_value=finder), \
+             patch("src.api.routes._get_session", return_value=mock_session), \
+             patch("src.harmonic_mixing.weight_service.WeightService._load_from_db"), \
+             patch("src.harmonic_mixing.weight_service.WeightService._persist_to_db"):
+            from src.api.app import create_app
+            with TestClient(create_app()) as tc:
+                resp = tc.get("/api/track-traits")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]["track_id"] == 1
+        assert "traits" in data[0]
+        assert data[0]["traits"]["voice_instrumental"] == pytest.approx(0.2)
+        assert data[0]["traits"]["danceability"] == pytest.approx(0.8)
+
+    def test_returns_empty_list_when_no_traits(self):
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter_by.return_value.all.return_value = []
+
+        finder = MagicMock()
+        finder.cosine_cache = None
+        finder._sync_effective_weights = MagicMock()
+
+        with patch("src.api.routes._get_match_finder", return_value=finder), \
+             patch("src.api.routes._get_session", return_value=mock_session), \
+             patch("src.harmonic_mixing.weight_service.WeightService._load_from_db"), \
+             patch("src.harmonic_mixing.weight_service.WeightService._persist_to_db"):
+            from src.api.app import create_app
+            with TestClient(create_app()) as tc:
+                resp = tc.get("/api/track-traits")
+
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+
+# ---------------------------------------------------------------------------
 # GET /api/weights
 # ---------------------------------------------------------------------------
 

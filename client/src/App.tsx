@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { SearchPanel } from './components/SearchPanel';
 import { FilterBar } from './components/FilterBar';
 import { TrackTable } from './components/TrackTable';
@@ -15,11 +15,16 @@ import type { Track, SearchSuggestion, TransitionMatch } from './types';
 
 type TabKey = 'matches' | 'browse' | 'admin';
 
+const BROWSE_PAGE_SIZE = 250;
+
 export default function App() {
-  const { allTracks, loading: collectionLoading } = useCollectionCache();
+  const { allTracks, traitMap, loading: collectionLoading } = useCollectionCache();
 
   const [activeTab, setActiveTab] = useState<TabKey>('matches');
   const [detailMatch, setDetailMatch] = useState<TransitionMatch | null>(null);
+  const [searchText, setSearchText] = useState('');
+  const [loadedPages, setLoadedPages] = useState(1);
+  const loadedPageCacheRef = useRef<Map<string, number>>(new Map());
 
   const {
     stats: cacheStats,
@@ -40,11 +45,12 @@ export default function App() {
   const {
     filters,
     filteredTracks,
+    filterCacheKey,
     setCamelotCodes,
     setBpm,
     setBpmMin,
     setBpmMax,
-  } = useTrackFilters(allTracks);
+  } = useTrackFilters(allTracks, searchText);
 
   const {
     weights,
@@ -56,11 +62,42 @@ export default function App() {
     normalizeWeights,
   } = useWeights(refetchMatches);
 
+  const browsePages = useMemo(() => {
+    const pages: Track[][] = [];
+    for (let i = 0; i < filteredTracks.length; i += BROWSE_PAGE_SIZE) {
+      pages.push(filteredTracks.slice(i, i + BROWSE_PAGE_SIZE));
+    }
+    return pages;
+  }, [filteredTracks]);
+
+  const totalPages = browsePages.length;
+
+  const visibleTracks = useMemo(() => {
+    const cap = Math.min(loadedPages, totalPages);
+    return browsePages.slice(0, cap).flat();
+  }, [browsePages, loadedPages, totalPages]);
+
+  const hasMorePages = loadedPages < totalPages;
+
+  useEffect(() => {
+    const cached = loadedPageCacheRef.current.get(filterCacheKey);
+    setLoadedPages(cached ?? 1);
+  }, [filterCacheKey]);
+
+  const handleLoadMore = useCallback(() => {
+    setLoadedPages(prev => {
+      const next = Math.min(prev + 1, totalPages);
+      loadedPageCacheRef.current.set(filterCacheKey, next);
+      return next;
+    });
+  }, [totalPages, filterCacheKey]);
+
   const handleSelectTrack = useCallback(
     (track: Track | SearchSuggestion) => {
       setDetailMatch(null);
       selectTrack(track);
       setActiveTab('matches');
+      setSearchText('');
     },
     [selectTrack],
   );
@@ -79,10 +116,7 @@ export default function App() {
         <WeightControls
           weights={weights}
           setWeight={setWeight}
-          isSumValid={isSumValid}
-          rawSum={rawSum}
           saving={weightsSaving}
-          normalizeWeights={normalizeWeights}
         />
       )}
 
@@ -90,6 +124,10 @@ export default function App() {
         selectedTrack={selectedTrack}
         selectTrack={handleSelectTrack}
         clearSelectedTrack={clearSelectedTrack}
+        normalizeWeights={normalizeWeights}
+        isSumValid={isSumValid}
+        rawSum={rawSum}
+        onSearchTextChange={setSearchText}
       />
 
       <div className="tab-bar">
@@ -130,6 +168,7 @@ export default function App() {
             sourceTrack={selectedTrack}
             match={detailMatch}
             onBack={() => setDetailMatch(null)}
+            traitMap={traitMap}
           />
         )}
         {activeTab === 'browse' && (
@@ -145,10 +184,12 @@ export default function App() {
               setBpmMax={setBpmMax}
             />
             <TrackTable
-              tracks={selectedTrack ? allTracks.filter(t => t.id === selectedTrack.id) : filteredTracks}
+              tracks={selectedTrack ? allTracks.filter(t => t.id === selectedTrack.id) : visibleTracks}
               loading={collectionLoading}
               selectedTrack={selectedTrack}
               selectTrack={handleBrowseSelect}
+              hasMore={!selectedTrack ? hasMorePages : undefined}
+              onLoadMore={!selectedTrack ? handleLoadMore : undefined}
             />
           </>
         )}

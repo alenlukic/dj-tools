@@ -56,9 +56,19 @@ class WeightService:
                 )
                 if row is not None:
                     saved: Dict[str, float] = json.loads(row.weights_json)
+                    stale_keys = [k for k in saved if k not in self._raw_weights]
                     for k, v in saved.items():
                         if k in self._raw_weights:
                             self._raw_weights[k] = v
+                    if stale_keys:
+                        logger.warning(
+                            "DB weight record contained stale factor(s) %s that are no longer "
+                            "in MatchFactors; renormalizing raw weights to sum to 1.0.",
+                            stale_keys,
+                        )
+                        total = sum(self._raw_weights.values())
+                        if total > 0:
+                            self._raw_weights = {k: v / total for k, v in self._raw_weights.items()}
             finally:
                 session.close()
         except Exception:

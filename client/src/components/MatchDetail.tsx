@@ -5,6 +5,7 @@ import type {
   TransitionMatch,
   MatchDetail as MatchDetailData,
 } from '../types';
+import type { TraitMap } from '../hooks/useCollectionCache';
 import { fetchMatchDetail } from '../api/http';
 import { formatFloat, formatScore, formatOverallScore, displayGenre } from '../utils';
 
@@ -29,6 +30,7 @@ interface Props {
   sourceTrack: Track | SearchSuggestion | null;
   match: TransitionMatch;
   onBack: () => void;
+  traitMap: TraitMap;
 }
 
 function renderValue(value: unknown): React.ReactNode {
@@ -78,7 +80,7 @@ const TRAIT_LABELS: Record<string, string> = {
   instruments: 'Instruments',
 };
 
-export function MatchDetail({ sourceTrack, match, onBack }: Props) {
+export function MatchDetail({ sourceTrack, match, onBack, traitMap }: Props) {
   const [{ loading, detail }, dispatch] = useReducer(detailReducer, {
     loading: true,
     detail: null,
@@ -88,9 +90,15 @@ export function MatchDetail({ sourceTrack, match, onBack }: Props) {
     if (!sourceTrack) return;
     dispatch({ type: 'fetch' });
     fetchMatchDetail(sourceTrack.id, match.candidate_id)
-      .then((result) => dispatch({ type: 'success', detail: result }))
+      .then((result) => {
+        if (traitMap.size > 0) {
+          result.on_deck.traits = traitMap.get(result.on_deck.id) ?? result.on_deck.traits;
+          result.candidate.traits = traitMap.get(result.candidate.id) ?? result.candidate.traits;
+        }
+        dispatch({ type: 'success', detail: result });
+      })
       .catch(() => dispatch({ type: 'error' }));
-  }, [sourceTrack, match]);
+  }, [sourceTrack, match, traitMap]);
 
   if (loading) {
     return (

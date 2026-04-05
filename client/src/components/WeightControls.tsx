@@ -41,6 +41,8 @@ interface GaugeProps {
   colorClass?: string;
   readOnly?: boolean;
   label?: string;
+  hideLabel?: boolean;
+  small?: boolean;
 }
 
 const ARC_RADIUS = 24;
@@ -61,7 +63,7 @@ function arcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: nu
   return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
 }
 
-function WeightGauge({ factor, value, onChange, colorClass, readOnly, label }: GaugeProps) {
+function WeightGauge({ factor, value, onChange, colorClass, readOnly, label, hideLabel, small }: GaugeProps) {
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState('');
   const svgRef = useRef<SVGSVGElement>(null);
@@ -120,61 +122,72 @@ function WeightGauge({ factor, value, onChange, colorClass, readOnly, label }: G
 
   const displayLabel = label ?? FACTOR_LABELS[factor] ?? factor;
   const gaugeClass = ['weight-gauge', colorClass].filter(Boolean).join(' ');
+  const arcFontSize = small ? 8 : 10;
 
   return (
     <div className={gaugeClass}>
-      <svg
-        ref={svgRef}
-        viewBox="0 0 60 42"
-        className="weight-gauge-svg"
-        onPointerDown={handlePointerDown}
-        style={readOnly ? { cursor: 'default' } : undefined}
-      >
-        <path
-          d={arcPath(cx, cy, ARC_RADIUS, START_ANGLE, END_ANGLE)}
-          fill="none"
-          stroke="var(--border)"
-          strokeWidth={ARC_STROKE}
-          strokeLinecap="round"
-        />
-        {clamped > 0 && (
+      <div className="gauge-arc-pane">
+        <svg
+          ref={svgRef}
+          viewBox="0 0 60 42"
+          className="weight-gauge-svg"
+          onPointerDown={handlePointerDown}
+          style={readOnly ? { cursor: 'default' } : undefined}
+        >
           <path
-            d={arcPath(cx, cy, ARC_RADIUS, START_ANGLE, valueAngle)}
+            d={arcPath(cx, cy, ARC_RADIUS, START_ANGLE, END_ANGLE)}
             fill="none"
-            stroke="var(--gauge-accent, var(--accent))"
+            stroke="var(--border)"
             strokeWidth={ARC_STROKE}
             strokeLinecap="round"
           />
+          {clamped > 0 && (
+            <path
+              d={arcPath(cx, cy, ARC_RADIUS, START_ANGLE, valueAngle)}
+              fill="none"
+              stroke="var(--gauge-accent, var(--accent))"
+              strokeWidth={ARC_STROKE}
+              strokeLinecap="round"
+            />
+          )}
+          {!hideLabel && !editing && (
+            <text
+              x={cx}
+              y={28}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={arcFontSize}
+              fill="var(--text)"
+              fontFamily="var(--font-mono)"
+              style={readOnly ? undefined : { cursor: 'pointer' }}
+              onClick={readOnly ? undefined : (e: React.MouseEvent) => {
+                e.stopPropagation();
+                setInputVal(String(Math.round(clamped)));
+                setEditing(true);
+              }}
+              onPointerDown={readOnly ? undefined : (e: React.PointerEvent) => e.stopPropagation()}
+            >
+              {Math.round(clamped)}
+            </text>
+          )}
+        </svg>
+        {!hideLabel && editing && (
+          <input
+            type="number"
+            className="weight-gauge-input weight-gauge-input-overlay"
+            value={inputVal}
+            onChange={(e) => setInputVal(e.target.value)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            min={0}
+            max={100}
+            autoFocus
+          />
         )}
-      </svg>
-      {readOnly ? (
-        <span className="weight-gauge-num" style={{ cursor: 'default' }}>
-          {Math.round(clamped)}
-        </span>
-      ) : editing ? (
-        <input
-          type="number"
-          className="weight-gauge-input"
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-          onBlur={handleInputBlur}
-          onKeyDown={handleInputKeyDown}
-          min={0}
-          max={100}
-          autoFocus
-        />
-      ) : (
-        <button
-          className="weight-gauge-num"
-          onClick={() => {
-            setInputVal(String(Math.round(clamped)));
-            setEditing(true);
-          }}
-        >
-          {Math.round(clamped)}
-        </button>
+      </div>
+      {!hideLabel && (
+        <span className="weight-gauge-label">{displayLabel}</span>
       )}
-      <span className="weight-gauge-label">{displayLabel}</span>
     </div>
   );
 }
@@ -182,10 +195,7 @@ function WeightGauge({ factor, value, onChange, colorClass, readOnly, label }: G
 interface Props {
   weights: Record<string, number>;
   setWeight: (factor: string, value: number) => void;
-  isSumValid: boolean;
-  rawSum: number;
   saving: boolean;
-  normalizeWeights: () => void;
 }
 
 const NOOP_CHANGE = () => {};
@@ -193,74 +203,66 @@ const NOOP_CHANGE = () => {};
 export function WeightControls({
   weights,
   setWeight,
-  isSumValid,
-  rawSum,
   saving,
-  normalizeWeights,
 }: Props) {
   const factors = Object.keys(weights);
   if (factors.length === 0) return null;
 
   return (
     <div className="weight-controls-row">
-      <div className="gauge-rows">
-        <div className="gauge-row">
-          {GAUGE_ROWS[0].factors
-            .filter((f) => f in weights)
-            .map((f) => (
-              <WeightGauge
-                key={f}
-                factor={f}
-                value={weights[f]}
-                onChange={setWeight}
-                colorClass={GAUGE_ROWS[0].colorClass}
-              />
-            ))}
-          <div className="gauge-row-sep" />
-          {GAUGE_ROWS[1].factors
-            .filter((f) => f in weights)
-            .map((f) => (
-              <WeightGauge
-                key={f}
-                factor={f}
-                value={weights[f]}
-                onChange={setWeight}
-                colorClass={GAUGE_ROWS[1].colorClass}
-              />
-            ))}
-        </div>
-        <div className="gauge-row">
-          {factors.includes('SIMILARITY') && (
+      <div className="gauge-group gauge-group--bpm">
+        {GAUGE_ROWS[0].factors
+          .filter((f) => f in weights)
+          .map((f) => (
+            <WeightGauge
+              key={f}
+              factor={f}
+              value={weights[f]}
+              onChange={setWeight}
+              colorClass={GAUGE_ROWS[0].colorClass}
+            />
+          ))}
+      </div>
+      <div className="gauge-group gauge-group--energy">
+        {GAUGE_ROWS[1].factors
+          .filter((f) => f in weights)
+          .map((f) => (
+            <WeightGauge
+              key={f}
+              factor={f}
+              value={weights[f]}
+              onChange={setWeight}
+              colorClass={GAUGE_ROWS[1].colorClass}
+            />
+          ))}
+      </div>
+      <div className="gauge-group gauge-group--fusion">
+        {factors.includes('SIMILARITY') && (
+          <div className="fusion-pane">
             <WeightGauge
               factor="SIMILARITY"
               value={weights['SIMILARITY']}
               onChange={setWeight}
               colorClass="weight-gauge--violet"
             />
-          )}
-          {FUSION_CONSTITUENTS.map((c) => (
-            <WeightGauge
-              key={c.label}
-              factor={c.label}
-              value={c.value}
-              onChange={NOOP_CHANGE}
-              colorClass="weight-gauge--white"
-              readOnly
-              label={c.label}
-            />
-          ))}
-        </div>
+            <div className="fusion-subfactors">
+              {FUSION_CONSTITUENTS.map((c) => (
+                <WeightGauge
+                  key={c.label}
+                  factor={c.label}
+                  value={c.value}
+                  onChange={NOOP_CHANGE}
+                  colorClass="weight-gauge--white"
+                  readOnly
+                  label={c.label}
+                  small
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="weight-actions">
-        <button
-          className={`weight-normalize-btn${isSumValid ? ' inactive' : ''}`}
-          disabled={isSumValid}
-          onClick={normalizeWeights}
-        >
-          Normalize{!isSumValid && ` (${parseFloat(rawSum.toFixed(1))})`}
-        </button>
-        {saving && <span className="weight-saving">Saving…</span>}
-      </div>
+      {saving && <span className="weight-saving">Saving…</span>}
     </div>
   );
 }

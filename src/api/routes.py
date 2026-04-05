@@ -11,6 +11,7 @@ from src.api.schemas import (
     MatchDetailResponse,
     SearchSuggestion,
     TrackResponse,
+    TrackTraitResponse,
     TransitionMatchResponse,
     WeightResponse,
     WeightUpdateRequest,
@@ -20,6 +21,7 @@ from src.api.serializers import (
     serialize_match_detail_track,
     serialize_matches,
     serialize_track_row,
+    serialize_trait_info,
 )
 from src.data_management.config import TrackDBCols
 
@@ -101,6 +103,32 @@ def api_tracks(
         session.close()
 
 
+@router.get("/track-traits", response_model=List[TrackTraitResponse])
+def api_track_traits():
+    from src.models.track_trait import TrackTrait
+    from src.feature_extraction.config import TRAIT_VERSION
+
+    session = _get_session()
+    try:
+        rows = (
+            session.query(TrackTrait)
+            .filter_by(trait_version=TRAIT_VERSION)
+            .all()
+        )
+        return [
+            {"track_id": row.track_id, "traits": serialize_trait_info(row)}
+            for row in rows
+        ]
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        logger.exception("Track trait listing failed")
+        raise HTTPException(status_code=500, detail="Track trait listing failed")
+    finally:
+        session.close()
+
+
 @router.get("/tracks/{track_id}/matches", response_model=List[TransitionMatchResponse])
 def api_matches(track_id: int):
     from src.models.track import Track
@@ -117,6 +145,11 @@ def api_matches(track_id: int):
             raise HTTPException(status_code=404, detail="No matches found")
 
         (same_key, higher_key, lower_key), _ = result
+
+        cache = finder.cosine_cache
+        if cache is not None and hasattr(cache, 'schedule_warmup'):
+            cache.schedule_warmup(track_id)
+
         return serialize_matches(same_key, higher_key, lower_key)
     except HTTPException:
         raise
@@ -134,8 +167,6 @@ def api_matches(track_id: int):
 )
 def api_match_detail(track_id: int, candidate_id: int):
     from src.models.track import Track
-    from src.models.track_trait import TrackTrait
-    from src.feature_extraction.config import TRAIT_VERSION
     from src.harmonic_mixing.config import MATCH_WEIGHTS, MatchFactors
     from src.harmonic_mixing.weight_service import WeightService
 
@@ -184,22 +215,11 @@ def api_match_detail(track_id: int, candidate_id: int):
                 "weight": round(weight, 4),
             })
 
-        source_trait = (
-            session.query(TrackTrait)
-            .filter_by(track_id=track_id, trait_version=TRAIT_VERSION)
-            .first()
-        )
-        candidate_trait = (
-            session.query(TrackTrait)
-            .filter_by(track_id=candidate_id, trait_version=TRAIT_VERSION)
-            .first()
-        )
-
         return {
             "overall_score": round(target_match.get_score(), 2),
             "factors": factors,
-            "on_deck": serialize_match_detail_track(source_track, source_trait),
-            "candidate": serialize_match_detail_track(candidate_track, candidate_trait),
+            "on_deck": serialize_match_detail_track(source_track, None),
+            "candidate": serialize_match_detail_track(candidate_track, None),
         }
     except HTTPException:
         raise
