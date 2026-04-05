@@ -96,13 +96,18 @@ export function FilterBar({
     <div className="filter-bar">
       <div className="filter-group" ref={camelotRef}>
         <label className="filter-label">Camelot</label>
-        <button
-          className="filter-camelot-toggle"
-          onClick={() => setCamelotOpen(!camelotOpen)}
-        >
-          {camelotCodes.length > 0 ? camelotCodes.join(', ') : 'All keys'}
-          <span className="caret">{camelotOpen ? '▲' : '▼'}</span>
-        </button>
+        <div className="filter-input-row">
+          <button
+            className="filter-camelot-toggle"
+            onClick={() => setCamelotOpen(!camelotOpen)}
+          >
+            {camelotCodes.length > 0 ? camelotCodes.join(', ') : 'All keys'}
+            <span className="caret">{camelotOpen ? '▲' : '▼'}</span>
+          </button>
+          {camelotCodes.length > 0 && (
+            <button className="clear-btn" onClick={() => setCamelotCodes([])} tabIndex={-1}>×</button>
+          )}
+        </div>
         {camelotOpen && (
           <div className="camelot-grid">
             {CAMELOT_CODES.map((code) => (
@@ -125,13 +130,18 @@ export function FilterBar({
 
       <div className="filter-group">
         <label className="filter-label">BPM</label>
-        <input
-          type="number"
-          className="filter-input mono"
-          placeholder="Exact"
-          value={bpm ?? ''}
-          onChange={(e) => setBpm(parseNum(e.target.value))}
-        />
+        <div className="filter-input-row">
+          <input
+            type="number"
+            className="filter-input mono"
+            placeholder="Exact"
+            value={bpm ?? ''}
+            onChange={(e) => setBpm(parseNum(e.target.value))}
+          />
+          {bpm != null && (
+            <button className="clear-btn" onClick={() => setBpm(undefined)} tabIndex={-1}>×</button>
+          )}
+        </div>
       </div>
 
       <div className="filter-group">
@@ -154,6 +164,22 @@ export function FilterBar({
             onChange={handleMaxChange}
             onBlur={handleMaxBlur}
           />
+          {(minText || maxText) && (
+            <button
+              className="clear-btn"
+              onClick={() => {
+                clearTimeout(minTimer.current);
+                clearTimeout(maxTimer.current);
+                setMinText('');
+                setMaxText('');
+                setBpmMin(undefined);
+                setBpmMax(undefined);
+              }}
+              tabIndex={-1}
+            >
+              ×
+            </button>
+          )}
         </div>
       </div>
     </div>

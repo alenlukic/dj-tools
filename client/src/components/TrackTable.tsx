@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
+import { memo, useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -76,24 +76,27 @@ interface Props {
   onLoadMore?: () => void;
 }
 
-export function TrackTable({ tracks, loading, selectedTrack, selectTrack, hasMore, onLoadMore }: Props) {
+export const TrackTable = memo(function TrackTable({ tracks, loading, selectedTrack, selectTrack, hasMore, onLoadMore }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
   useLayoutEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
-    setContainerWidth(el.clientWidth);
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width);
-      }
-    });
-    ro.observe(el);
+    // Measure the *parent* to avoid a feedback loop: applying 32px margins
+    // reduces wrapperRef's own clientWidth, which could flip isFramed off,
+    // removing margins, which increases width again — oscillating indefinitely.
+    const measure = (parent: Element) => setContainerWidth(parent.clientWidth);
+    const parent = el.parentElement;
+    if (!parent) return;
+    measure(parent);
+    const ro = new ResizeObserver(() => measure(parent));
+    ro.observe(parent);
     return () => ro.disconnect();
   }, []);
 
   const colWidths = useMemo(() => computeColWidths(containerWidth), [containerWidth]);
+  const isFramed = containerWidth > 0 && containerWidth >= TOTAL_MIN + 64;
 
   const table = useReactTable({
     data: tracks,
@@ -116,7 +119,7 @@ export function TrackTable({ tracks, loading, selectedTrack, selectTrack, hasMor
   }, [hasMore, onLoadMore, tracks.length]);
 
   return (
-    <div className="track-table-wrapper" ref={wrapperRef}>
+    <div className={`track-table-wrapper${isFramed ? ' track-table-wrapper--framed' : ''}`} ref={wrapperRef}>
       <table className="track-table">
         <colgroup>
           {colWidths.map((w, i) => (
@@ -174,4 +177,4 @@ export function TrackTable({ tracks, loading, selectedTrack, selectTrack, hasMor
       )}
     </div>
   );
-}
+});

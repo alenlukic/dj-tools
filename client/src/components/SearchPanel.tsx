@@ -22,14 +22,11 @@ export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack, no
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [prevTrackId, setPrevTrackId] = useState<number | null>(null);
-  const trackId = selectedTrack?.id ?? null;
-  if (trackId !== prevTrackId) {
-    setPrevTrackId(trackId);
+  useEffect(() => {
     if (selectedTrack) {
       setQuery(selectedTrack.title);
     }
-  }
+  }, [selectedTrack]);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,7 +112,23 @@ export function SearchPanel({ selectedTrack, selectTrack, clearSelectedTrack, no
           onChange={handleInputChange}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           onKeyDown={handleKeyDown}
+          style={query ? { paddingRight: '32px' } : undefined}
         />
+        {query && (
+          <button
+            className="clear-btn clear-btn--search"
+            onClick={() => {
+              setQuery('');
+              setSuggestions([]);
+              setOpen(false);
+              clearSelectedTrack();
+              onSearchTextChange?.('');
+            }}
+            tabIndex={-1}
+          >
+            ×
+          </button>
+        )}
         {open && (
           <ul className="search-dropdown">
             {suggestions.map((s, i) => (

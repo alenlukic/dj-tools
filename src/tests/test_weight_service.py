@@ -93,6 +93,50 @@ class TestWeightUpdate:
         assert result["raw_weights"]["CAMELOT"] == 10.0
 
 
+class TestFusionWeights:
+    def test_get_weights_includes_fusion_keys(self):
+        svc = _make_service()
+        result = svc.get_weights()
+        for key in ("FUSION_HARMONIC", "FUSION_RHYTHM", "FUSION_TIMBRE", "FUSION_ENERGY"):
+            assert key in result["raw_weights"]
+
+    def test_raw_sum_ignores_fusion_keys(self):
+        svc = _make_service()
+        n = len(svc._raw_weights)
+        for k in svc._raw_weights:
+            svc._raw_weights[k] = 1.0 / n
+        result = svc.get_weights()
+        assert result["is_sum_valid"] is True
+        main_sum = sum(
+            v for k, v in result["raw_weights"].items() if not k.startswith("FUSION_")
+        )
+        assert result["raw_sum"] == pytest.approx(main_sum, abs=0.01)
+
+    @patch("src.harmonic_mixing.weight_service.WeightService._persist_to_db")
+    @patch("src.harmonic_mixing.weight_service.WeightService._load_from_db")
+    def test_update_fusion_key_round_trips(self, mock_load, mock_persist):
+        from src.harmonic_mixing.weight_service import WeightService
+        svc = WeightService()
+        result = svc.update_weights({"FUSION_HARMONIC": 40})
+        assert result["raw_weights"]["FUSION_HARMONIC"] == pytest.approx(40.0, abs=0.01)
+
+    @patch("src.harmonic_mixing.weight_service.WeightService._persist_to_db")
+    @patch("src.harmonic_mixing.weight_service.WeightService._load_from_db")
+    def test_get_fusion_weights_returns_0_1_scale(self, mock_load, mock_persist):
+        from src.harmonic_mixing.weight_service import WeightService
+        svc = WeightService()
+        svc.update_weights({"FUSION_HARMONIC": 50})
+        fw = svc.get_fusion_weights()
+        assert fw["FUSION_HARMONIC"] == pytest.approx(0.50, abs=0.001)
+        assert fw["FUSION_RHYTHM"] == pytest.approx(0.25, abs=0.001)
+
+    def test_fusion_keys_not_in_effective_weights(self):
+        svc = _make_service()
+        result = svc.get_weights()
+        for key in ("FUSION_HARMONIC", "FUSION_RHYTHM", "FUSION_TIMBRE", "FUSION_ENERGY"):
+            assert key not in result["effective_weights"]
+
+
 class TestEffectiveWeightsForScoring:
     def test_effective_weights_sum_to_one(self):
         svc = _make_service()

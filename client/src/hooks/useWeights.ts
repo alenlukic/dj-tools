@@ -15,12 +15,16 @@ interface WeightsState {
   normalizeWeights: () => void;
 }
 
+const FUSION_KEY_PREFIX = 'FUSION_';
+const isFusionKey = (k: string) => k.startsWith(FUSION_KEY_PREFIX);
+
 function normalizeToHundred(weights: Record<string, number>): Record<string, number> {
-  const entries = Object.entries(weights);
-  const sum = entries.reduce((s, [, v]) => s + v, 0);
+  const mainEntries = Object.entries(weights).filter(([k]) => !isFusionKey(k));
+  const fusionEntries = Object.entries(weights).filter(([k]) => isFusionKey(k));
+  const sum = mainEntries.reduce((s, [, v]) => s + v, 0);
   if (sum === 0) return { ...weights };
 
-  const scaled = entries.map(([key, v]) => {
+  const scaled = mainEntries.map(([key, v]) => {
     const ideal = (v / sum) * 100;
     return { key, floored: Math.floor(ideal), remainder: ideal - Math.floor(ideal) };
   });
@@ -39,6 +43,9 @@ function normalizeToHundred(weights: Record<string, number>): Record<string, num
     result[entry.key]++;
     remaining--;
   }
+  for (const [k, v] of fusionEntries) {
+    result[k] = v;
+  }
   return result;
 }
 
@@ -49,6 +56,7 @@ export function useWeights(onSaveSuccess?: () => void): WeightsState {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveVersionRef = useRef(0);
   const onSaveSuccessRef = useRef(onSaveSuccess);
   useEffect(() => {
     onSaveSuccessRef.current = onSaveSuccess;
@@ -69,24 +77,32 @@ export function useWeights(onSaveSuccess?: () => void): WeightsState {
 
   const persistWeights = useCallback((updated: Record<string, number>) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    const version = ++saveVersionRef.current;
     debounceRef.current = setTimeout(() => {
       setSaving(true);
       updateWeights(updated)
         .then((data) => {
-          setServerState(data);
+          if (saveVersionRef.current === version) {
+            setServerState(data);
+          }
           setError(null);
           onSaveSuccessRef.current?.();
         })
         .catch((err) => {
           setError(err instanceof Error ? err.message : 'Failed to save weights');
         })
-        .finally(() => setSaving(false));
+        .finally(() => {
+          if (saveVersionRef.current === version) {
+            setSaving(false);
+          }
+        });
     }, 500);
   }, []);
 
   const setWeight = useCallback(
     (factor: string, value: number) => {
       setWeights((prev) => {
+        if (prev[factor] === value) return prev;
         const next = { ...prev, [factor]: value };
         persistWeights(next);
         return next;
@@ -95,7 +111,9 @@ export function useWeights(onSaveSuccess?: () => void): WeightsState {
     [persistWeights],
   );
 
-  const rawSum = Object.values(weights).reduce((s, v) => s + v, 0);
+  const rawSum = Object.entries(weights)
+    .filter(([k]) => !isFusionKey(k))
+    .reduce((s, [, v]) => s + v, 0);
   const isSumValid = Math.abs(rawSum - 100) < 0.01;
   const warningMessage =
     serverState && !serverState.is_sum_valid ? serverState.message : null;

@@ -318,6 +318,55 @@ class TestLateFusionV1:
 
 
 # ---------------------------------------------------------------------------
+# 7b. late_fusion_v1 respects dynamic fusion weights
+# ---------------------------------------------------------------------------
+
+class TestLateFusionDynamicWeights:
+    def test_dynamic_weights_change_output(self):
+        """Mocking WeightService fusion weights changes late_fusion_v1 output."""
+        from unittest.mock import patch, MagicMock
+        from src.feature_extraction.track_similarity import _get_live_fusion_weights
+
+        mock_svc = MagicMock()
+        mock_svc.get_fusion_weights.return_value = {
+            'FUSION_HARMONIC': 1.0,
+            'FUSION_RHYTHM': 0.0,
+            'FUSION_TIMBRE': 0.0,
+            'FUSION_ENERGY': 0.0,
+        }
+        mock_ws_class = MagicMock()
+        mock_ws_class.instance.return_value = mock_svc
+
+        with patch.dict(
+            'sys.modules',
+            {'src.harmonic_mixing.weight_service': MagicMock(WeightService=mock_ws_class)},
+        ):
+            wh, wr, wt, we = _get_live_fusion_weights()
+            assert wh == 1.0
+            assert wr == 0.0
+
+    def test_fallback_on_service_failure(self):
+        """When WeightService is unavailable, constants are returned."""
+        from unittest.mock import patch
+        from src.feature_extraction.track_similarity import (
+            FUSION_WEIGHT_HARMONIC,
+            FUSION_WEIGHT_RHYTHM,
+            FUSION_WEIGHT_TIMBRE,
+            FUSION_WEIGHT_ENERGY,
+            _get_live_fusion_weights,
+        )
+        with patch.dict(
+            'sys.modules',
+            {'src.harmonic_mixing.weight_service': None},
+        ):
+            wh, wr, wt, we = _get_live_fusion_weights()
+        assert wh == FUSION_WEIGHT_HARMONIC
+        assert wr == FUSION_WEIGHT_RHYTHM
+        assert wt == FUSION_WEIGHT_TIMBRE
+        assert we == FUSION_WEIGHT_ENERGY
+
+
+# ---------------------------------------------------------------------------
 # 8. Scorer registry routes correctly
 # ---------------------------------------------------------------------------
 

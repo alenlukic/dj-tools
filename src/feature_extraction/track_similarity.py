@@ -284,6 +284,21 @@ def _energy_similarity(blocks_a: dict, blocks_b: dict, **kw) -> float:
     return _dist_to_sim(d, tau)
 
 
+def _get_live_fusion_weights():
+    """Read fusion weights from WeightService if available; fall back to constants."""
+    try:
+        from src.harmonic_mixing.weight_service import WeightService
+        fw = WeightService.instance().get_fusion_weights()
+        return (
+            fw.get('FUSION_HARMONIC', FUSION_WEIGHT_HARMONIC),
+            fw.get('FUSION_RHYTHM', FUSION_WEIGHT_RHYTHM),
+            fw.get('FUSION_TIMBRE', FUSION_WEIGHT_TIMBRE),
+            fw.get('FUSION_ENERGY', FUSION_WEIGHT_ENERGY),
+        )
+    except Exception:
+        return (FUSION_WEIGHT_HARMONIC, FUSION_WEIGHT_RHYTHM, FUSION_WEIGHT_TIMBRE, FUSION_WEIGHT_ENERGY)
+
+
 @_register(ScorerName.LATE_FUSION_V1)
 def late_fusion_v1(vec_a: np.ndarray, vec_b: np.ndarray, **kw) -> float:
     """Block-wise late-fusion scorer with configurable weights.
@@ -299,11 +314,12 @@ def late_fusion_v1(vec_a: np.ndarray, vec_b: np.ndarray, **kw) -> float:
     t = _timbre_similarity(blocks_a, blocks_b, **kw)
     e = _energy_similarity(blocks_a, blocks_b, **kw)
 
+    wh, wr, wt, we = _get_live_fusion_weights()
     score = (
-        FUSION_WEIGHT_HARMONIC * h
-        + FUSION_WEIGHT_RHYTHM * r
-        + FUSION_WEIGHT_TIMBRE * t
-        + FUSION_WEIGHT_ENERGY * e
+        wh * h
+        + wr * r
+        + wt * t
+        + we * e
     )
 
     if not np.isfinite(score):
